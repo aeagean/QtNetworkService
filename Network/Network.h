@@ -4,30 +4,42 @@
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QNetworkAccessManager>
-#include <QVariantMap>
+#include <QSignalMapper>
+
+#define NETWORK_NO_ERROR 200
 
 class Network : public QObject
 {
     Q_OBJECT
 public:
-    /* FNetwork => function network */
-    typedef void (Network::*FNetwork)(QNetworkReply*);
     Network();
-    ~Network();
+    virtual ~Network();
 
-    void get(const QString url);
-    void post(const QString url, const QByteArray &data);
-
-    QNetworkRequest &networkRequest();
-    QMap<QString, FNetwork> &getFNetworkMap();
+    void get(QNetworkRequest request, const QObject* replyReceiver, const char *slot);
+    void post(QNetworkRequest request, const QByteArray &data, const QObject* replyReceiver, const char *slot);
 
 private slots:
     void serviceRequestFinished(QNetworkReply *reply);
 
 private:
-    QNetworkRequest m_networkRequest;
+    bool bindingSignal(QNetworkRequest &request, const QObject* replyReceiver, const char *slot);
+
+private:
     QNetworkAccessManager m_networkAccessManager;
-    QMap<QString, FNetwork> m_FNetworkMap;
 };
 
+class NetworkRequest : public QObject
+{
+    Q_OBJECT
+public:
+    NetworkRequest(QObject *parent = NULL) :
+        QObject(parent) { }
+
+    void finished(QVariant var) {
+        emit _finished(var);
+    }
+
+signals:
+    void _finished(QVariant var);
+};
 #endif // CPP_NETWORK_H
