@@ -9,8 +9,8 @@ class ServiceNetwork : public Network
 public:
     ServiceNetwork();
 
-    void update1(QNetworkReply* reply);
-    void update2(QNetworkReply *reply);
+private slots:
+    void update(QVariant data);
 };
 
 #endif // CPP_SERVICENETWORK_H

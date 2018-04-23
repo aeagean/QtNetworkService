@@ -5,20 +5,12 @@
 
 ServiceNetwork::ServiceNetwork()
 {
-   QMap<QString, Network::FNetwork> &funcMap = getFNetworkMap();
-   funcMap[AEAGEAN] = FNetwork(&ServiceNetwork::update1);
-   funcMap[BAIDU] = FNetwork(&ServiceNetwork::update2);
-
-   get(AEAGEAN);
-   get(BAIDU);
+   get(QNetworkRequest(QUrl(AEAGEAN)), this, SLOT(update(QVariant)));
+   get(QNetworkRequest(QUrl(BAIDU)), this, SLOT(update(QVariant)));
 }
 
-void ServiceNetwork::update1(QNetworkReply *reply)
+void ServiceNetwork::update(QVariant data)
 {
-    qDebug()<<reply->readAll();
-}
-
-void ServiceNetwork::update2(QNetworkReply *reply)
-{
+    QNetworkReply* reply = data.value<QNetworkReply *>();
     qDebug()<<reply->readAll();
 }
