@@ -19,8 +19,16 @@ INCLUDEPATH += Network
 
 SOURCES += main.cpp \
     Network/Network.cpp \
-    Network/ServiceNetwork.cpp
+    Network/ServiceNetwork.cpp \
+    Network/ServiceNetwork.cpp \
+    Network/Network.cpp \
+    Network/JsonHttpMethod.cpp \
+    Network/JsonHttpClient.cpp
 
 HEADERS += \
     Network/Network.h \
-    Network/ServiceNetwork.h
+    Network/ServiceNetwork.h \
+    Network/ServiceNetwork.h \
+    Network/Network.h \
+    Network/JsonHttpMethod.h \
+    Network/JsonHttpClient.h

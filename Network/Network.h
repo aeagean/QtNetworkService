@@ -8,7 +8,7 @@
 
 #define NETWORK_NO_ERROR 200
 
-class Network : public QObject
+class Network : public QNetworkAccessManager
 {
     Q_OBJECT
 public:
@@ -23,9 +23,6 @@ private slots:
 
 private:
     bool bindingSignal(QNetworkRequest &request, const QObject* replyReceiver, const char *slot);
-
-private:
-    QNetworkAccessManager m_networkAccessManager;
 };
 
 class NetworkRequest : public QObject

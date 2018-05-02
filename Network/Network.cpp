@@ -5,12 +5,12 @@
 
 Network::Network()
 {
-    connect(&m_networkAccessManager, SIGNAL(finished(QNetworkReply*)), this, SLOT(serviceRequestFinished(QNetworkReply*)));
+    connect(this, SIGNAL(finished(QNetworkReply*)), this, SLOT(serviceRequestFinished(QNetworkReply*)));
 }
 
 Network::~Network()
 {
-    m_networkAccessManager.disconnect();
+    disconnect();
 }
 
 void Network::get(QNetworkRequest request, const QObject *replyReceiver, const char *slot)
