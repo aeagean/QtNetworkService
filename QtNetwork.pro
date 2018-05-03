@@ -18,17 +18,9 @@ DEFINES += QT_DEPRECATED_WARNINGS
 INCLUDEPATH += Network
 
 SOURCES += main.cpp \
-    Network/Network.cpp \
-    Network/ServiceNetwork.cpp \
-    Network/ServiceNetwork.cpp \
-    Network/Network.cpp \
-    Network/JsonHttpMethod.cpp \
-    Network/JsonHttpClient.cpp
+    Network/HttpService.cpp \
+    Network/HttpServiceMethod.cpp
 
 HEADERS += \
-    Network/Network.h \
-    Network/ServiceNetwork.h \
-    Network/ServiceNetwork.h \
-    Network/Network.h \
-    Network/JsonHttpMethod.h \
-    Network/JsonHttpClient.h
+    Network/HttpService.h \
+    Network/HttpServiceMethod.h

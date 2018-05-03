@@ -1,12 +1,10 @@
+#include "HttpService.h"
 #include <QCoreApplication>
-#include "ServiceNetwork.h"
 
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
-
-    ServiceNetwork* serviceNetwork = new ServiceNetwork();
-//    serviceNetwork->
-
+    Test* test = new Test;
+    test->execute();
     return a.exec();
 }
