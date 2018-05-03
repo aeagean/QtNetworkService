@@ -18,6 +18,7 @@ public:
     HttpServiceMethod &queryParam(const QString &key, const QString &value);
     HttpServiceMethod &jsonBody(const QVariant &jsonBody);
     HttpServiceMethod &onResponse(const QObject *respReceiver, const char *slot);
+    HttpServiceMethod &onError(const QObject *errorReceiver, const char *slot);
 
     bool exec();
 
@@ -27,7 +28,9 @@ private:
     QNetworkAccessManager::Operation m_op;
     HttpService *m_httpService;
     QObject *m_respReceiver;
+    QObject *m_errorReceiver;
     QString m_respReceiverSlot;
+    QString m_errorReceiverSlot;
 };
 
 #endif // HTTP_SERVICE_METHOD

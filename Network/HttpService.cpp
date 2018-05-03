@@ -25,18 +25,21 @@ HttpServiceMethod HttpService::post(const QString url)
     return httpServiceMethod.url(url);
 }
 
-bool HttpService::sendRequest(QNetworkAccessManager::Operation op, QNetworkRequest &request, QVariant data, const QObject *respReceiver, const char *slot)
+bool HttpService::sendRequest(QNetworkAccessManager::Operation op, QNetworkRequest &request, QVariant data,
+                              const QObject *respReceiver, const char *respReceiverSlot,
+                              const QObject *errorReceiver, const char *errorReceiverSlot)
 {
-    Q_ASSERT(respReceiver);
-    Q_ASSERT(slot);
-
     QString requestId = "Request-" + QUuid::createUuid().toString();
     request.setAttribute(QNetworkRequest::User, requestId);
 
     HttpRequest* requestForResp = new HttpRequest(this);
     requestForResp->setObjectName(requestId);
 
-    connect(requestForResp, SIGNAL(finished(QVariant)), respReceiver, slot);
+    if (respReceiver != NULL || QString(respReceiverSlot) != "")
+        connect(requestForResp, SIGNAL(finished(QVariant)), respReceiver, respReceiverSlot);
+
+    if (errorReceiver != NULL || QString(errorReceiverSlot) != "")
+        connect(requestForResp, SIGNAL(errored(QVariant)), errorReceiver, errorReceiverSlot);
 
     if (op == QNetworkAccessManager::GetOperation) {
         m_networkAccessManager.get(request);

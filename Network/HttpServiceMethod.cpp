@@ -12,7 +12,11 @@ HttpServiceMethod::HttpServiceMethod()
 HttpServiceMethod::HttpServiceMethod(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient) :
     m_op(op), m_httpService(jsonHttpClient)
 {
+    m_respReceiver = NULL;
+    m_errorReceiver = NULL;
 
+    m_respReceiverSlot = "";
+    m_errorReceiverSlot = "";
 }
 
 HttpServiceMethod &HttpServiceMethod::url(const QString url)
@@ -47,9 +51,18 @@ HttpServiceMethod &HttpServiceMethod::onResponse(const QObject *respReceiver, co
     return *this;
 }
 
+HttpServiceMethod &HttpServiceMethod::onError(const QObject *errorReceiver, const char *slot)
+{
+    m_errorReceiver = (QObject *)errorReceiver;
+    m_errorReceiverSlot = slot;
+    return *this;
+}
+
 bool HttpServiceMethod::exec()
 {
-    return m_httpService->sendRequest(m_op, m_networkRequest, QVariant::fromValue(m_jsonBody), m_respReceiver, m_respReceiverSlot.toStdString().data());
+    return m_httpService->sendRequest(m_op, m_networkRequest, QVariant::fromValue(m_jsonBody),
+                                      m_respReceiver, m_respReceiverSlot.toStdString().data(),
+                                      m_errorReceiver, m_errorReceiverSlot.toStdString().data());
 }
 
 HttpServiceMethod &HttpServiceMethod::queryParam(const QString &key, const QString &value)

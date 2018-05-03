@@ -19,7 +19,8 @@ public:
 
 protected:
     bool sendRequest(QNetworkAccessManager::Operation op, QNetworkRequest &request, QVariant data,
-                     const QObject *respReceiver, const char *slot);
+                     const QObject *respReceiver, const char *respReceiverSlot,
+                     const QObject *errorReceiver, const char *slotErrorReceiver);
 
 private slots:
     void onResponse(QNetworkReply *reply);
@@ -42,8 +43,14 @@ public:
         emit finished(result);
     }
 
+    void onError(const QVariant result) /* code */
+    {
+        emit errored(result);
+    }
+
 signals:
     void finished(const QVariant result);
+    void errored(const QVariant result);
 };
 
 class Test : public QObject {
@@ -57,7 +64,7 @@ public:
     {
         HttpService httpService;
         httpService.get("http://www.aeagean.com")
-                   .onResponse(this, SLOT(finish(QVariant)))
+//                   .onResponse(this, SLOT(finish(QVariant)))
                    .exec();
 
         httpService.get("http://www.baidu.com")
