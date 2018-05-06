@@ -35,6 +35,9 @@ public:
     {
         auto finishedOperation = [=]()
         {
+            if (reply == NULL || reply->error() != QNetworkReply::NoError)
+                return;
+
             emit finished(QVariant::fromValue(reply));
             reply->deleteLater();
         };
