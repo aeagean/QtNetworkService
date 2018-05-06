@@ -22,9 +22,6 @@ protected:
                      const QObject *respReceiver, const char *respReceiverSlot,
                      const QObject *errorReceiver, const char *slotErrorReceiver);
 
-private slots:
-    void onResponse(QNetworkReply *reply);
-
 private:
     QNetworkAccessManager m_networkAccessManager;
 };
@@ -33,19 +30,33 @@ class HttpRequest : public QObject
 {
     Q_OBJECT
 public:
-    HttpRequest(QObject *parent = NULL)
-        : QObject(parent)
+    HttpRequest(QNetworkReply* reply)
+        : QObject(reply)
     {
+        auto finishedOperation = [=]()
+        {
+            emit finished(QVariant::fromValue(reply));
+            reply->deleteLater();
+        };
+
+        auto erroredOperation = [=](QNetworkReply::NetworkError error)
+        {
+            emit errored(QVariant::fromValue(error));
+            reply->deleteLater();
+        };
+
+        connect(reply, &QNetworkReply::finished, finishedOperation);
+        connect(reply, static_cast<void (QNetworkReply::*)(QNetworkReply::NetworkError)>(&QNetworkReply::error), erroredOperation);
     }
 
-    void onResponse(const QVariant result)
-    {
-        emit finished(result);
+    void onResponse(const QObject *respReceiver, const char *respReceiverSlot) {
+        if (respReceiver != NULL && !QString(respReceiverSlot).isEmpty())
+            connect(this, SIGNAL(finished(QVariant)), respReceiver, respReceiverSlot, Qt::UniqueConnection);
     }
 
-    void onError(const QVariant result) /* code */
-    {
-        emit errored(result);
+    void onError(const QObject *errorReceiver, const char *slotErrorReceiver) {
+        if (errorReceiver != NULL && !QString(slotErrorReceiver).isEmpty())
+            connect(this, SIGNAL(errored(QVariant)), errorReceiver, slotErrorReceiver, Qt::UniqueConnection);
     }
 
 signals:
@@ -62,22 +73,29 @@ public:
 
     void execute()
     {
-        HttpService httpService;
-        httpService.get("http://www.aeagean.com")
-//                   .onResponse(this, SLOT(finish(QVariant)))
+        m_httpService.get("http://www.aeagean.com")
+                   .onResponse(this, SLOT(finish(QVariant)))
                    .exec();
 
-        httpService.get("http://www.baidu.com")
+        m_httpService.get("hddttp://www.baidu.com")
                    .onResponse(this, SLOT(finish(QVariant)))
+                   .onError(this, SLOT(error(QVariant)))
                    .exec();
     }
 
-public slots:
+private slots:
     void finish(QVariant result)
     {
         QNetworkReply* reply = result.value<QNetworkReply *>();
-        qDebug()<<reply->readAll();
+        qDebug()<<"reply: "<<reply->readAll();
     }
+
+    void error(QVariant result) {
+        qDebug()<<"error: "<<result;
+    }
+
+private:
+    HttpService m_httpService;
 };
 
 #endif // HTTP_SERVICE_H

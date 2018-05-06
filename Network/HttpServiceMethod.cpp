@@ -19,7 +19,7 @@ HttpServiceMethod::HttpServiceMethod(QNetworkAccessManager::Operation op, HttpSe
     m_errorReceiverSlot = "";
 }
 
-HttpServiceMethod &HttpServiceMethod::url(const QString url)
+HttpServiceMethod &HttpServiceMethod::url(const QString &url)
 {
     m_networkRequest.setUrl(QUrl(url));
     return *this;
@@ -61,8 +61,8 @@ HttpServiceMethod &HttpServiceMethod::onError(const QObject *errorReceiver, cons
 bool HttpServiceMethod::exec()
 {
     return m_httpService->sendRequest(m_op, m_networkRequest, QVariant::fromValue(m_jsonBody),
-                                      m_respReceiver, m_respReceiverSlot.toStdString().data(),
-                                      m_errorReceiver, m_errorReceiverSlot.toStdString().data());
+                                      m_respReceiver, m_respReceiverSlot.toStdString().c_str(),
+                                      m_errorReceiver, m_errorReceiverSlot.toStdString().c_str());
 }
 
 HttpServiceMethod &HttpServiceMethod::queryParam(const QString &key, const QString &value)

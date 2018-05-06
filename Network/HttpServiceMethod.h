@@ -13,7 +13,7 @@ public:
     HttpServiceMethod();
     explicit HttpServiceMethod(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient);
 
-    HttpServiceMethod &url(const QString url);
+    HttpServiceMethod &url(const QString &url);
     HttpServiceMethod &header(const QString &key, const QString &value);
     HttpServiceMethod &queryParam(const QString &key, const QString &value);
     HttpServiceMethod &jsonBody(const QVariant &jsonBody);

@@ -5,7 +5,6 @@
 
 HttpService::HttpService()
 {
-    connect(&m_networkAccessManager, SIGNAL(finished(QNetworkReply*)), this, SLOT(onResponse(QNetworkReply*)));
 }
 
 HttpService::~HttpService()
@@ -29,37 +28,20 @@ bool HttpService::sendRequest(QNetworkAccessManager::Operation op, QNetworkReque
                               const QObject *respReceiver, const char *respReceiverSlot,
                               const QObject *errorReceiver, const char *errorReceiverSlot)
 {
-    QString requestId = "Request-" + QUuid::createUuid().toString();
-    request.setAttribute(QNetworkRequest::User, requestId);
-
-    HttpRequest* requestForResp = new HttpRequest(this);
-    requestForResp->setObjectName(requestId);
-
-    if (respReceiver != NULL || QString(respReceiverSlot) != "")
-        connect(requestForResp, SIGNAL(finished(QVariant)), respReceiver, respReceiverSlot);
-
-    if (errorReceiver != NULL || QString(errorReceiverSlot) != "")
-        connect(requestForResp, SIGNAL(errored(QVariant)), errorReceiver, errorReceiverSlot);
-
+    QNetworkReply* reply = NULL;
     if (op == QNetworkAccessManager::GetOperation) {
-        m_networkAccessManager.get(request);
+        reply = m_networkAccessManager.get(request);
     }
     else if (op == QNetworkAccessManager::PostOperation) {
-        m_networkAccessManager.post(request, QJsonDocument(data.toJsonObject()).toBinaryData());
+        reply = m_networkAccessManager.post(request, QJsonDocument(data.toJsonObject()).toBinaryData());
     }
+
+    if (reply == NULL)
+        return false;
+
+    HttpRequest* requestForResp = new HttpRequest(reply);
+    requestForResp->onResponse(respReceiver, respReceiverSlot);
+    requestForResp->onError(errorReceiver, errorReceiverSlot);
 
     return true;
-}
-
-void HttpService::onResponse(QNetworkReply *reply)
-{
-    QString requestId = reply->request().attribute(QNetworkRequest::User).toString();
-
-    HttpRequest *httpRequest = findChild<HttpRequest *>(requestId);
-    if (httpRequest != NULL) {
-        httpRequest->onResponse(QVariant::fromValue(reply));
-        httpRequest->deleteLater();
-    }
-
-    reply->deleteLater();
 }
