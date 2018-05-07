@@ -1,5 +1,4 @@
 #include "HttpService.h"
-#include <QUuid>
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QBuffer>
@@ -24,7 +23,7 @@ HttpServiceMethod HttpService::post(const QString url)
     return httpServiceMethod.url(url);
 }
 
-bool HttpService::sendRequest(QNetworkAccessManager::Operation op, QNetworkRequest &request, QVariant data,
+bool HttpService::sendRequest(QNetworkAccessManager::Operation op, QNetworkRequest &request, const QVariant &data,
                               const QObject *respReceiver, const char *respReceiverSlot,
                               const QObject *errorReceiver, const char *errorReceiverSlot)
 {

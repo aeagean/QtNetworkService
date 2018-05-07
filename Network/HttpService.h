@@ -19,7 +19,7 @@ public:
     HttpServiceMethod post(const QString url);
 
 protected:
-    bool sendRequest(QNetworkAccessManager::Operation op, QNetworkRequest &request, QVariant data,
+    bool sendRequest(QNetworkAccessManager::Operation op, QNetworkRequest &request, const QVariant &data,
                      const QObject *respReceiver, const char *respReceiverSlot,
                      const QObject *errorReceiver, const char *slotErrorReceiver);
 };
