@@ -1,4 +1,6 @@
 #include "HttpService.h"
+#include "Test.h"
+
 #include <QCoreApplication>
 
 int main(int argc, char *argv[])

@@ -2,6 +2,7 @@
 #include <QUuid>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <QBuffer>
 
 HttpService::HttpService()
 {
@@ -9,7 +10,6 @@ HttpService::HttpService()
 
 HttpService::~HttpService()
 {
-    m_networkAccessManager.disconnect();
 }
 
 HttpServiceMethod HttpService::get(const QString url)
@@ -29,15 +29,21 @@ bool HttpService::sendRequest(QNetworkAccessManager::Operation op, QNetworkReque
                               const QObject *errorReceiver, const char *errorReceiverSlot)
 {
     QNetworkReply* reply = NULL;
-    if (op == QNetworkAccessManager::GetOperation) {
-        reply = m_networkAccessManager.get(request);
-    }
-    else if (op == QNetworkAccessManager::PostOperation) {
-        reply = m_networkAccessManager.post(request, QJsonDocument(data.toJsonObject()).toBinaryData());
+    QBuffer* sendBuffer = NULL;
+    QJsonObject sendJson = data.toJsonObject();
+    if (!sendJson.isEmpty()) {
+        QByteArray sendByteArray = QJsonDocument(sendJson).toJson();
+        sendBuffer = new QBuffer;
+        sendBuffer->setData(sendByteArray);
+        sendBuffer->setParent(reply);
     }
 
-    if (reply == NULL)
+    reply = QNetworkAccessManager::createRequest(op, request, sendBuffer);
+
+    if (reply == NULL && sendBuffer != NULL) {
+        sendBuffer->deleteLater();
         return false;
+    }
 
     HttpRequest* requestForResp = new HttpRequest(reply);
     requestForResp->onResponse(respReceiver, respReceiverSlot);

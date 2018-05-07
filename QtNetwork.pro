@@ -19,8 +19,12 @@ INCLUDEPATH += Network
 
 SOURCES += main.cpp \
     Network/HttpService.cpp \
-    Network/HttpServiceMethod.cpp
+    Network/HttpServiceMethod.cpp \
+    Network/HttpRequest.cpp \
+    Test.cpp
 
 HEADERS += \
     Network/HttpService.h \
-    Network/HttpServiceMethod.h
+    Network/HttpServiceMethod.h \
+    Network/HttpRequest.h \
+    Test.h
