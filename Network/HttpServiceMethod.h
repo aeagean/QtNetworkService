@@ -10,7 +10,7 @@ class HttpService;
 class HttpServiceMethod
 {
 public:
-    HttpServiceMethod();
+    virtual ~HttpServiceMethod();
     explicit HttpServiceMethod(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient);
 
     HttpServiceMethod &url(const QString &url);
@@ -23,13 +23,16 @@ public:
     bool exec();
 
 private:
+    HttpServiceMethod();
+
+private:
     QNetworkRequest m_networkRequest;
     QJsonObject m_jsonBody;
     QNetworkAccessManager::Operation m_op;
     HttpService *m_httpService;
     QObject *m_respReceiver;
-    QObject *m_errorReceiver;
     QString m_respReceiverSlot;
+    QObject *m_errorReceiver;
     QString m_errorReceiverSlot;
 };
 

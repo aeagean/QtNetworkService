@@ -22,30 +22,3 @@ HttpServiceMethod HttpService::post(const QString url)
     HttpServiceMethod httpServiceMethod(QNetworkAccessManager::PostOperation, this);
     return httpServiceMethod.url(url);
 }
-
-bool HttpService::sendRequest(QNetworkAccessManager::Operation op, QNetworkRequest &request, const QVariant &data,
-                              const QObject *respReceiver, const char *respReceiverSlot,
-                              const QObject *errorReceiver, const char *errorReceiverSlot)
-{
-    QNetworkReply* reply = NULL;
-    QBuffer* sendBuffer = NULL;
-    QJsonObject sendJson = data.toJsonObject();
-    if (!sendJson.isEmpty()) {
-        QByteArray sendByteArray = QJsonDocument(sendJson).toJson();
-        sendBuffer = new QBuffer(reply);
-        sendBuffer->setData(sendByteArray);
-    }
-
-    reply = QNetworkAccessManager::createRequest(op, request, sendBuffer);
-
-    if (reply == NULL && sendBuffer != NULL) {
-        sendBuffer->deleteLater();
-        return false;
-    }
-
-    HttpRequest* requestForResp = new HttpRequest(reply);
-    requestForResp->onResponse(respReceiver, respReceiverSlot);
-    requestForResp->onError(errorReceiver, errorReceiverSlot);
-
-    return true;
-}

@@ -3,20 +3,26 @@
 
 #include <QJsonDocument>
 #include <QUrlQuery>
+#include <QBuffer>
+
+#define METHOD_STRING(m) (#m)
 
 HttpServiceMethod::HttpServiceMethod()
 {
 
 }
 
+HttpServiceMethod::~HttpServiceMethod()
+{
+}
+
 HttpServiceMethod::HttpServiceMethod(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient) :
     m_op(op), m_httpService(jsonHttpClient)
 {
     m_respReceiver = NULL;
+    m_respReceiverSlot = QString();
     m_errorReceiver = NULL;
-
-    m_respReceiverSlot = "";
-    m_errorReceiverSlot = "";
+    m_errorReceiverSlot = QString();
 }
 
 HttpServiceMethod &HttpServiceMethod::url(const QString &url)
@@ -45,24 +51,45 @@ HttpServiceMethod &HttpServiceMethod::jsonBody(const QVariant &jsonBody)
 
 HttpServiceMethod &HttpServiceMethod::onResponse(const QObject *respReceiver, const char *slot)
 {
-    m_respReceiver = (QObject *)respReceiver;
-    m_respReceiverSlot = slot;
 
     return *this;
 }
 
 HttpServiceMethod &HttpServiceMethod::onError(const QObject *errorReceiver, const char *slot)
 {
-    m_errorReceiver = (QObject *)errorReceiver;
-    m_errorReceiverSlot = slot;
+
     return *this;
 }
 
 bool HttpServiceMethod::exec()
 {
-    return m_httpService->sendRequest(m_op, m_networkRequest, QVariant::fromValue(m_jsonBody),
-                                      m_respReceiver, m_respReceiverSlot.toStdString().c_str(),
-                                      m_errorReceiver, m_errorReceiverSlot.toStdString().c_str());
+    QNetworkReply* reply = NULL;
+    QBuffer* sendBuffer = NULL;
+    QJsonObject sendJson = m_jsonBody;
+    if (!sendJson.isEmpty()) {
+        QByteArray sendByteArray = QJsonDocument(sendJson).toJson();
+        sendBuffer = new QBuffer(reply);
+        sendBuffer->setData(sendByteArray);
+    }
+
+    reply = m_httpService->createRequest(m_op, m_networkRequest, sendBuffer);
+
+    if (reply == NULL && sendBuffer != NULL) {
+        sendBuffer->deleteLater();
+        return false;
+    }
+
+    connect(m_httpService, SIGNAL(finished()), [=] {
+
+    });
+
+    connect(m_httpService, SIGNAL(error(QNetworkReply::NetworkError)), [=]{
+
+    });
+
+//    HttpRequest* requestForResp = new HttpRequest(reply);
+//    requestForResp->onResponse(respReceiver, respReceiverSlot);
+//    requestForResp->onError(errorReceiver, errorReceiverSlot);
 }
 
 HttpServiceMethod &HttpServiceMethod::queryParam(const QString &key, const QString &value)

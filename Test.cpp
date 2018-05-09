@@ -10,10 +10,10 @@ void Test::execute()
             .onResponse(this, SLOT(finish(QVariant)))
             .exec();
 
-    m_httpService.get("http://www.baidu.com")
-            .onResponse(this, SLOT(finish(QVariant)))
-            .onError(this, SLOT(error(QVariant)))
-            .exec();
+//    m_httpService.get("http://www.baidu.com")
+//            .onResponse(this, SLOT(finish(QVariant)))
+//            .onError(this, SLOT(error(QVariant)))
+//            .exec();
 }
 
 void Test::finish(QVariant result)
