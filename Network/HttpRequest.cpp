@@ -7,7 +7,11 @@ HttpRequest::HttpRequest(QNetworkReply* parent,
 {
     QString method(respReceiverSlot);
 
-    qDebug()<<method.remove(QRegExp("(\([^\]]*\))"));
+    QRegExp rx("[a-z]*?");
+    int pos = rx.indexIn(method);
+    QStringList list = rx.capturedTexts();
+    qDebug()<<list<<method;
+    qDebug()<<method.remove(QRegExp("[\(]+[\w]*[\)]+"));
 
     connect(parent, &QNetworkReply::finished, [=]() {
         QMetaObject::invokeMethod((QObject *)respReceiver, method.toStdString().data(), Q_ARG(QVariant, QVariant::fromValue(parent->readAll())));
