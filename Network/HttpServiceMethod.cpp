@@ -51,13 +51,15 @@ HttpServiceMethod &HttpServiceMethod::jsonBody(const QVariant &jsonBody)
 
 HttpServiceMethod &HttpServiceMethod::onResponse(const QObject *respReceiver, const char *slot)
 {
-
+    m_respReceiver = (QObject *)respReceiver;
+    m_respReceiverSlot = slot;
     return *this;
 }
 
 HttpServiceMethod &HttpServiceMethod::onError(const QObject *errorReceiver, const char *slot)
 {
-
+    m_errorReceiver = (QObject *)errorReceiver;
+    m_errorReceiverSlot = slot;
     return *this;
 }
 
@@ -79,17 +81,9 @@ bool HttpServiceMethod::exec()
         return false;
     }
 
-    connect(m_httpService, SIGNAL(finished()), [=] {
-
-    });
-
-    connect(m_httpService, SIGNAL(error(QNetworkReply::NetworkError)), [=]{
-
-    });
-
-//    HttpRequest* requestForResp = new HttpRequest(reply);
-//    requestForResp->onResponse(respReceiver, respReceiverSlot);
-//    requestForResp->onError(errorReceiver, errorReceiverSlot);
+    return new HttpRequest(reply,
+                           m_respReceiver, m_respReceiverSlot.toStdString().c_str(),
+                           m_errorReceiver, m_errorReceiverSlot.toStdString().c_str());
 }
 
 HttpServiceMethod &HttpServiceMethod::queryParam(const QString &key, const QString &value)

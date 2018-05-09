@@ -7,28 +7,19 @@ class HttpRequest : public QNetworkReply
 {
     Q_OBJECT
 public:
-    explicit HttpRequest(QNetworkReply* parent);
+    explicit HttpRequest(QNetworkReply* parent,
+                         const QObject *respReceiver, const char *respReceiverSlot,
+                         const QObject *errorReceiver, const char *ErrorReceiverSlot);
     virtual ~HttpRequest();
-
-    void onResponse(const QObject *respReceiver, const char *respReceiverSlot);
-    void onError(const QObject *errorReceiver, const char *slotErrorReceiver);
 
 public slots:
     void abort();
-
-private slots:
-    void onFinished();
-    void onErrored(QNetworkReply::NetworkError error);
 
 protected:
     qint64 readData(char *data, qint64 maxlen);
 
 private:
     HttpRequest();
-
-signals:
-    void finished(const QVariant result);
-    void errored(const QVariant result);
 };
 
 

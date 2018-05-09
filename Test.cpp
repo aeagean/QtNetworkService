@@ -18,8 +18,7 @@ void Test::execute()
 
 void Test::finish(QVariant result)
 {
-    QNetworkReply* reply = result.value<QNetworkReply *>();
-    qDebug()<<"reply: "<<reply->readAll();
+    qDebug()<<"reply: "<<result;
 }
 
 void Test::error(QVariant result) {
