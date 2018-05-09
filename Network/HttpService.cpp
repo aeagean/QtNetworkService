@@ -32,9 +32,8 @@ bool HttpService::sendRequest(QNetworkAccessManager::Operation op, QNetworkReque
     QJsonObject sendJson = data.toJsonObject();
     if (!sendJson.isEmpty()) {
         QByteArray sendByteArray = QJsonDocument(sendJson).toJson();
-        sendBuffer = new QBuffer;
+        sendBuffer = new QBuffer(reply);
         sendBuffer->setData(sendByteArray);
-        sendBuffer->setParent(reply);
     }
 
     reply = QNetworkAccessManager::createRequest(op, request, sendBuffer);
