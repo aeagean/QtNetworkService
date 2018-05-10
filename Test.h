@@ -13,9 +13,9 @@ public:
     void execute();
 
 private slots:
-    void finish(QVariant result);
-
-    void error(QVariant result);
+    void finish(QVariantMap result);
+    void finish(QByteArray result);
+    void error(QNetworkReply::NetworkError result);
 
 private:
     HttpService m_httpService;

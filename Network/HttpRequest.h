@@ -9,7 +9,7 @@ class HttpRequest : public QNetworkReply
 public:
     explicit HttpRequest(QNetworkReply* parent,
                          const QObject *respReceiver, const char *respReceiverSlot,
-                         const QObject *errorReceiver, const char *ErrorReceiverSlot);
+                         const QObject *errorReceiver, const char *errorReceiverSlot);
     virtual ~HttpRequest();
 
 public slots:
@@ -17,6 +17,7 @@ public slots:
 
 protected:
     qint64 readData(char *data, qint64 maxlen);
+    void initRequest(const QObject *receiver, const char *receiverSlot);
 
 private:
     HttpRequest();
