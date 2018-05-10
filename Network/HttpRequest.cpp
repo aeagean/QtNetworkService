@@ -39,18 +39,21 @@ HttpRequest::HttpRequest(QNetworkReply* parent,
 {
     QString respReceiverSlotString(respReceiverSlot);
     connect(parent, &QNetworkReply::finished, [=]() {
-        initRequest(respReceiver, respReceiverSlotString.toStdString().data());
+        if (parent->error() == QNetworkReply::NoError) {
+            initRequest(respReceiver, respReceiverSlotString.toStdString().data());
+            parent->deleteLater();
+        }
     });
 
     QString errorReceiverSlotString(errorReceiverSlot);
     connect(parent, static_cast<void (QNetworkReply::*)(QNetworkReply::NetworkError)>(&QNetworkReply::error), [=]() {
         initRequest(errorReceiver, errorReceiverSlotString.toStdString().data());
+        parent->deleteLater();
     });
 }
 
 HttpRequest::~HttpRequest()
 {
-
 }
 
 void HttpRequest::abort()
