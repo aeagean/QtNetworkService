@@ -12,10 +12,10 @@ void Test::execute()
             .onError(this, SLOT(error(QNetworkReply::NetworkError)))
             .exec();
 
-//    m_httpService.get("http://www.baidu.com")
-//            .onResponse(this, SLOT(finish(QVariant)))
-//            .onError(this, SLOT(error(QVariant)))
-//            .exec();
+    m_httpService.get("http://www.baidu.com")
+            .onResponse(this, SLOT(finish(QByteArray)))
+            .onError(this, SLOT(error(QVariant)))
+            .exec();
 }
 
 void Test::finish(QVariantMap result)
@@ -25,7 +25,7 @@ void Test::finish(QVariantMap result)
 
 void Test::finish(QByteArray result)
 {
-    qDebug()<<"reply(QByteArray): "<<result;
+    qDebug()<<"reply(QByteArray): "<<QString(result).simplified();
 }
 
 void Test::finish(QNetworkReply *result)

@@ -42,9 +42,8 @@ HttpRequest::HttpRequest(QNetworkReply *parent, const QMap<QString, QMap<QString
             slotsMapOperation(slotsMap, HttpServiceMethod::onResponseMethod);
     });
 
-    connect(parent, static_cast<void (QNetworkReply::*)(QNetworkReply::NetworkError)>(&QNetworkReply::error), [=]() {
-        slotsMapOperation(slotsMap, HttpServiceMethod::onErrorMethod);
-    });
+    connect(parent, static_cast<void (QNetworkReply::*)(QNetworkReply::NetworkError)>(&QNetworkReply::error),
+            [=]() { slotsMapOperation(slotsMap, HttpServiceMethod::onErrorMethod); });
 }
 
 HttpRequest::~HttpRequest()
