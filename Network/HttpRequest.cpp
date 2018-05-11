@@ -9,6 +9,7 @@
 static const QStringList supportSlotTypeList = {
     TYPE_TO_STRING(QVariantMap),
     TYPE_TO_STRING(QByteArray),
+    TYPE_TO_STRING(QNetworkReply*),
     TYPE_TO_STRING(QNetworkReply::NetworkError)
 };
 
@@ -54,6 +55,7 @@ HttpRequest::HttpRequest(QNetworkReply* parent,
 
 HttpRequest::~HttpRequest()
 {
+    qDebug()<<"aaaa";
 }
 
 void HttpRequest::abort()
@@ -83,6 +85,10 @@ void HttpRequest::initRequest(const QObject *receiver, const char *receiverSlot)
     else if (slotType == TYPE_TO_STRING(QByteArray)) {
         QByteArray resultData = reply->readAll();
         QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QByteArray, resultData));
+    }
+    else if (slotType == TYPE_TO_STRING(QNetworkReply*) || (slotType.remove(QRegExp("\\s")) == TYPE_TO_STRING(QNetworkReply*))) {
+        QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QNetworkReply*, reply));
+
     }
     else if (slotType == TYPE_TO_STRING(QNetworkReply::NetworkError)) {
         QNetworkReply::NetworkError resultError = reply->error();

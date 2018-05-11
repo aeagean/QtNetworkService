@@ -7,8 +7,7 @@ Test::Test()
 void Test::execute()
 {
     m_httpService.get("http://www.aeagean.com")
-            .onResponse(this, SLOT(finish(QVariantMap)))
-            .onResponse(this, SLOT(finish(QByteArray)))
+            .onResponse(this, SLOT(finish(QNetworkReply        *)))
             .onError(this, SLOT(error(QNetworkReply::NetworkError)))
             .exec();
 
@@ -25,7 +24,12 @@ void Test::finish(QVariantMap result)
 
 void Test::finish(QByteArray result)
 {
-    qDebug()<<"reply(type: QByteArray): "<<result;
+    qDebug()<<"reply(QByteArray): "<<result;
+}
+
+void Test::finish(QNetworkReply *result)
+{
+    qDebug()<<"reply(type(QNetworkReply*): "<<result->readAll();
 }
 
 void Test::error(QNetworkReply::NetworkError result) {

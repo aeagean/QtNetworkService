@@ -5,6 +5,8 @@
 #include <QNetworkAccessManager>
 #include <QJsonObject>
 
+#include <functional>
+
 class HttpService;
 
 class HttpServiceMethod
@@ -17,7 +19,16 @@ public:
     HttpServiceMethod &header(const QString &key, const QString &value);
     HttpServiceMethod &queryParam(const QString &key, const QString &value);
     HttpServiceMethod &jsonBody(const QVariant &jsonBody);
+    /*
+     * @onRespone slot support type: void function(QVariantMap resultMap) OR
+     *                               void function(QByteArray resultData) OR
+     *                               void function(QNetworkReply* reply)
+     */
     HttpServiceMethod &onResponse(const QObject *respReceiver, const char *slot);
+    /*
+     * @onError slot support type: void function(QNetworkReply::NetworkErro errorr)
+     *
+     */
     HttpServiceMethod &onError(const QObject *errorReceiver, const char *slot);
 
     bool exec();
