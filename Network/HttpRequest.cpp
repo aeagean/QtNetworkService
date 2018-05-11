@@ -1,10 +1,12 @@
 #include "HttpRequest.h"
+#include "HttpServiceMethod.h"
 
 #include <QByteArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 
 #define TYPE_TO_STRING(t) QString(#t)
+#define NUMBER_TO_STRING(n)  QString::number(n)
 
 static const QStringList supportSlotTypeList = {
     TYPE_TO_STRING(QVariantMap),
@@ -33,29 +35,45 @@ static void extractSlot(const QString &respReceiverSlot, QString &extractSlot, Q
     }
 }
 
-HttpRequest::HttpRequest(QNetworkReply* parent,
-                         const QObject *respReceiver, const char *respReceiverSlot,
-                         const QObject *errorReceiver, const char *errorReceiverSlot)
+HttpRequest::HttpRequest(QNetworkReply *parent, QMap<QString, QMap<QString, const QObject *> > slotsMap)
     : QNetworkReply(parent)
 {
-    QString respReceiverSlotString(respReceiverSlot);
     connect(parent, &QNetworkReply::finished, [=]() {
         if (parent->error() == QNetworkReply::NoError) {
-            initRequest(respReceiver, respReceiverSlotString.toStdString().data());
+            QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
+            while (iter.hasNext()) {
+                iter.next();
+                const QString &key = iter.key();
+                const QMap<QString, const QObject *> &slotMap = iter.value();
+
+                if (!key.compare(NUMBER_TO_STRING(HttpServiceMethod::onResponseMethod)))
+                    initRequest(slotMap.first(), slotMap.firstKey().toStdString().data());
+            }
             parent->deleteLater();
         }
     });
 
-    QString errorReceiverSlotString(errorReceiverSlot);
     connect(parent, static_cast<void (QNetworkReply::*)(QNetworkReply::NetworkError)>(&QNetworkReply::error), [=]() {
-        initRequest(errorReceiver, errorReceiverSlotString.toStdString().data());
+        QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
+        while (iter.hasNext()) {
+            iter.next();
+            const QString &key = iter.key();
+            const QMap<QString, const QObject *> &slotMap = iter.value();
+            if (!key.compare(NUMBER_TO_STRING(HttpServiceMethod::onErrorMethod)))
+                initRequest(slotMap.first(), slotMap.firstKey().toStdString().data());
+        }
         parent->deleteLater();
     });
 }
 
+HttpRequest::HttpRequest(QNetworkReply *parent)
+    :QNetworkReply(parent)
+{
+
+}
+
 HttpRequest::~HttpRequest()
 {
-    qDebug()<<"aaaa";
 }
 
 void HttpRequest::abort()
@@ -83,17 +101,14 @@ void HttpRequest::initRequest(const QObject *receiver, const char *receiverSlot)
         QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QVariantMap, resultMap));
     }
     else if (slotType == TYPE_TO_STRING(QByteArray)) {
-        QByteArray resultData = reply->readAll();
-        QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QByteArray, resultData));
+        QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QByteArray, reply->readAll()));
     }
     else if (slotType == TYPE_TO_STRING(QNetworkReply*) || (slotType.remove(QRegExp("\\s")) == TYPE_TO_STRING(QNetworkReply*))) {
         QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QNetworkReply*, reply));
-
     }
     else if (slotType == TYPE_TO_STRING(QNetworkReply::NetworkError)) {
         QNetworkReply::NetworkError resultError = reply->error();
         QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QNetworkReply::NetworkError, resultError));
-
     }
     else {
         qDebug()<<"Don't support type: "<<slotType;

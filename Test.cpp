@@ -7,7 +7,8 @@ Test::Test()
 void Test::execute()
 {
     m_httpService.get("http://www.aeagean.com")
-            .onResponse(this, SLOT(finish(QNetworkReply        *)))
+            .onResponse(this, SLOT(finish(QByteArray)))
+//            .onResponse(this, SLOT(finish(QNetworkReply *)))
             .onError(this, SLOT(error(QNetworkReply::NetworkError)))
             .exec();
 

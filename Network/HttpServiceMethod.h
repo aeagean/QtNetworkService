@@ -12,6 +12,11 @@ class HttpService;
 class HttpServiceMethod
 {
 public:
+    enum SupportReflexMethod {
+        onResponseMethod,
+        onErrorMethod
+    };
+
     virtual ~HttpServiceMethod();
     explicit HttpServiceMethod(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient);
 
@@ -41,10 +46,7 @@ private:
     QJsonObject m_jsonBody;
     QNetworkAccessManager::Operation m_op;
     HttpService *m_httpService;
-    QObject *m_respReceiver;
-    QString m_respReceiverSlot;
-    QObject *m_errorReceiver;
-    QString m_errorReceiverSlot;
+    QMap<QString, QMap<QString, const QObject *>> m_slotsMap;
 };
 
 #endif // HTTP_SERVICE_METHOD

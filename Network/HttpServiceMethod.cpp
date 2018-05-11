@@ -5,7 +5,7 @@
 #include <QUrlQuery>
 #include <QBuffer>
 
-#define METHOD_STRING(m) (#m)
+#define NUMBER_TO_STRING(n) QString::number(n)
 
 HttpServiceMethod::HttpServiceMethod()
 {
@@ -19,10 +19,6 @@ HttpServiceMethod::~HttpServiceMethod()
 HttpServiceMethod::HttpServiceMethod(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient) :
     m_op(op), m_httpService(jsonHttpClient)
 {
-    m_respReceiver = NULL;
-    m_respReceiverSlot = QString();
-    m_errorReceiver = NULL;
-    m_errorReceiverSlot = QString();
 }
 
 HttpServiceMethod &HttpServiceMethod::url(const QString &url)
@@ -49,17 +45,15 @@ HttpServiceMethod &HttpServiceMethod::jsonBody(const QVariant &jsonBody)
     return *this;
 }
 
-HttpServiceMethod &HttpServiceMethod::onResponse(const QObject *respReceiver, const char *slot)
+HttpServiceMethod &HttpServiceMethod::onResponse(const QObject *reseceiver, const char *slot)
 {
-    m_respReceiver = (QObject *)respReceiver;
-    m_respReceiverSlot = slot;
+    m_slotsMap.insert(NUMBER_TO_STRING(HttpServiceMethod::onResponseMethod), {{slot, reseceiver}});
     return *this;
 }
 
-HttpServiceMethod &HttpServiceMethod::onError(const QObject *errorReceiver, const char *slot)
+HttpServiceMethod &HttpServiceMethod::onError(const QObject *receiver, const char *slot)
 {
-    m_errorReceiver = (QObject *)errorReceiver;
-    m_errorReceiverSlot = slot;
+    m_slotsMap.insert(NUMBER_TO_STRING(HttpServiceMethod::onErrorMethod), {{slot, receiver}});
     return *this;
 }
 
@@ -81,9 +75,7 @@ bool HttpServiceMethod::exec()
         return false;
     }
 
-    return new HttpRequest(reply,
-                           m_respReceiver, m_respReceiverSlot.toStdString().c_str(),
-                           m_errorReceiver, m_errorReceiverSlot.toStdString().c_str());
+    return new HttpRequest(reply, m_slotsMap);
 }
 
 HttpServiceMethod &HttpServiceMethod::queryParam(const QString &key, const QString &value)
