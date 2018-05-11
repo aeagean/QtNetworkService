@@ -1,5 +1,4 @@
 #include "HttpRequest.h"
-#include "HttpServiceMethod.h"
 
 #include <QByteArray>
 #include <QJsonDocument>
@@ -35,41 +34,17 @@ static void extractSlot(const QString &respReceiverSlot, QString &extractSlot, Q
     }
 }
 
-HttpRequest::HttpRequest(QNetworkReply *parent, QMap<QString, QMap<QString, const QObject *> > slotsMap)
+HttpRequest::HttpRequest(QNetworkReply *parent, const QMap<QString, QMap<QString, const QObject *> > &slotsMap)
     : QNetworkReply(parent)
 {
     connect(parent, &QNetworkReply::finished, [=]() {
-        if (parent->error() == QNetworkReply::NoError) {
-            QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
-            while (iter.hasNext()) {
-                iter.next();
-                const QString &key = iter.key();
-                const QMap<QString, const QObject *> &slotMap = iter.value();
-
-                if (!key.compare(NUMBER_TO_STRING(HttpServiceMethod::onResponseMethod)))
-                    initRequest(slotMap.first(), slotMap.firstKey().toStdString().data());
-            }
-            parent->deleteLater();
-        }
+        if (parent->error() == QNetworkReply::NoError)
+            slotsMapOperation(slotsMap, HttpServiceMethod::onResponseMethod);
     });
 
     connect(parent, static_cast<void (QNetworkReply::*)(QNetworkReply::NetworkError)>(&QNetworkReply::error), [=]() {
-        QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
-        while (iter.hasNext()) {
-            iter.next();
-            const QString &key = iter.key();
-            const QMap<QString, const QObject *> &slotMap = iter.value();
-            if (!key.compare(NUMBER_TO_STRING(HttpServiceMethod::onErrorMethod)))
-                initRequest(slotMap.first(), slotMap.firstKey().toStdString().data());
-        }
-        parent->deleteLater();
+        slotsMapOperation(slotsMap, HttpServiceMethod::onErrorMethod);
     });
-}
-
-HttpRequest::HttpRequest(QNetworkReply *parent)
-    :QNetworkReply(parent)
-{
-
 }
 
 HttpRequest::~HttpRequest()
@@ -113,6 +88,23 @@ void HttpRequest::initRequest(const QObject *receiver, const char *receiverSlot)
     else {
         qDebug()<<"Don't support type: "<<slotType;
     }
+}
+
+void HttpRequest::slotsMapOperation(const QMap<QString, QMap<QString, const QObject *> > &slotsMap,
+                                    HttpServiceMethod::SupportReflexMethod supportReflexMethod)
+{
+    QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
+    while (iter.hasNext()) {
+        iter.next();
+        const QString &key = iter.key();
+        const QMap<QString, const QObject *> &slotMap = iter.value();
+
+        if (!key.compare(NUMBER_TO_STRING(supportReflexMethod)))
+            initRequest(slotMap.first(), slotMap.firstKey().toStdString().data());
+    }
+
+    QNetworkReply *reply = (QNetworkReply *)this->parent();
+    reply->deleteLater();
 }
 
 HttpRequest::HttpRequest()
