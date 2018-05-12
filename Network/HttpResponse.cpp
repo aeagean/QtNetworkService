@@ -71,8 +71,8 @@ void HttpResponse::triggerSlot(const QObject *receiver, const char *receiverSlot
     QNetworkReply *reply = (QNetworkReply *)this->parent();
 
     if (slotType == TYPE_TO_STRING(QVariantMap)) {
-        QVariantMap resultMap = QJsonDocument::fromJson(reply->readAll()).object().toVariantMap();
-        QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QVariantMap, resultMap));
+        QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(),
+                                  Q_ARG(QVariantMap, QJsonDocument::fromJson(reply->readAll()).object().toVariantMap()));
     }
     else if (slotType == TYPE_TO_STRING(QByteArray)) {
         QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QByteArray, reply->readAll()));
@@ -81,12 +81,12 @@ void HttpResponse::triggerSlot(const QObject *receiver, const char *receiverSlot
         QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QNetworkReply*, reply));
     }
     else if (slotType == TYPE_TO_STRING(QNetworkReply::NetworkError)) {
-        QNetworkReply::NetworkError resultError = reply->error();
-        QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QNetworkReply::NetworkError, resultError));
+        QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QNetworkReply::NetworkError, reply->error()));
     }
     else {
         qDebug()<<"Don't support type: "<<slotType;
         qDebug()<<"Support Type: "<<supportSlotTypeList;
+        return;
     }
 }
 
