@@ -39,11 +39,11 @@ HttpResponse::HttpResponse(QNetworkReply *parent, const QMap<QString, QMap<QStri
 {
     connect(parent, &QNetworkReply::finished, [=]() {
         if (parent->error() == QNetworkReply::NoError)
-            slotsMapOperation(slotsMap, HttpRequest::onResponseMethod);
+            slotsMapOperation(slotsMap, onResponseMethod);
     });
 
     connect(parent, static_cast<void (QNetworkReply::*)(QNetworkReply::NetworkError)>(&QNetworkReply::error),
-            [=]() { slotsMapOperation(slotsMap, HttpRequest::onErrorMethod); });
+            [=]() { slotsMapOperation(slotsMap, onErrorMethod); });
 }
 
 HttpResponse::~HttpResponse()
@@ -91,7 +91,7 @@ void HttpResponse::triggerSlot(const QObject *receiver, const char *receiverSlot
 }
 
 void HttpResponse::slotsMapOperation(const QMap<QString, QMap<QString, const QObject *> > &slotsMap,
-                                    HttpRequest::SupportReflexMethod supportReflexMethod)
+                                     SupportReflexMethod supportReflexMethod)
 {
     QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
     while (iter.hasNext()) {

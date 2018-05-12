@@ -1,15 +1,18 @@
 #ifndef EMAQT_HTTP_REQUEST_H
 #define EMAQT_HTTP_REQUEST_H
 
-#include "HttpRequest.h"
-
 #include <QNetworkReply>
-#include <QMultiMap>
+#include <QMap>
 
 class HttpResponse : public QNetworkReply
 {
     Q_OBJECT
 public:
+    enum SupportReflexMethod {
+        onResponseMethod,
+        onErrorMethod
+    };
+
     explicit HttpResponse(QNetworkReply *parent, const QMap<QString, QMap<QString, const QObject *> > &slotsMap);
 
     virtual ~HttpResponse();
@@ -21,7 +24,7 @@ protected:
     qint64 readData(char *data, qint64 maxlen);
     void triggerSlot(const QObject *receiver, const char *receiverSlot);
     void slotsMapOperation(const QMap<QString, QMap<QString, const QObject *> > &slotsMap,
-                           HttpRequest::SupportReflexMethod supportReflexMethod);
+                           SupportReflexMethod supportReflexMethod);
 
 private:
     HttpResponse();

@@ -1,6 +1,8 @@
 #ifndef HTTP_SERVICE_METHOD
 #define HTTP_SERVICE_METHOD
 
+#include "HttpResponse.h"
+
 #include <QNetworkRequest>
 #include <QNetworkAccessManager>
 #include <QJsonObject>
@@ -12,11 +14,6 @@ class HttpService;
 class HttpRequest
 {
 public:
-    enum SupportReflexMethod {
-        onResponseMethod,
-        onErrorMethod
-    };
-
     explicit HttpRequest(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient);
     virtual ~HttpRequest();
 
@@ -34,7 +31,7 @@ public:
      *                               void function(QNetworkReply* reply)
      * note: The same type is only triggered once
      */
-    HttpRequest &onResponse(const QObject *receiver, const char *slot, SupportReflexMethod type = onResponseMethod);
+    HttpRequest &onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportReflexMethod type = HttpResponse::onResponseMethod);
 
     /*
      * @onError slot support type: void function(QNetworkReply::NetworkErro errorr)
