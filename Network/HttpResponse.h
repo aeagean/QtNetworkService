@@ -19,7 +19,7 @@ public slots:
 
 protected:
     qint64 readData(char *data, qint64 maxlen);
-    void createResponse(const QObject *receiver, const char *receiverSlot);
+    void triggerSlot(const QObject *receiver, const char *receiverSlot);
     void slotsMapOperation(const QMap<QString, QMap<QString, const QObject *> > &slotsMap,
                            HttpRequest::SupportReflexMethod supportReflexMethod);
 

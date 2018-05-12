@@ -62,7 +62,7 @@ qint64 HttpResponse::readData(char *data, qint64 maxlen)
     return -1;
 }
 
-void HttpResponse::createResponse(const QObject *receiver, const char *receiverSlot)
+void HttpResponse::triggerSlot(const QObject *receiver, const char *receiverSlot)
 {
     QString slot;
     QString slotType;
@@ -100,7 +100,7 @@ void HttpResponse::slotsMapOperation(const QMap<QString, QMap<QString, const QOb
         const QMap<QString, const QObject *> &slotMap = iter.value();
 
         if (!key.compare(NUMBER_TO_STRING(supportReflexMethod)))
-            createResponse(slotMap.first(), slotMap.firstKey().toStdString().data());
+            triggerSlot(slotMap.first(), slotMap.firstKey().toStdString().data());
     }
 
     QNetworkReply *reply = (QNetworkReply *)this->parent();

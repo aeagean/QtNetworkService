@@ -8,9 +8,9 @@ void Test::execute()
 {
     m_httpService.get("http://www.aeagean.com")
 //            .onResponse(this, SLOT(finish(QByteArray)))
-            .onResponse(this, SLOT(finish(QByte1Array)))
+            .onResponse(this, SLOT(finish(QByteArray)))
 //            .onResponse(this, SLOT(finish(QNetworkReply *)))
-            .onError(this, SLOT(error(QNetworkReply::NetworkError)))
+            .onResponse(this, SLOT(error(QNetworkReply::NetworkError)), HttpRequest::onErrorMethod)
             .exec();
 
 //    m_httpService.get("http://www.baidu.com")

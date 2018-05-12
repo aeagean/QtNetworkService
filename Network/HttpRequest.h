@@ -17,8 +17,8 @@ public:
         onErrorMethod
     };
 
-    virtual ~HttpRequest();
     explicit HttpRequest(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient);
+    virtual ~HttpRequest();
 
     HttpRequest &url(const QString &url);
     HttpRequest &header(const QString &key, const QString &value);
@@ -32,13 +32,15 @@ public:
      * @onRespone slot support type: void function(QVariantMap resultMap) OR
      *                               void function(QByteArray resultData) OR
      *                               void function(QNetworkReply* reply)
+     * note: The same type is only triggered once
      */
-    HttpRequest &onResponse(const QObject *respReceiver, const char *slot);
+    HttpRequest &onResponse(const QObject *receiver, const char *slot, SupportReflexMethod type = onResponseMethod);
+
     /*
      * @onError slot support type: void function(QNetworkReply::NetworkErro errorr)
-     *
+     * note: The same type is only triggered once
      */
-    HttpRequest &onError(const QObject *errorReceiver, const char *slot);
+    HttpRequest &onError(const QObject *receiver, const char *slot);
 
     bool exec();
 

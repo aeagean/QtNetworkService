@@ -17,6 +17,7 @@ public:
 
     HttpRequest get(const QString url);
     HttpRequest post(const QString url);
+    HttpRequest put(const QString url);
 };
 
 #endif // HTTP_SERVICE_H
