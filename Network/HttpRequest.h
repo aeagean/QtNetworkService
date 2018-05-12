@@ -1,31 +1,56 @@
-#ifndef EMAQT_HTTP_REQUEST_H
-#define EMAQT_HTTP_REQUEST_H
+#ifndef HTTP_SERVICE_METHOD
+#define HTTP_SERVICE_METHOD
 
-#include "HttpServiceMethod.h"
+#include <QNetworkRequest>
+#include <QNetworkAccessManager>
+#include <QJsonObject>
 
-#include <QNetworkReply>
-#include <QMultiMap>
+#include <functional>
 
-class HttpRequest : public QNetworkReply
+class HttpService;
+
+class HttpRequest
 {
-    Q_OBJECT
 public:
-    explicit HttpRequest(QNetworkReply *parent, const QMap<QString, QMap<QString, const QObject *> > &slotsMap);
+    enum SupportReflexMethod {
+        onResponseMethod,
+        onErrorMethod
+    };
 
     virtual ~HttpRequest();
+    explicit HttpRequest(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient);
 
-public slots:
-    void abort();
+    HttpRequest &url(const QString &url);
+    HttpRequest &header(const QString &key, const QString &value);
+    HttpRequest &headers(const QMap<QString, QString> &headers);
 
-protected:
-    qint64 readData(char *data, qint64 maxlen);
-    void initRequest(const QObject *receiver, const char *receiverSlot);
-    void slotsMapOperation(const QMap<QString, QMap<QString, const QObject *> > &slotsMap,
-                           HttpServiceMethod::SupportReflexMethod supportReflexMethod);
+    HttpRequest &queryParam(const QString &key, const QString &value);
+    HttpRequest &queryParams(const QMap<QString, QString> &params);
+
+    HttpRequest &jsonBody(const QVariant &jsonBody);
+    /*
+     * @onRespone slot support type: void function(QVariantMap resultMap) OR
+     *                               void function(QByteArray resultData) OR
+     *                               void function(QNetworkReply* reply)
+     */
+    HttpRequest &onResponse(const QObject *respReceiver, const char *slot);
+    /*
+     * @onError slot support type: void function(QNetworkReply::NetworkErro errorr)
+     *
+     */
+    HttpRequest &onError(const QObject *errorReceiver, const char *slot);
+
+    bool exec();
 
 private:
     HttpRequest();
+
+private:
+    QNetworkRequest m_networkRequest;
+    QJsonObject m_jsonBody;
+    QNetworkAccessManager::Operation m_op;
+    HttpService *m_httpService;
+    QMap<QString, QMap<QString, const QObject *>> m_slotsMap;
 };
 
-
-#endif // EMAQT_HTTP_REQUEST_H
+#endif // HTTP_SERVICE_METHOD

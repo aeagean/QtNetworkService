@@ -19,12 +19,12 @@ INCLUDEPATH += Network
 
 SOURCES += main.cpp \
     Network/HttpService.cpp \
-    Network/HttpServiceMethod.cpp \
-    Network/HttpRequest.cpp \
-    Test.cpp
+    Test.cpp \
+    Network/HttpResponse.cpp \
+    Network/HttpRequest.cpp
 
 HEADERS += \
     Network/HttpService.h \
-    Network/HttpServiceMethod.h \
-    Network/HttpRequest.h \
-    Test.h
+    Test.h \
+    Network/HttpResponse.h \
+    Network/HttpRequest.h

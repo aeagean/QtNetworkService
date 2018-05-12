@@ -1,112 +1,116 @@
 #include "HttpRequest.h"
+#include "HttpService.h"
 
-#include <QByteArray>
 #include <QJsonDocument>
-#include <QJsonObject>
+#include <QUrlQuery>
+#include <QBuffer>
 
-#define TYPE_TO_STRING(t) QString(#t)
-#define NUMBER_TO_STRING(n)  QString::number(n)
+#define NUMBER_TO_STRING(n) QString::number(n)
 
-static const QStringList supportSlotTypeList = {
-    TYPE_TO_STRING(QVariantMap),
-    TYPE_TO_STRING(QByteArray),
-    TYPE_TO_STRING(QNetworkReply*),
-    TYPE_TO_STRING(QNetworkReply::NetworkError)
-};
-
-static int extractCode(const char *member)
+HttpRequest::HttpRequest()
 {
-    // extract code, ensure QMETHOD_CODE <= code <= QSIGNAL_CODE
-    return (((int)(*member) - '0') & 0x3);
-}
 
-static void extractSlot(const QString &respReceiverSlot, QString &extractSlot, QString &extractSlotType)
-{
-    QString slot(respReceiverSlot);
-    if (extractCode(respReceiverSlot.toStdString().data()) == QSLOT_CODE && !slot.isEmpty()) {
-        slot.remove(0, 1);
-        int startIndex = slot.indexOf('(');
-        int endIndex = slot.indexOf(')');
-        Q_ASSERT(startIndex != -1 && endIndex != -1);
-
-        extractSlotType = slot.mid(startIndex+1, endIndex-startIndex-1);
-        extractSlot = slot.remove(startIndex, endIndex-startIndex+1);
-    }
-}
-
-HttpRequest::HttpRequest(QNetworkReply *parent, const QMap<QString, QMap<QString, const QObject *> > &slotsMap)
-    : QNetworkReply(parent)
-{
-    connect(parent, &QNetworkReply::finished, [=]() {
-        if (parent->error() == QNetworkReply::NoError)
-            slotsMapOperation(slotsMap, HttpServiceMethod::onResponseMethod);
-    });
-
-    connect(parent, static_cast<void (QNetworkReply::*)(QNetworkReply::NetworkError)>(&QNetworkReply::error),
-            [=]() { slotsMapOperation(slotsMap, HttpServiceMethod::onErrorMethod); });
 }
 
 HttpRequest::~HttpRequest()
 {
 }
 
-void HttpRequest::abort()
+HttpRequest::HttpRequest(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient) :
+    m_op(op), m_httpService(jsonHttpClient)
 {
-
 }
 
-qint64 HttpRequest::readData(char *data, qint64 maxlen)
+HttpRequest &HttpRequest::url(const QString &url)
 {
-    Q_UNUSED(data);
-    Q_UNUSED(maxlen);
-    return -1;
+    m_networkRequest.setUrl(QUrl(url));
+    return *this;
 }
 
-void HttpRequest::initRequest(const QObject *receiver, const char *receiverSlot)
+HttpRequest &HttpRequest::header(const QString &key, const QString &value)
 {
-    QString slot;
-    QString slotType;
-    extractSlot(receiverSlot, slot, slotType);
-
-    QNetworkReply *reply = (QNetworkReply *)this->parent();
-
-    if (slotType == TYPE_TO_STRING(QVariantMap)) {
-        QVariantMap resultMap = QJsonDocument::fromJson(reply->readAll()).object().toVariantMap();
-        QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QVariantMap, resultMap));
-    }
-    else if (slotType == TYPE_TO_STRING(QByteArray)) {
-        QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QByteArray, reply->readAll()));
-    }
-    else if (slotType == TYPE_TO_STRING(QNetworkReply*) || (slotType.remove(QRegExp("\\s")) == TYPE_TO_STRING(QNetworkReply*))) {
-        QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QNetworkReply*, reply));
-    }
-    else if (slotType == TYPE_TO_STRING(QNetworkReply::NetworkError)) {
-        QNetworkReply::NetworkError resultError = reply->error();
-        QMetaObject::invokeMethod((QObject *)receiver, slot.toStdString().data(), Q_ARG(QNetworkReply::NetworkError, resultError));
-    }
-    else {
-        qDebug()<<"Don't support type: "<<slotType;
-    }
+    m_networkRequest.setRawHeader(QByteArray(key.toStdString().data()), QByteArray(value.toStdString().data()));
+    return *this;
 }
 
-void HttpRequest::slotsMapOperation(const QMap<QString, QMap<QString, const QObject *> > &slotsMap,
-                                    HttpServiceMethod::SupportReflexMethod supportReflexMethod)
+HttpRequest &HttpRequest::headers(const QMap<QString, QString> &headers)
 {
-    QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
+   QMapIterator<QString, QString> iter(headers);
+   while (iter.hasNext()) {
+       iter.next();
+       header(iter.key(), iter.value());
+   }
+
+   return *this;
+}
+
+HttpRequest &HttpRequest::jsonBody(const QVariant &jsonBody)
+{
+    if (jsonBody.type() == QVariant::Map) {
+        m_jsonBody = QJsonObject::fromVariantMap(jsonBody.toMap());
+    }
+    else if (jsonBody.typeName() ==  QMetaType::typeName(QMetaType::QJsonObject)) {
+        m_jsonBody = jsonBody.toJsonObject();
+    }
+
+    return *this;
+}
+
+HttpRequest &HttpRequest::onResponse(const QObject *reseceiver, const char *slot)
+{
+    m_slotsMap.insert(NUMBER_TO_STRING(HttpRequest::onResponseMethod), {{slot, reseceiver}});
+    return *this;
+}
+
+HttpRequest &HttpRequest::onError(const QObject *receiver, const char *slot)
+{
+    m_slotsMap.insert(NUMBER_TO_STRING(HttpRequest::onErrorMethod), {{slot, receiver}});
+    return *this;
+}
+
+bool HttpRequest::exec()
+{
+    QNetworkReply* reply = NULL;
+    QBuffer* sendBuffer = NULL;
+    QJsonObject sendJson = m_jsonBody;
+    if (!sendJson.isEmpty()) {
+        QByteArray sendByteArray = QJsonDocument(sendJson).toJson();
+        sendBuffer = new QBuffer();
+        sendBuffer->setData(sendByteArray);
+    }
+
+    reply = m_httpService->createRequest(m_op, m_networkRequest, sendBuffer);
+
+    if (reply == NULL && sendBuffer != NULL) {
+        sendBuffer->deleteLater();
+        return false;
+    }
+    else if (sendBuffer != NULL) {
+        sendBuffer->setParent(reply);
+    }
+
+    return new HttpResponse(reply, m_slotsMap);
+}
+
+HttpRequest &HttpRequest::queryParam(const QString &key, const QString &value)
+{
+    QUrl url(m_networkRequest.url());
+    QUrlQuery urlQuery(url);
+
+    urlQuery.addQueryItem(key, value);
+    url.setQuery(urlQuery);
+
+    m_networkRequest.setUrl(url);
+    return *this;
+}
+
+HttpRequest &HttpRequest::queryParams(const QMap<QString, QString> &params)
+{
+    QMapIterator<QString, QString> iter(params);
     while (iter.hasNext()) {
         iter.next();
-        const QString &key = iter.key();
-        const QMap<QString, const QObject *> &slotMap = iter.value();
-
-        if (!key.compare(NUMBER_TO_STRING(supportReflexMethod)))
-            initRequest(slotMap.first(), slotMap.firstKey().toStdString().data());
+        queryParam(iter.key(), iter.value());
     }
 
-    QNetworkReply *reply = (QNetworkReply *)this->parent();
-    reply->deleteLater();
-}
-
-HttpRequest::HttpRequest()
-{
-
+    return *this;
 }

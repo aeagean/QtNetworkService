@@ -11,14 +11,14 @@ HttpService::~HttpService()
 {
 }
 
-HttpServiceMethod HttpService::get(const QString url)
+HttpRequest HttpService::get(const QString url)
 {
-    HttpServiceMethod httpServiceMethod(QNetworkAccessManager::GetOperation, this);
-    return httpServiceMethod.url(url);
+    HttpRequest httpRequest(QNetworkAccessManager::GetOperation, this);
+    return httpRequest.url(url);
 }
 
-HttpServiceMethod HttpService::post(const QString url)
+HttpRequest HttpService::post(const QString url)
 {
-    HttpServiceMethod httpServiceMethod(QNetworkAccessManager::PostOperation, this);
-    return httpServiceMethod.url(url);
+    HttpRequest httpRequest(QNetworkAccessManager::PostOperation, this);
+    return httpRequest.url(url);
 }
