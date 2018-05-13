@@ -1,8 +1,20 @@
 QT -= gui
 QT += network
 
-CONFIG += c++11 console
-CONFIG -= app_bundle
+CONFIG += c++11
+
+contains( CONFIG, debug ) {
+    CONFIG += staticlib
+    TEMPLATE = lib
+    TARGET = $$PWD/lib/QtNetwork
+    include(QtNetwork.pri)
+    message(" ================ QtNetwork Library ================ ")
+}
+else {
+    CONFIG += console
+    CONFIG -= app_bundle
+    message(" ================ QtNetwork App ================= ")
+}
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which as been marked deprecated (the exact warnings
@@ -28,3 +40,6 @@ HEADERS += \
     Test.h \
     Network/HttpResponse.h \
     Network/HttpRequest.h
+
+DISTFILES += \
+    QtNetwork.pri
