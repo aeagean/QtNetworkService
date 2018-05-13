@@ -27,15 +27,21 @@ HttpRequest &HttpRequest::url(const QString &url)
     return *this;
 }
 
-HttpRequest &HttpRequest::header(const QString &key, const QString &value)
+HttpRequest &HttpRequest::header(const QString &key, const QVariant &value)
 {
-    m_networkRequest.setRawHeader(QByteArray(key.toStdString().data()), QByteArray(value.toStdString().data()));
+    if (value.type() == QVariant::Bool) {
+        m_networkRequest.setRawHeader(QByteArray(key.toStdString().data()), QByteArray(value.toBool() ? "true" : "false"));
+    }
+    else {
+        m_networkRequest.setRawHeader(QByteArray(key.toStdString().data()), QByteArray(value.toString().toStdString().data()));
+    }
+
     return *this;
 }
 
-HttpRequest &HttpRequest::headers(const QMap<QString, QString> &headers)
+HttpRequest &HttpRequest::headers(const QMap<QString, QVariant> &headers)
 {
-   QMapIterator<QString, QString> iter(headers);
+   QMapIterator<QString, QVariant> iter(headers);
    while (iter.hasNext()) {
        iter.next();
        header(iter.key(), iter.value());
@@ -92,21 +98,26 @@ bool HttpRequest::exec()
     return new HttpResponse(reply, m_slotsMap);
 }
 
-HttpRequest &HttpRequest::queryParam(const QString &key, const QString &value)
+HttpRequest &HttpRequest::queryParam(const QString &key, const QVariant &value)
 {
     QUrl url(m_networkRequest.url());
     QUrlQuery urlQuery(url);
 
-    urlQuery.addQueryItem(key, value);
+    if (value.type() == QVariant::Bool) {
+        urlQuery.addQueryItem(key, value.toBool() ? "true" : "false");
+    }
+    else {
+        urlQuery.addQueryItem(key, value.toString());
+    }
     url.setQuery(urlQuery);
 
     m_networkRequest.setUrl(url);
     return *this;
 }
 
-HttpRequest &HttpRequest::queryParams(const QMap<QString, QString> &params)
+HttpRequest &HttpRequest::queryParams(const QMap<QString, QVariant> &params)
 {
-    QMapIterator<QString, QString> iter(params);
+    QMapIterator<QString, QVariant> iter(params);
     while (iter.hasNext()) {
         iter.next();
         queryParam(iter.key(), iter.value());

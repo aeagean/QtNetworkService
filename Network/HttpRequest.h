@@ -18,11 +18,11 @@ public:
     virtual ~HttpRequest();
 
     HttpRequest &url(const QString &url);
-    HttpRequest &header(const QString &key, const QString &value);
-    HttpRequest &headers(const QMap<QString, QString> &headers);
+    HttpRequest &header(const QString &key, const QVariant &value);
+    HttpRequest &headers(const QMap<QString, QVariant> &headers);
 
-    HttpRequest &queryParam(const QString &key, const QString &value);
-    HttpRequest &queryParams(const QMap<QString, QString> &params);
+    HttpRequest &queryParam(const QString &key, const QVariant &value);
+    HttpRequest &queryParams(const QMap<QString, QVariant> &params);
 
     HttpRequest &jsonBody(const QVariant &jsonBody);
     /*
