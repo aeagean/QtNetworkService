@@ -10,7 +10,7 @@ void Test::execute()
 //            .onResponse(this, SLOT(finish(QByteArray)))
             .onResponse(this, SLOT(finish(QByteArray)))
 //            .onResponse(this, SLOT(finish(QNetworkReply *)))
-            .onResponse(this, SLOT(error(QNetworkReply::NetworkError)), HttpResponse::onErrorMethod)
+            .onResponse(this, SLOT(error(QNetworkReply::NetworkError)), HttpResponse::AutoInfer)
             .exec();
 
 //    m_httpService.get("http://www.baidu.com")

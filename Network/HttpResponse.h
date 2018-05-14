@@ -8,9 +8,19 @@ class HttpResponse : public QNetworkReply
 {
     Q_OBJECT
 public:
-    enum SupportReflexMethod {
-        onResponseMethod,
-        onErrorMethod
+    /*
+     * Support Reflex Method
+     * default: AutoInfer
+     * AutoInfer: Automatic derivation based on type
+     */
+    enum SupportMethod {
+        AutoInfer,
+        onResponse_QNetworkReply_A_Pointer,    /* method: void function(QNetworkReply* reply) */
+        onResponse_QByteArray,                 /* method: void function(QByteArray data) */
+        onResponse_QVariantMap,                /* method: void function(QVariantMap map) */
+        onDownloadProgress_qint64_qint64,      /* method: void function(qint64 bytesReceived, qint64 bytesTotal) */
+        onError_QNetworkReply_To_NetworkError, /* method: void function(QNetworkReply::NetworkError error) */
+        onError_QString                        /* method: void function(QString errorString) */
     };
 
     explicit HttpResponse(QNetworkReply *parent, const QMap<QString, QMap<QString, const QObject *> > &slotsMap);
@@ -24,7 +34,7 @@ protected:
     qint64 readData(char *data, qint64 maxlen);
     void triggerSlot(const QObject *receiver, const char *receiverSlot);
     void slotsMapOperation(const QMap<QString, QMap<QString, const QObject *> > &slotsMap,
-                           SupportReflexMethod supportReflexMethod);
+                           SupportMethod supportReflexMethod);
 
 private:
     HttpResponse();

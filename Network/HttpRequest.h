@@ -31,7 +31,7 @@ public:
      *                               void function(QNetworkReply* reply)
      * note: The same type is only triggered once
      */
-    HttpRequest &onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportReflexMethod type = HttpResponse::onResponseMethod);
+    HttpRequest &onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type = HttpResponse::AutoInfer);
 
     /*
      * @onError slot support type: void function(QNetworkReply::NetworkErro errorr)

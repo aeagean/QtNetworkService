@@ -62,7 +62,7 @@ HttpRequest &HttpRequest::jsonBody(const QVariant &jsonBody)
     return *this;
 }
 
-HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportReflexMethod type)
+HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type)
 {
     m_slotsMap.insert(NUMBER_TO_STRING(type), {{slot, receiver}});
     return *this;
@@ -70,8 +70,7 @@ HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *slot, 
 
 HttpRequest &HttpRequest::onError(const QObject *receiver, const char *slot)
 {
-    m_slotsMap.insert(NUMBER_TO_STRING(HttpResponse::onErrorMethod), {{slot, receiver}});
-    return *this;
+    return onResponse(receiver, slot);
 }
 
 bool HttpRequest::exec()
