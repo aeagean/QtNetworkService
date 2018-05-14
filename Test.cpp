@@ -6,11 +6,11 @@ Test::Test()
 
 void Test::execute()
 {
-    m_httpService.get("http://www.aeagean.com")
+    m_httpService.get("http://laundromat-temp-file.oss-cn-hangzhou.aliyuncs.com/CycleUpdate/0000.db.13620/BVL3D120TY6/春秋.png")
 //            .onResponse(this, SLOT(finish(QVariantMap)))
 //            .onResponse(this, SLOT(finish(QByteArray)))
             .onResponse(this, SLOT(finish(QNetworkReply *)))
-            .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
+            .onResponse(this, SLOT(downloadProgress(qint64, qint64)))
 //            .onResponse(this, SLOT(error(QNetworkReply::NetworkError)), HttpResponse::AutoInfer)
             .exec();
 

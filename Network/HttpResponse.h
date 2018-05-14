@@ -32,12 +32,10 @@ public slots:
 
 private slots:
     void onFinished();
+    void onError();
 
 protected:
     qint64 readData(char *data, qint64 maxlen);
-    void triggerSlot(const QObject *receiver, const char *receiverSlot);
-    void slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap,
-                           SupportMethod supportReflexMethod);
 
     void slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap);
 
