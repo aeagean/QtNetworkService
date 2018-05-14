@@ -90,9 +90,12 @@ void HttpResponse::onFinished()
 {
     QNetworkReply *reply = (QNetworkReply *)this->parent();
 
-    emit finished(reply);
-    emit finished(reply->readAll());
-    emit finished(QJsonDocument::fromJson(reply->readAll()).object().toVariantMap());
+    if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QNetworkReply_A_Pointer)))
+        emit finished(reply);
+    else if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QByteArray)))
+        emit finished(reply->readAll());
+    else if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QVariantMap)))
+        emit finished(QJsonDocument::fromJson(reply->readAll()).object().toVariantMap());
 }
 
 void HttpResponse::onError()
@@ -192,9 +195,10 @@ static QMultiMap<QString, QMap<QString, const QObject *> > autoInfterConvertedSu
 
 void HttpResponse::slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap)
 {
-    const QMultiMap<QString, QMap<QString, const QObject *> > convertedSlotsmap = autoInfterConvertedSupportMethod(slotsMap);
+    const QMultiMap<QString, QMap<QString, const QObject *> > convertedSlotsMap = autoInfterConvertedSupportMethod(slotsMap);
 
-    QMapIterator<QString, QMap<QString, const QObject *> > iter(convertedSlotsmap);
+    m_slotsMap = convertedSlotsMap;
+    QMapIterator<QString, QMap<QString, const QObject *> > iter(convertedSlotsMap);
     while (iter.hasNext()) {
         iter.next();
         const QString &key = iter.key();
