@@ -6,7 +6,7 @@ Test::Test()
 
 void Test::execute()
 {
-    m_httpService.get("http://www.baidu.com")
+    m_httpService.get("http://www.aeagean.com")
 //            .onResponse(this, SLOT(finish(QVariantMap)))
 //            .onResponse(this, SLOT(finish(QByteArray)))
             .onResponse(this, SLOT(finish(QNetworkReply *)))

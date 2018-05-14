@@ -35,6 +35,7 @@ public slots:
 private slots:
     void onFinished();
     void onError();
+    void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
 
 protected:
     qint64 readData(char *data, qint64 maxlen);
@@ -46,6 +47,8 @@ signals:
     void finished(QByteArray data);
     void finished(QVariantMap map);
     void error(QString errorString);
+    void error(QNetworkReply::NetworkError error);
+    void downloadProgress(qint64 bytesReceived, qint64 bytesTotal);
 
 private:
     HttpResponse();
