@@ -38,7 +38,7 @@ private slots:
 protected:
     qint64 readData(char *data, qint64 maxlen);
 
-    void slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap);
+    void slotsMapOperation(QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap);
 
 signals:
     void finished(QNetworkReply *reply);

@@ -96,6 +96,8 @@ void HttpResponse::onFinished()
         emit finished(reply->readAll());
     else if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QVariantMap)))
         emit finished(QJsonDocument::fromJson(reply->readAll()).object().toVariantMap());
+
+    reply->deleteLater();
 }
 
 void HttpResponse::onError()
@@ -103,6 +105,8 @@ void HttpResponse::onError()
     QNetworkReply *reply = (QNetworkReply *)this->parent();
     emit error(reply->errorString());
     emit error(reply->error());
+
+    reply->deleteLater();
 }
 
 void HttpResponse::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
@@ -158,7 +162,7 @@ static QString getSupportMethod(const QMap<QString, const QObject *> &slotMap) {
     return "";
 }
 
-static QMultiMap<QString, QMap<QString, const QObject *> > autoInfterConvertedSupportMethod(const QMultiMap<QString, QMap<QString, const QObject *> > &unconvertedSlotsMap)
+static void autoInfterConvertedSupportMethod(QMultiMap<QString, QMap<QString, const QObject *> > &unconvertedSlotsMap)
 {
     QMultiMap<QString, QMap<QString, const QObject *> > convertedSlotsMap;
     QMapIterator<QString, QMap<QString, const QObject *> > iter(unconvertedSlotsMap);
@@ -189,16 +193,15 @@ static QMultiMap<QString, QMap<QString, const QObject *> > autoInfterConvertedSu
         }
     }
 
-    return convertedSlotsMap;
+    unconvertedSlotsMap = convertedSlotsMap;
 
 }
 
-void HttpResponse::slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap)
+void HttpResponse::slotsMapOperation(QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap)
 {
-    const QMultiMap<QString, QMap<QString, const QObject *> > convertedSlotsMap = autoInfterConvertedSupportMethod(slotsMap);
+    autoInfterConvertedSupportMethod(slotsMap);
 
-    m_slotsMap = convertedSlotsMap;
-    QMapIterator<QString, QMap<QString, const QObject *> > iter(convertedSlotsMap);
+    QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
     while (iter.hasNext()) {
         iter.next();
         const QString &key = iter.key();
