@@ -134,57 +134,71 @@ static void extractSlot(const QString &respReceiverSlot, QString &extractSlot, Q
     }
 }
 
-void HttpResponse::slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap)
-{
-    QMap<QString, QMap<QString, const QObject *>> signalsMap = {
-        {TYPE_TO_STRING(onResponse_QNetworkReply_A_Pointer), {{SIGNAL(finished(QNetworkReply*)), this}} },
-        {TYPE_TO_STRING(onResponse_QByteArray), {{SIGNAL(finished(QByteArray)), this}} },
-    };
+static QString getKey(const QMap<QString, const QObject *> &slotMap) {
 
-    QNetworkReply *reply = (QNetworkReply *)this->parent();
-    QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
+    QMapIterator<QString, QMap<QString, QVariant>> iter(methodParams);
+
+    QString receiverSlot = slotMap.firstKey();
+    QString slot;
+    QStringList slotTypes;
+    extractSlot(receiverSlot, slot, slotTypes);
+
+    while (iter.hasNext()) {
+        iter.next();
+        QString key = iter.key();
+        QMap<QString, QVariant> value = iter.value();
+        if (slotTypes == value.value("types").toStringList()) {
+            return key;
+        }
+    }
+
+    return "";
+}
+
+static void autoInfterConvertedMethod(QMultiMap<QString, QMap<QString, const QObject *> > &unconvertedSlotsMap) {
+    QMultiMap<QString, QMap<QString, const QObject *> > convertedSlotsMap;
+    QMapIterator<QString, QMap<QString, const QObject *> > iter(unconvertedSlotsMap);
+
     while (iter.hasNext()) {
         iter.next();
         const QString &key = iter.key();
         const QMap<QString, const QObject *> &slotMap = iter.value();
 
-        SupportMethod supportMethod = (SupportMethod)key.toInt();
+        HttpResponse::SupportMethod supportMethod = (HttpResponse::SupportMethod)key.toInt();
+        if (supportMethod == HttpResponse::AutoInfer) {
+            QString key = getKey(slotMap);
+            if (key != "")
+                convertedSlotsMap.insert(key, slotMap);
+        }
+        else {
+            convertedSlotsMap.insert(key, slotMap);
+        }
+    }
+
+    unconvertedSlotsMap = convertedSlotsMap;
+
+}
+
+void HttpResponse::slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap)
+{
+    QMultiMap<QString, QMap<QString, const QObject *> > unconvertedSlotsmap = slotsMap;
+
+    autoInfterConvertedMethod(unconvertedSlotsmap);
+
+    QMapIterator<QString, QMap<QString, const QObject *> > iter(unconvertedSlotsmap);
+    while (iter.hasNext()) {
+        iter.next();
+        const QString &key = iter.key();
+        const QMap<QString, const QObject *> &slotMap = iter.value();
+
         const QObject *receiver = slotMap.first();
         QString receiverSlot = slotMap.firstKey();
-        QString slot;
-        QStringList slotTypes;
 
-        extractSlot(receiverSlot, slot, slotTypes);
-
-
-        if (supportMethod == AutoInfer) {
-
-
-//            if (slotTypes.contains(TYPE_TO_STRING(QByteArray))) {
-//                connect(this, SIGNAL(finished(QByteArray)), receiver, receiverSlot.toStdString().data());
-//            }
-//            else if (slotTypes.contains(TYPE_TO_STRING(QVariantMap))) {
-//                connect(this, SIGNAL(finished(QVariantMap)), receiver, receiverSlot.toStdString().data());
-//            }
-//            else if (slotTypes.contains(TYPE_TO_STRING(QNetworkReply*))) {
-//                connect(this, SIGNAL(finished(QNetworkReply*)), receiver, receiverSlot.toStdString().data());
-//            }
-//            else if (slotTypes == QStringList({TYPE_TO_STRING(qint64), TYPE_TO_STRING(qint64)})) {
-//                connect(this, SIGNAL(downloadProgress(qint64, qint64)), receiver, receiverSlot.toStdString().data());
-//            }
-//            else if (slotTypes == QStringList({TYPE_TO_STRING(QNetworkReply::NetworkError)})) {
-//                connect(this, SIGNAL(error(QNetworkReply::NetworkError)), receiver, receiverSlot.toStdString().data());
-//            }
-//            else if (slotTypes == QStringList({TYPE_TO_STRING(QString)})) {
-//                connect(this, SIGNAL(error(QString)), receiver, receiverSlot.toStdString().data());
-//            }
-//            else {
-//                qDebug()<<"Don't support type: "<<slotTypes;
-//                qDebug()<<"Support Type: "<<supportSlotTypeList;
-//            }
-        }
-        else if (supportMethod == onResponse_QByteArray) {
-
+        if (methodParams.contains(key)) {
+            connect(this,
+                    methodParams[key].value("signal").toString().toStdString().data(),
+                    receiver,
+                    receiverSlot.toStdString().data());
         }
     }
 }

@@ -11,7 +11,7 @@ void Test::execute()
 //            .onResponse(this, SLOT(finish(QByteArray)))
             .onResponse(this, SLOT(finish(QNetworkReply *)))
             .onResponse(this, SLOT(downloadProgress(qint64, qint64)))
-//            .onResponse(this, SLOT(error(QNetworkReply::NetworkError)), HttpResponse::AutoInfer)
+            .onResponse(this, SLOT(error(QNetworkReply::NetworkError)))
             .exec();
 
 //    m_httpService.get("http://www.baidu.com")
