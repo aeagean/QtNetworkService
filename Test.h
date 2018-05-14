@@ -16,7 +16,9 @@ private slots:
     void finish(QVariantMap result);
     void finish(QByteArray result);
     void finish(QNetworkReply *result);
+    void finish(int value);
     void error(QNetworkReply::NetworkError result);
+    void error(QString errorString);
     void downloadProgress(qint64 bytesReceived, qint64 bytesTotal);
 
 private:

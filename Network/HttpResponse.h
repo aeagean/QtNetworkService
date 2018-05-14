@@ -25,8 +25,6 @@ public:
 
     explicit HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap);
 
-    explicit HttpResponse(QNetworkReply *parent) : QNetworkReply(parent) {}
-
     virtual ~HttpResponse();
 
 public slots:

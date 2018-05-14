@@ -9,55 +9,54 @@
 #define N2S(n) NUMBER_TO_STRING(n)
 #define T2S(t) TYPE_TO_STRING(t)
 
-static const QStringList supportSlotTypeList = {
-    TYPE_TO_STRING(QVariantMap),
-    TYPE_TO_STRING(QByteArray),
-    TYPE_TO_STRING(QNetworkReply*),
-    TYPE_TO_STRING(QNetworkReply::NetworkError)
-};
-
 static const QMap<QString, QMap<QString, QVariant>> methodParams =
 {
     {
         N2S(HttpResponse::onResponse_QNetworkReply_A_Pointer),
         {
             {"types", QStringList({T2S(QNetworkReply*)})},
-            {"signal", SIGNAL(finished(QNetworkReply*))}
+            {"signal", SIGNAL(finished(QNetworkReply*))},
+            {"isAutoInfer", true}
         }
     },
     {
         N2S(HttpResponse::onResponse_QByteArray),
         {
             {"types", QStringList({T2S(QByteArray)})},
-            {"signal", SIGNAL(finished(QByteArray))}
+            {"signal", SIGNAL(finished(QByteArray))},
+            {"isAutoInfer", true}
         }
     },
     {
         N2S(HttpResponse::onResponse_QVariantMap),
         {
             {"types", QStringList({T2S(QVariantMap)})},
-            {"signal", SIGNAL(finished(QVariantMap))}
+            {"signal", SIGNAL(finished(QVariantMap))},
+            {"isAutoInfer", true}
         }
     },
     {
         N2S(HttpResponse::onDownloadProgress_qint64_qint64),
         {
             {"types", QStringList({T2S(qint64), T2S(qint64)})},
-            {"signal", SIGNAL(downloadProgress(qint64, qint64))}
+            {"signal", SIGNAL(downloadProgress(qint64, qint64))},
+            {"isAutoInfer", true}
         }
     },
     {
         N2S(HttpResponse::onError_QNetworkReply_To_NetworkError),
         {
             {"types", QStringList({T2S(QNetworkReply::NetworkError)})},
-            {"signal", SIGNAL(error(QNetworkReply::NetworkError))}
+            {"signal", SIGNAL(error(QNetworkReply::NetworkError))},
+            {"isAutoInfer", true}
         }
     },
     {
         N2S(HttpResponse::onError_QString),
         {
             {"types", QStringList({T2S(QString)})},
-            {"signal", SIGNAL(error(QString))}
+            {"signal", SIGNAL(error(QString))},
+            {"isAutoInfer", true}
         }
     },
 };
@@ -134,7 +133,8 @@ static void extractSlot(const QString &respReceiverSlot, QString &extractSlot, Q
     }
 }
 
-static QString getKey(const QMap<QString, const QObject *> &slotMap) {
+/* from slotMap get [SupportMethod] */
+static QString getSupportMethod(const QMap<QString, const QObject *> &slotMap) {
 
     QMapIterator<QString, QMap<QString, QVariant>> iter(methodParams);
 
@@ -155,7 +155,8 @@ static QString getKey(const QMap<QString, const QObject *> &slotMap) {
     return "";
 }
 
-static void autoInfterConvertedMethod(QMultiMap<QString, QMap<QString, const QObject *> > &unconvertedSlotsMap) {
+static QMultiMap<QString, QMap<QString, const QObject *> > autoInfterConvertedSupportMethod(const QMultiMap<QString, QMap<QString, const QObject *> > &unconvertedSlotsMap)
+{
     QMultiMap<QString, QMap<QString, const QObject *> > convertedSlotsMap;
     QMapIterator<QString, QMap<QString, const QObject *> > iter(unconvertedSlotsMap);
 
@@ -166,33 +167,41 @@ static void autoInfterConvertedMethod(QMultiMap<QString, QMap<QString, const QOb
 
         HttpResponse::SupportMethod supportMethod = (HttpResponse::SupportMethod)key.toInt();
         if (supportMethod == HttpResponse::AutoInfer) {
-            QString key = getKey(slotMap);
-            if (key != "")
-                convertedSlotsMap.insert(key, slotMap);
+            QString key = getSupportMethod(slotMap);
+            if (key == "") {
+                qDebug()<<"Not find support Method!"<<slotMap.firstKey();
+            }
+            else {
+                if (methodParams[key].value("isAutoInfer").toBool())
+                    convertedSlotsMap.insert(key, slotMap);
+                else
+                    qDebug()<<"This type["<<methodParams[key].value("types").toString()<<"] does not support automatic derivation";
+            }
         }
         else {
-            convertedSlotsMap.insert(key, slotMap);
+            if (methodParams[key].value("isAutoInfer").toBool())
+                convertedSlotsMap.insert(key, slotMap);
+            else
+                qDebug()<<"This type["<<methodParams[key].value("types").toString()<<"] does not support automatic derivation";
         }
     }
 
-    unconvertedSlotsMap = convertedSlotsMap;
+    return convertedSlotsMap;
 
 }
 
 void HttpResponse::slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap)
 {
-    QMultiMap<QString, QMap<QString, const QObject *> > unconvertedSlotsmap = slotsMap;
+    const QMultiMap<QString, QMap<QString, const QObject *> > convertedSlotsmap = autoInfterConvertedSupportMethod(slotsMap);
 
-    autoInfterConvertedMethod(unconvertedSlotsmap);
-
-    QMapIterator<QString, QMap<QString, const QObject *> > iter(unconvertedSlotsmap);
+    QMapIterator<QString, QMap<QString, const QObject *> > iter(convertedSlotsmap);
     while (iter.hasNext()) {
         iter.next();
         const QString &key = iter.key();
         const QMap<QString, const QObject *> &slotMap = iter.value();
 
         const QObject *receiver = slotMap.first();
-        QString receiverSlot = slotMap.firstKey();
+        const QString &receiverSlot = slotMap.firstKey();
 
         if (methodParams.contains(key)) {
             connect(this,
