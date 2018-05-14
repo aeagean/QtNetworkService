@@ -41,6 +41,7 @@ void HttpResponse::abort()
 void HttpResponse::onFinished()
 {
     QNetworkReply *reply = (QNetworkReply *)this->parent();
+    qDebug()<<(new HttpResponse(reply))->readAll();
     emit finished(reply);
     emit finished(reply->readAll());
     emit finished(QJsonDocument::fromJson(reply->readAll()).object().toVariantMap());
@@ -80,6 +81,8 @@ static void extractSlot(const QString &respReceiverSlot, QString &extractSlot, Q
 
 void HttpResponse::slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap)
 {
+//    Q
+
     QNetworkReply *reply = (QNetworkReply *)this->parent();
     QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
     while (iter.hasNext()) {

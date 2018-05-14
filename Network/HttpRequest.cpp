@@ -70,7 +70,7 @@ HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *slot, 
 
 HttpRequest &HttpRequest::onError(const QObject *receiver, const char *slot)
 {
-    return onResponse(receiver, slot);
+    return onResponse(receiver, slot, HttpResponse::AutoInfer);
 }
 
 bool HttpRequest::exec()
