@@ -7,10 +7,11 @@ Test::Test()
 void Test::execute()
 {
     m_httpService.get("http://www.aeagean.com")
+//            .onResponse(this, SLOT(finish(QVariantMap)))
 //            .onResponse(this, SLOT(finish(QByteArray)))
-            .onResponse(this, SLOT(finish(QByteArray)))
-//            .onResponse(this, SLOT(finish(QNetworkReply *)))
-            .onResponse(this, SLOT(error(QNetworkReply::NetworkError)), HttpResponse::AutoInfer)
+            .onResponse(this, SLOT(finish(QNetworkReply *)))
+            .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
+//            .onResponse(this, SLOT(error(QNetworkReply::NetworkError)), HttpResponse::AutoInfer)
             .exec();
 
 //    m_httpService.get("http://www.baidu.com")
@@ -36,4 +37,10 @@ void Test::finish(QNetworkReply *result)
 
 void Test::error(QNetworkReply::NetworkError result) {
     qDebug()<<"error: "<<result;
+}
+
+void Test::downloadProgress(qint64 bytesReceived, qint64 bytesTotal)
+{
+    qDebug()<<"bytesReceived: "<<bytesReceived;
+    qDebug()<<"bytesTotal: "<<bytesTotal;
 }

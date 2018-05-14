@@ -17,6 +17,7 @@ private slots:
     void finish(QByteArray result);
     void finish(QNetworkReply *result);
     void error(QNetworkReply::NetworkError result);
+    void downloadProgress(qint64 bytesReceived, qint64 bytesTotal);
 
 private:
     HttpService m_httpService;

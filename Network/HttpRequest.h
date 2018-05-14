@@ -49,7 +49,7 @@ private:
     QJsonObject m_jsonBody;
     QNetworkAccessManager::Operation m_op;
     HttpService *m_httpService;
-    QMap<QString, QMap<QString, const QObject *>> m_slotsMap;
+    QMultiMap<QString, QMap<QString, const QObject *>> m_slotsMap;
 };
 
 #endif // HTTP_SERVICE_METHOD

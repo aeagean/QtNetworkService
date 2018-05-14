@@ -2,7 +2,7 @@
 #define EMAQT_HTTP_REQUEST_H
 
 #include <QNetworkReply>
-#include <QMap>
+#include <QMultiMap>
 
 class HttpResponse : public QNetworkReply
 {
@@ -15,29 +15,43 @@ public:
      */
     enum SupportMethod {
         AutoInfer,
-        onResponse_QNetworkReply_A_Pointer,    /* method: void function(QNetworkReply* reply) */
-        onResponse_QByteArray,                 /* method: void function(QByteArray data) */
-        onResponse_QVariantMap,                /* method: void function(QVariantMap map) */
-        onDownloadProgress_qint64_qint64,      /* method: void function(qint64 bytesReceived, qint64 bytesTotal) */
-        onError_QNetworkReply_To_NetworkError, /* method: void function(QNetworkReply::NetworkError error) */
-        onError_QString                        /* method: void function(QString errorString) */
+        onResponse_QNetworkReply_A_Pointer,    /* method: void function(QNetworkReply* reply); Is_AutoInfer: true */
+        onResponse_QByteArray,                 /* method: void function(QByteArray data); Is_AutoInfer: true */
+        onResponse_QVariantMap,                /* method: void function(QVariantMap map); Is_AutoInfer: true */
+        onDownloadProgress_qint64_qint64,      /* method: void function(qint64 bytesReceived, qint64 bytesTotal); Is_AutoInfer: true */
+        onError_QNetworkReply_To_NetworkError, /* method: void function(QNetworkReply::NetworkError error); Is_AutoInfer: true */
+        onError_QString                        /* method: void function(QString errorString); Is_AutoInfer: true */
     };
 
-    explicit HttpResponse(QNetworkReply *parent, const QMap<QString, QMap<QString, const QObject *> > &slotsMap);
+    explicit HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap);
 
     virtual ~HttpResponse();
 
 public slots:
     void abort();
 
+private slots:
+    void onFinished();
+
 protected:
     qint64 readData(char *data, qint64 maxlen);
     void triggerSlot(const QObject *receiver, const char *receiverSlot);
-    void slotsMapOperation(const QMap<QString, QMap<QString, const QObject *> > &slotsMap,
+    void slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap,
                            SupportMethod supportReflexMethod);
+
+    void slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap);
+
+signals:
+    void finished(QNetworkReply *reply);
+    void finished(QByteArray data);
+    void finished(QVariantMap map);
+    void error(QString errorString);
 
 private:
     HttpResponse();
+
+private:
+   QMultiMap<QString, QMap<QString, const QObject *> > m_slotsMap;
 };
 
 

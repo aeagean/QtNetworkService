@@ -34,16 +34,17 @@ static void extractSlot(const QString &respReceiverSlot, QString &extractSlot, Q
     }
 }
 
-HttpResponse::HttpResponse(QNetworkReply *parent, const QMap<QString, QMap<QString, const QObject *> > &slotsMap)
-    : QNetworkReply(parent)
+HttpResponse::HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap)
+    : QNetworkReply(parent), m_slotsMap(slotsMap)
 {
-    connect(parent, &QNetworkReply::finished, [=]() {
-        if (parent->error() == QNetworkReply::NoError)
-            slotsMapOperation(slotsMap, onResponse);
-    });
+    connect(parent, SIGNAL(finished()), this, SLOT(onFinished()));
+//    connect(parent, &QNetworkReply::finished, [=]() {
+//        if (parent->error() == QNetworkReply::NoError)
+//            slotsMapOperation(slotsMap, onResponse);
+//    });
 
-    connect(parent, static_cast<void (QNetworkReply::*)(QNetworkReply::NetworkError)>(&QNetworkReply::error),
-            [=]() { slotsMapOperation(slotsMap, onError); });
+//    connect(parent, static_cast<void (QNetworkReply::*)(QNetworkReply::NetworkError)>(&QNetworkReply::error),
+//            [=]() { slotsMapOperation(slotsMap, onError); });
 }
 
 HttpResponse::~HttpResponse()
@@ -53,6 +54,11 @@ HttpResponse::~HttpResponse()
 void HttpResponse::abort()
 {
 
+}
+
+void HttpResponse::onFinished()
+{
+    slotsMapOperation(m_slotsMap);
 }
 
 qint64 HttpResponse::readData(char *data, qint64 maxlen)
@@ -90,7 +96,7 @@ void HttpResponse::triggerSlot(const QObject *receiver, const char *receiverSlot
     }
 }
 
-void HttpResponse::slotsMapOperation(const QMap<QString, QMap<QString, const QObject *> > &slotsMap,
+void HttpResponse::slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap,
                                      SupportMethod supportReflexMethod)
 {
     QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
@@ -105,6 +111,81 @@ void HttpResponse::slotsMapOperation(const QMap<QString, QMap<QString, const QOb
 
     QNetworkReply *reply = (QNetworkReply *)this->parent();
     reply->deleteLater();
+}
+
+static void extractSlot(const QString &respReceiverSlot, QString &extractSlot, QStringList &extractSlotTypes)
+{
+    QString slot(respReceiverSlot);
+    if (extractCode(respReceiverSlot.toStdString().data()) == QSLOT_CODE && !slot.isEmpty()) {
+        slot.remove(0, 1);
+
+        QString unconvertedSlotType = slot;
+        int startIndex = slot.indexOf('(');
+        int endIndex = slot.indexOf(')');
+        Q_ASSERT(startIndex != -1 && endIndex != -1);
+
+        extractSlot = slot.remove(startIndex, endIndex-startIndex+1);
+
+        extractSlotTypes = unconvertedSlotType.mid(startIndex+1, endIndex-startIndex-1)
+                              .remove(QRegExp("\\s"))
+                              .split(',');
+    }
+}
+
+void HttpResponse::slotsMapOperation(const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap)
+{
+    QNetworkReply *reply = (QNetworkReply *)this->parent();
+
+    QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
+    while (iter.hasNext()) {
+        iter.next();
+        const QString &key = iter.key();
+        const QMap<QString, const QObject *> &slotMap = iter.value();
+
+        SupportMethod supportMethod = (SupportMethod)key.toInt();
+
+        if (supportMethod == AutoInfer) {
+            const QObject *receiver = slotMap.first();
+            QString receiverSlot = slotMap.firstKey();
+            QString slot;
+            QStringList slotTypes;
+
+            extractSlot(receiverSlot, slot, slotTypes);
+
+            if (slotTypes.contains(TYPE_TO_STRING(QByteArray))) {
+                connect(this, SIGNAL(finished(QByteArray)), receiver, receiverSlot.toStdString().data());
+                emit finished(reply->readAll());
+            }
+            else if (slotTypes.contains(TYPE_TO_STRING(QVariantMap))) {
+                connect(this, SIGNAL(finished(QVariantMap)), receiver, receiverSlot.toStdString().data());
+                emit finished(QJsonDocument::fromJson(reply->readAll()).object().toVariantMap());
+            }
+            else if (slotTypes.contains(TYPE_TO_STRING(QNetworkReply*))) {
+                connect(this, SIGNAL(finished(QNetworkReply*)), receiver, receiverSlot.toStdString().data());
+                emit finished(reply);
+            }
+            else if (slotTypes == QStringList({TYPE_TO_STRING(qint64), TYPE_TO_STRING(qint64)})) {
+                connect(reply, SIGNAL(downloadProgress(qint64,qint64)), receiver, receiverSlot.toStdString().data());
+            }
+            else if (slotTypes == QStringList({TYPE_TO_STRING(QNetworkReply::NetworkError)})) {
+                connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), receiver, receiverSlot.toStdString().data());
+            }
+            else if (slotTypes == QStringList({TYPE_TO_STRING(QString)})) {
+                connect(this, SIGNAL(error(QString)), receiver, receiverSlot.toStdString().data());
+                emit error(reply->errorString());
+            }
+            else {
+                qDebug()<<"Don't support type: "<<slotTypes;
+                qDebug()<<"Support Type: "<<supportSlotTypeList;
+            }
+        }
+        else if (supportMethod == onResponse_QByteArray) {
+
+        }
+
+//        if (!key.compare(NUMBER_TO_STRING(supportReflexMethod)))
+//            triggerSlot(slotMap.first(), slotMap.firstKey().toStdString().data());
+    }
 }
 
 HttpResponse::HttpResponse()
