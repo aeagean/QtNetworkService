@@ -73,7 +73,7 @@ HttpRequest &HttpRequest::onError(const QObject *receiver, const char *slot)
     return onResponse(receiver, slot, HttpResponse::AutoInfer);
 }
 
-bool HttpRequest::exec()
+HttpResponse *HttpRequest::exec()
 {
     QNetworkReply* reply = NULL;
     QBuffer* sendBuffer = NULL;
@@ -88,7 +88,7 @@ bool HttpRequest::exec()
 
     if (reply == NULL && sendBuffer != NULL) {
         sendBuffer->deleteLater();
-        return false;
+        return NULL;
     }
     else if (sendBuffer != NULL) {
         sendBuffer->setParent(reply);

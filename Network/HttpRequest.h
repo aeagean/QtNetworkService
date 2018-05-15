@@ -39,7 +39,7 @@ public:
      */
     HttpRequest &onError(const QObject *receiver, const char *slot);
 
-    bool exec();
+    HttpResponse *exec();
 
 private:
     HttpRequest();

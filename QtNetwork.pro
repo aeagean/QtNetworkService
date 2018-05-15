@@ -3,7 +3,7 @@ QT += network
 
 CONFIG += c++11
 
-!contains( CONFIG, debug ) {
+contains( CONFIG, debug ) {
     CONFIG += staticlib
     TEMPLATE = lib
     TARGET = $$PWD/lib/QtNetwork
@@ -33,13 +33,15 @@ SOURCES += main.cpp \
     Network/HttpService.cpp \
     Test.cpp \
     Network/HttpResponse.cpp \
-    Network/HttpRequest.cpp
+    Network/HttpRequest.cpp \
+    NetworkDownloadFile/NetworkDownloadFile.cpp
 
 HEADERS += \
     Network/HttpService.h \
     Test.h \
     Network/HttpResponse.h \
-    Network/HttpRequest.h
+    Network/HttpRequest.h \
+    NetworkDownloadFile/NetworkDownloadFile.h
 
 DISTFILES += \
     QtNetwork.pri

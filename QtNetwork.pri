@@ -1,4 +1,4 @@
-INCLUDEPATH += $$PWD/Network
+INCLUDEPATH += $$PWD/Network $$PWD/NetworkDownloadFile
 
 QT += network
 
