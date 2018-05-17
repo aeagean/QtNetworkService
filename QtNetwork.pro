@@ -3,7 +3,7 @@ QT += network
 
 CONFIG += c++11
 
-contains( CONFIG, debug ) {
+!contains( CONFIG, debug ) {
     CONFIG += staticlib
     TEMPLATE = lib
     TARGET = $$PWD/lib/QtNetwork

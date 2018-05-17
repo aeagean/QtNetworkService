@@ -32,7 +32,7 @@ public slots:
 
 private slots:
     void onFinished();
-    void onError();
+    void onError(QNetworkReply::NetworkError error);
     void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
 
 protected:

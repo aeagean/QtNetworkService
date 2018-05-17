@@ -3,6 +3,8 @@
 #include <QByteArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QNetworkConfigurationManager>
+#include <QMetaEnum>
 
 #define TYPE_TO_STRING(t) QString(#t)
 #define NUMBER_TO_STRING(n)  QString::number(n)
@@ -73,8 +75,11 @@ HttpResponse::HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<
     slotsMapOperation(m_slotsMap);
 
     connect(parent, SIGNAL(finished()), this, SLOT(onFinished()));
-    connect(parent, static_cast<void (QNetworkReply::*)(QNetworkReply::NetworkError)>(&QNetworkReply::error), [=] { onError();});
+    connect(parent, SIGNAL(error(QNetworkReply::NetworkError)), SLOT(onError(QNetworkReply::NetworkError)));
     connect(parent, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(onDownloadProgress(qint64, qint64)));
+
+    if (!QNetworkConfigurationManager().isOnline())
+        onError(QNetworkReply::UnknownNetworkError);
 }
 
 HttpResponse::~HttpResponse()
@@ -100,12 +105,15 @@ void HttpResponse::onFinished()
     reply->deleteLater();
 }
 
-void HttpResponse::onError()
+void HttpResponse::onError(QNetworkReply::NetworkError error)
 {
     QNetworkReply *reply = (QNetworkReply *)this->parent();
-    emit error(reply->errorString());
-    emit error(reply->error());
+     const QMetaObject & metaObject = QNetworkReply::staticMetaObject;
+    QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
+    QString errorString = reply->errorString().isEmpty() ? metaEnum.valueToKey(error) : reply->errorString();
 
+    emit this->error(errorString);
+    emit this->error(error);
     reply->deleteLater();
 }
 
