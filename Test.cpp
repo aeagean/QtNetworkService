@@ -4,21 +4,48 @@ Test::Test()
 {
 }
 
-void Test::execute()
+void Test::httpTest()
 {
     m_httpService.get("http://www.aeagean.com")
-//            .onResponse(this, SLOT(finish(QVariantMap)))
-//            .onResponse(this, SLOT(finish(QByteArray)))
             .onResponse(this, SLOT(finish(QNetworkReply *)))
             .onResponse(this, SLOT(downloadProgress(qint64, qint64)))
             .onResponse(this, SLOT(error(QNetworkReply::NetworkError)))
             .onResponse(this, SLOT(error(QString)))
             .exec();
+}
 
-//    m_httpService.get("http://www.baidu.com")
-//            .onResponse(this, SLOT(finish(QByteArray)))
-//            .onError(this, SLOT(error(QVariant)))
-//            .exec();
+void Test::execute()
+{
+//    httpTest();
+    otherTest();
+}
+
+
+#include <functional>
+
+template<typename R = void, typename... Args>
+class Fn {
+public:
+    Fn(std::function<R(Args...)> fun) : _fun(fun) {
+    }
+
+    R operator()(Args... args) {
+        return _fun(args...);
+    }
+private:
+    std::function<R(Args...) > _fun;
+};
+
+//Q_DECLARE_METATYPE(std::function<void ()>)
+Q_DECLARE_METATYPE(void**)
+void Test::otherTest()
+{
+    Fn<> sumFn([=]() { qDebug()<<"LLLL";});
+
+    std::function<void ()> aa = sumFn;
+    void **a = reinterpret_cast<void **>(&aa);
+//    QVariant var = QVariant::fromValue(a);
+    (reinterpret_cast<std::function<void ()>>(*a));
 }
 
 void Test::finish(QVariantMap result)

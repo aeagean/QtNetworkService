@@ -10,7 +10,9 @@ class Test : public QObject {
 public:
     Test();
 
+    void httpTest();
     void execute();
+    void otherTest();
 
 private slots:
     void finish(QVariantMap result);
