@@ -76,21 +76,20 @@ HttpRequest &HttpRequest::onError(const QObject *receiver, const char *slot)
 HttpResponse *HttpRequest::exec()
 {
     QNetworkReply* reply = NULL;
-    QBuffer* sendBuffer = NULL;
+    QBuffer* sendBuffer = new QBuffer();
     QJsonObject sendJson = m_jsonBody;
     if (!sendJson.isEmpty()) {
         QByteArray sendByteArray = QJsonDocument(sendJson).toJson();
-        sendBuffer = new QBuffer();
         sendBuffer->setData(sendByteArray);
     }
 
     reply = m_httpService->createRequest(m_op, m_networkRequest, sendBuffer);
 
-    if (reply == NULL && sendBuffer != NULL) {
+    if (reply == NULL) {
         sendBuffer->deleteLater();
         return NULL;
     }
-    else if (sendBuffer != NULL) {
+    else {
         sendBuffer->setParent(reply);
     }
 
