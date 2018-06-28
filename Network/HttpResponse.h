@@ -1,5 +1,5 @@
-#ifndef EMAQT_HTTP_REQUEST_H
-#define EMAQT_HTTP_REQUEST_H
+#ifndef HTTP_RESPONSE_H
+#define HTTP_RESPONSE_H
 
 #include <QNetworkReply>
 #include <QMultiMap>
@@ -56,4 +56,4 @@ private:
 };
 
 
-#endif // EMAQT_HTTP_REQUEST_H
+#endif // HTTP_RESPONSE_H

@@ -1,5 +1,5 @@
-#ifndef NETWORKDOWNLOADFILE_H
-#define NETWORKDOWNLOADFILE_H
+#ifndef NETWORK_DOWNLOAD_FILE_H
+#define NETWORK_DOWNLOAD_FILE_H
 
 #include "HttpService.h"
 
@@ -19,4 +19,4 @@ private:
     HttpService m_httpService;
 };
 
-#endif // NETWORKDOWNLOADFILE_H
+#endif // NETWORK_DOWNLOAD_FILE_H

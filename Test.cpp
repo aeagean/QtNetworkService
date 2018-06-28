@@ -7,11 +7,11 @@ Test::Test()
 void Test::httpTest()
 {
     m_httpService.get("http://www.aeagean.com")
-            .onResponse(this, SLOT(finish(QNetworkReply *)))
-            .onResponse(this, SLOT(downloadProgress(qint64, qint64)))
-            .onResponse(this, SLOT(error(QNetworkReply::NetworkError)))
-            .onResponse(this, SLOT(error(QString)))
-            .exec();
+                 .onResponse(this, SLOT(finish(QNetworkReply *)))
+                 .onResponse(this, SLOT(downloadProgress(qint64, qint64)))
+                 .onResponse(this, SLOT(error(QNetworkReply::NetworkError)))
+                 .onResponse(this, SLOT(error(QString)))
+                 .exec();
 }
 
 void Test::execute()
@@ -45,7 +45,7 @@ void Test::otherTest()
     std::function<void ()> aa = sumFn;
     void **a = reinterpret_cast<void **>(&aa);
 //    QVariant var = QVariant::fromValue(a);
-    (reinterpret_cast<std::function<void ()>>(*a));
+//    (reinterpret_cast<std::function<void ()>>(*a));
 }
 
 void Test::finish(QVariantMap result)

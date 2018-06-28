@@ -1,5 +1,5 @@
-#ifndef HTTP_SERVICE_METHOD
-#define HTTP_SERVICE_METHOD
+#ifndef HTTP_REQUEST_H
+#define HTTP_REQUEST_H
 
 #include "HttpResponse.h"
 
@@ -52,4 +52,4 @@ private:
     QMultiMap<QString, QMap<QString, const QObject *>> m_slotsMap;
 };
 
-#endif // HTTP_SERVICE_METHOD
+#endif // HTTP_REQUEST_H
