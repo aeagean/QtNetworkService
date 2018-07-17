@@ -94,7 +94,6 @@ void HttpResponse::abort()
 void HttpResponse::onFinished()
 {
     QNetworkReply *reply = (QNetworkReply *)this->parent();
-
     if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QNetworkReply_A_Pointer)))
         emit finished(reply);
     else if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QByteArray)))

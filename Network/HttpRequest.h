@@ -24,6 +24,9 @@ public:
     HttpRequest &queryParam(const QString &key, const QVariant &value);
     HttpRequest &queryParams(const QMap<QString, QVariant> &params);
 
+    /* Mainly used for identification */
+    HttpRequest &userAttribute(const QVariant &value);
+
     HttpRequest &jsonBody(const QVariant &jsonBody);
     /*
      * @onRespone slot support type: void function(QVariantMap resultMap) OR

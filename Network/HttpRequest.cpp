@@ -110,6 +110,7 @@ HttpRequest &HttpRequest::queryParam(const QString &key, const QVariant &value)
     url.setQuery(urlQuery);
 
     m_networkRequest.setUrl(url);
+
     return *this;
 }
 
@@ -121,5 +122,11 @@ HttpRequest &HttpRequest::queryParams(const QMap<QString, QVariant> &params)
         queryParam(iter.key(), iter.value());
     }
 
+    return *this;
+}
+
+HttpRequest &HttpRequest::userAttribute(const QVariant &value)
+{
+    m_networkRequest.setAttribute(QNetworkRequest::User, value);
     return *this;
 }
