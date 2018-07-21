@@ -75,7 +75,7 @@ HttpResponse::HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<
     slotsMapOperation(m_slotsMap);
 
     connect(parent, SIGNAL(finished()), this, SLOT(onFinished()));
-    connect(parent, SIGNAL(error(QNetworkReply::NetworkError)), SLOT(onError(QNetworkReply::NetworkError)));
+    connect(parent, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
     connect(parent, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(onDownloadProgress(qint64, qint64)));
 
     if (!QNetworkConfigurationManager().isOnline())
@@ -84,6 +84,7 @@ HttpResponse::HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<
 
 HttpResponse::~HttpResponse()
 {
+
 }
 
 void HttpResponse::abort()
@@ -113,6 +114,7 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
 
     emit this->error(errorString);
     emit this->error(error);
+
     reply->deleteLater();
 }
 
