@@ -4,7 +4,7 @@
 
 ApiTest::ApiTest()
 {
-    m_service = new HttpService();
+
 }
 
 ApiTest::~ApiTest()
@@ -14,7 +14,7 @@ ApiTest::~ApiTest()
 
 void ApiTest::exec()
 {
-    m_service->get("http://www.baidu.com")
+    m_service.get("http://www.baidu.com")
             .onResponse(this, SLOT(finish(QVariantMap)))
             .onError(this, SLOT(error(QString)))
             .exec();
@@ -22,8 +22,7 @@ void ApiTest::exec()
 
 void ApiTest::finish(QVariantMap result)
 {
-//    QTimer::singleShot(1000, [=](){ delete m_service; });
-    m_service->deleteLater();
+    this->deleteLater();
     qDebug()<<result;
 }
 
