@@ -5,8 +5,11 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-    ApiTest *apiTest = new ApiTest();
-    apiTest->exec();
+
+    for (int i = 0; i < 10; i++) {
+        ApiTest *apiTest = new ApiTest();
+        apiTest->exec();
+    }
 
     return a.exec();
 }

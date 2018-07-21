@@ -8,11 +8,12 @@ class ApiTest : public QObject
     Q_OBJECT
 public:
     ApiTest();
+    virtual ~ApiTest();
 
     void exec();
 
 private slots:
-    void finish();
+    void finish(QVariantMap result);
 
 private:
     HttpService m_service;
