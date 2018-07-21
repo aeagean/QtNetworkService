@@ -1,5 +1,5 @@
-INCLUDEPATH += $$PWD/Network $$PWD/NetworkDownloadFile
+INCLUDEPATH += $$PWD/Include/Network $$PWD/Include/NetworkDownloadFile
 
 QT += network
 
-LIBS += -L$$PWD/lib -lQtNetworkService
+LIBS += -L$$PWD/Lib -lQtNetworkService
