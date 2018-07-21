@@ -14,6 +14,7 @@ public:
 
 private slots:
     void finish(QVariantMap result);
+    void error(QString errorString);
 
 private:
     HttpService m_service;
