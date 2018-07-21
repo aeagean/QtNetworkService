@@ -17,7 +17,7 @@ private slots:
     void error(QString errorString);
 
 private:
-    HttpService m_service;
+    HttpService *m_service;
 };
 
 #endif // APITEST_H

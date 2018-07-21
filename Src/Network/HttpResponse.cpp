@@ -223,7 +223,8 @@ void HttpResponse::slotsMapOperation(QMultiMap<QString, QMap<QString, const QObj
             connect(this,
                     methodParams[key].value("signal").toString().toStdString().data(),
                     receiver,
-                    receiverSlot.toStdString().data());
+                    receiverSlot.toStdString().data(),
+                    Qt::QueuedConnection);
         }
     }
 }
