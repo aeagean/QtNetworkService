@@ -14,6 +14,7 @@ public:
 
 private slots:
     void finish(QVariantMap result);
+    void finish(QNetworkReply *reply);
     void error(QString errorString);
 
 private:
