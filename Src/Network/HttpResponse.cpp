@@ -61,6 +61,22 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
             {"isAutoInfer", true}
         }
     },
+    {
+        N2S(HttpResponse::onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer),
+        {
+            {"types", QStringList({T2S(QNetworkReply::NetworkError), T2S(QNetworkReply*)})},
+            {"signal", SIGNAL(error(QNetworkReply::NetworkError, QNetworkReply*))},
+            {"isAutoInfer", true}
+        }
+    },
+    {
+        N2S(HttpResponse::onError_QString_QNetworkReply_A_Poniter),
+        {
+            {"types", QStringList({T2S(QString), T2S(QNetworkReply*)})},
+            {"signal", SIGNAL(error(QString, QNetworkReply*))},
+            {"isAutoInfer", true}
+        }
+    },
 };
 
 static int extractCode(const char *member)
@@ -114,6 +130,8 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
 
     emit this->error(errorString);
     emit this->error(error);
+    emit this->error(errorString, reply);
+    emit this->error(error, reply);
 
     reply->deleteLater();
 }

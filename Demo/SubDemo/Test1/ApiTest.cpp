@@ -14,9 +14,9 @@ ApiTest::~ApiTest()
 
 void ApiTest::exec()
 {
-    m_service.get("http://www.baidu.com")
+    m_service.get("http://www.baidu.om")
             .onResponse(this, SLOT(finish(QNetworkReply*)))
-            .onError(this, SLOT(error(QString)))
+            .onError(this, SLOT(error(QNetworkReply::NetworkError, QNetworkReply*)))
             .exec();
 }
 
@@ -35,4 +35,14 @@ void ApiTest::finish(QNetworkReply *reply)
 void ApiTest::error(QString errorString)
 {
     qDebug()<<errorString;
+}
+
+void ApiTest::error(QString errorString, QNetworkReply *reply)
+{
+    qDebug()<<errorString<<reply->error()<<"Error Type";
+}
+
+void ApiTest::error(QNetworkReply::NetworkError error, QNetworkReply *reply)
+{
+    qDebug()<<error<<reply->error()<<"Error";
 }

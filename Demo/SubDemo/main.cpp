@@ -7,7 +7,7 @@ int main(int argc, char *argv[])
     QCoreApplication a(argc, argv);
 
     QList<ApiTest*> apis;
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 1; i++) {
         ApiTest *apiTest = new ApiTest();
         apis.append(apiTest);
         apiTest->exec();
