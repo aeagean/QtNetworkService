@@ -111,29 +111,42 @@ void HttpResponse::abort()
 void HttpResponse::onFinished()
 {
     QNetworkReply *reply = (QNetworkReply *)this->parent();
-    if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QNetworkReply_A_Pointer)))
+    if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QNetworkReply_A_Pointer))) {
         emit finished(reply);
-    else if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QByteArray)))
-        emit finished(reply->readAll());
-    else if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QVariantMap)))
-        emit finished(QJsonDocument::fromJson(reply->readAll()).object().toVariantMap());
-
-    reply->deleteLater();
+    }
+    else if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QByteArray))) {
+        QByteArray result = reply->readAll();
+        emit finished(result);
+        reply->deleteLater();
+    }
+    else if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QVariantMap))) {
+        QByteArray result = reply->readAll();
+        emit finished(QJsonDocument::fromJson(result).object().toVariantMap());
+        reply->deleteLater();
+    }
 }
 
 void HttpResponse::onError(QNetworkReply::NetworkError error)
 {
     QNetworkReply *reply = (QNetworkReply *)this->parent();
-     const QMetaObject & metaObject = QNetworkReply::staticMetaObject;
+    const QMetaObject & metaObject = QNetworkReply::staticMetaObject;
     QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
     QString errorString = reply->errorString().isEmpty() ? metaEnum.valueToKey(error) : reply->errorString();
 
-    emit this->error(errorString);
-    emit this->error(error);
-    emit this->error(errorString, reply);
-    emit this->error(error, reply);
-
-    reply->deleteLater();
+    if (m_slotsMap.contains(N2S(SupportMethod::onError_QString))) {
+        emit this->error(errorString);
+        reply->deleteLater();
+    }
+    else if (m_slotsMap.contains(N2S(SupportMethod::onError_QNetworkReply_To_NetworkError))) {
+        emit this->error(error);
+        reply->deleteLater();
+    }
+    else if (m_slotsMap.contains(N2S(SupportMethod::onError_QString_QNetworkReply_A_Poniter))) {
+        emit this->error(errorString, reply);
+    }
+    else if (m_slotsMap.contains(N2S(SupportMethod::onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer))) {
+        emit this->error(error, reply);
+    }
 }
 
 void HttpResponse::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
@@ -162,8 +175,8 @@ static void extractSlot(const QString &respReceiverSlot, QString &extractSlot, Q
         extractSlot = slot.remove(startIndex, endIndex-startIndex+1);
 
         extractSlotTypes = unconvertedSlotType.mid(startIndex+1, endIndex-startIndex-1)
-                                              .remove(QRegExp("\\s"))
-                                              .split(',');
+                .remove(QRegExp("\\s"))
+                .split(',');
     }
 }
 
