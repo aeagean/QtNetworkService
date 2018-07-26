@@ -15,9 +15,11 @@ public:
     HttpService();
     ~HttpService();
 
-    HttpRequest get(const QString url);
-    HttpRequest post(const QString url);
-    HttpRequest put(const QString url);
+    HttpRequest get(const QString &url);
+    HttpRequest post(const QString &url);
+    HttpRequest put(const QString &url);
+
+    HttpRequest send(const QString &url, Operation op = GetOperation);
 };
 
 #endif // HTTP_SERVICE_H
