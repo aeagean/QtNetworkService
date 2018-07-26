@@ -133,19 +133,19 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
     QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
     QString errorString = reply->errorString().isEmpty() ? metaEnum.valueToKey(error) : reply->errorString();
 
-    if (m_slotsMap.contains(N2S(SupportMethod::onError_QString))) {
+    if (m_slotsMap.contains(N2S(SupportMethod::onError_QString_QNetworkReply_A_Poniter))) {
+        emit this->error(errorString, reply);
+    }
+    else if (m_slotsMap.contains(N2S(SupportMethod::onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer))) {
+        emit this->error(error, reply);
+    }
+    else if (m_slotsMap.contains(N2S(SupportMethod::onError_QString))) {
         emit this->error(errorString);
         reply->deleteLater();
     }
     else if (m_slotsMap.contains(N2S(SupportMethod::onError_QNetworkReply_To_NetworkError))) {
         emit this->error(error);
         reply->deleteLater();
-    }
-    else if (m_slotsMap.contains(N2S(SupportMethod::onError_QString_QNetworkReply_A_Poniter))) {
-        emit this->error(errorString, reply);
-    }
-    else if (m_slotsMap.contains(N2S(SupportMethod::onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer))) {
-        emit this->error(error, reply);
     }
 }
 
