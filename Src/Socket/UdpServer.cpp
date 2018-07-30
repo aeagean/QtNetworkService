@@ -7,7 +7,7 @@ UdpServer::UdpServer(QObject *parent) : QObject(parent)
 UdpServer::UdpServer(QObject *parent, const QHostAddress &address, quint16 port, QAbstractSocket::BindMode mode) :
     QObject(parent)
 {
-    m_udpServer = new QUdpSocket(parent);
+    m_udpServer = new QUdpSocket(this);
     m_udpServer->bind(address, port);
     connect(m_udpServer, SIGNAL(readyRead()), this, SLOT(receiver()));
 }
