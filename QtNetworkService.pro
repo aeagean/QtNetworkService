@@ -12,13 +12,15 @@ SOURCES += \
     Src/Network/HttpService.cpp \
     Src/Network/HttpResponse.cpp \
     Src/Network/HttpRequest.cpp \
-    Src/NetworkDownloadFile/NetworkDownloadFile.cpp
+    Src/NetworkDownloadFile/NetworkDownloadFile.cpp \
+    Src/Socket/UdpServer.cpp
 
 HEADERS += \
     Include/Network/HttpService.h \
     Include/Network/HttpResponse.h \
     Include/Network/HttpRequest.h \
-    Include/NetworkDownloadFile/NetworkDownloadFile.h
+    Include/NetworkDownloadFile/NetworkDownloadFile.h \
+    Include/Socket/UdpServer.h
 
 include(QtNetworkService.pri)
 message(" ================ QtNetworkService Library ================ ")

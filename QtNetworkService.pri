@@ -1,4 +1,6 @@
-INCLUDEPATH += $$PWD/Include/Network $$PWD/Include/NetworkDownloadFile
+INCLUDEPATH += $$PWD/Include/Network \
+               $$PWD/Include/NetworkDownloadFile \
+               $$PWD/Include/Socket
 
 QT += network
 

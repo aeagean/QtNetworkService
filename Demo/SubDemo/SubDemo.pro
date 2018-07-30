@@ -15,9 +15,11 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += main.cpp \
-    Test1/ApiTest.cpp
+    Test1/ApiTest.cpp \
+    Test1/SocketTest.cpp
 
 include(../../QtNetworkService.pri)
 
 HEADERS += \
-    Test1/ApiTest.h
+    Test1/ApiTest.h \
+    Test1/SocketTest.h
