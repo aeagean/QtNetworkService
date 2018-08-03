@@ -9,7 +9,7 @@ class UdpServer : public QObject
     Q_OBJECT
 public:
     explicit UdpServer(QObject *parent = nullptr,
-                       const QHostAddress &address = QHostAddress("127.0.0.1"),
+                       const QHostAddress &address = QHostAddress(QHostAddress::Any),
                        quint16 port = 0,
                        QUdpSocket::BindMode mode = QUdpSocket::DefaultForPlatform);
 
