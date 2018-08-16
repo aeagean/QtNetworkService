@@ -18,17 +18,19 @@ void ApiTest::exec()
             .onResponse(this, SLOT(finish(QNetworkReply*)))
             .onError(this, SLOT(error(QNetworkReply::NetworkError, QNetworkReply*)))
             .exec();
+    static int i = 0;
+    qDebug()<<i++;
 }
 
 void ApiTest::finish(QVariantMap result)
 {
-    this->deleteLater();
+//    this->deleteLater();
     qDebug()<<result;
 }
 
 void ApiTest::finish(QNetworkReply *reply)
 {
-    this->deleteLater();
+//    this->deleteLater();
     qDebug()<<reply->readLine();
 }
 

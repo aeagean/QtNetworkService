@@ -1,11 +1,24 @@
 CONFIG += c++11
-CONFIG += staticlib
-TEMPLATE = lib
 
-unix:TARGET = $$PWD/Lib/QtNetworkService
-win32: {
-DESTDIR = $$PWD/Lib/
-TARGET = QtNetworkService
+CONFIG(QT_APP_MODE) {
+    QT      += core
+    HEADERS += Demo/Test1/ApiTest.h
+    SOURCES += Demo/main.cpp \
+               Demo/Test1/ApiTest.cpp
+    INCLUDEPATH += Demo Demo/Test1 Demo/Test2
+    message(" ================ QtNetworkService APPLICATION ================ ")
+}
+else {
+    CONFIG += staticli
+    TEMPLATE = lib
+    unix:TARGET = $$PWD/Lib/QtNetworkService
+
+    win32: {
+    DESTDIR = $$PWD/Lib/
+    TARGET = QtNetworkService
+    }
+
+    message(" ================ QtNetworkService Library ================ ")
 }
 
 SOURCES += \
@@ -21,4 +34,3 @@ HEADERS += \
     Include/NetworkDownloadFile/NetworkDownloadFile.h
 
 include(QtNetworkService.pri)
-message(" ================ QtNetworkService Library ================ ")
