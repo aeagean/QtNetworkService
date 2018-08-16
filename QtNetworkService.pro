@@ -9,7 +9,7 @@ CONFIG(QT_APP_MODE) {
     message(" ================ QtNetworkService APPLICATION ================ ")
 }
 else {
-    CONFIG += staticli
+    CONFIG += staticlib
     TEMPLATE = lib
     unix:TARGET = $$PWD/Lib/QtNetworkService
 
