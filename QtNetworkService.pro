@@ -26,13 +26,15 @@ SOURCES += \
     Src/Network/HttpResponse.cpp \
     Src/Network/HttpRequest.cpp \
     Src/NetworkDownloadFile/NetworkDownloadFile.cpp \
-    Src/Socket/UdpServer.cpp
+    Src/Socket/UdpServer.cpp \
+    Src/Socket/UdpClient.cpp
 
 HEADERS += \
     Include/Network/HttpService.h \
     Include/Network/HttpResponse.h \
     Include/Network/HttpRequest.h \
     Include/NetworkDownloadFile/NetworkDownloadFile.h \
-    Include/Socket/UdpServer.h
+    Include/Socket/UdpServer.h \
+    Include/Socket/UdpClient.h
 
 include(QtNetworkService.pri)
