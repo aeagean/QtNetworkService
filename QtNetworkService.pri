@@ -4,4 +4,6 @@ INCLUDEPATH += $$PWD/Include/Network \
 
 QT += network
 
-LIBS += -L$$PWD/Lib -lQtNetworkService
+!CONFIG(QT_APP_MODE) {
+    LIBS += -L$$PWD/Lib -lQtNetworkService
+}
