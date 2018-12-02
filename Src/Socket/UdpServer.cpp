@@ -1,3 +1,8 @@
+/**********************************************************
+Author: 微信公众号(你才小学生)
+WeChat public platform: nicaixiaoxuesheng
+Email:  2088201923@qq.com
+**********************************************************/
 #include "UdpServer.h"
 
 UdpServer::UdpServer(QObject *parent) : QObject(parent)
