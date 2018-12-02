@@ -44,7 +44,10 @@ public:
     HttpRequest &onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type = HttpResponse::AutoInfer);
 
     /*
-     * @onError slot support type: void function(QNetworkReply::NetworkErro errorr)
+     * @onError slot support type: void function(QNetworkReply::NetworkError error)
+     *                             void function(QString errorString);
+     *                             void function(QNetworkReply::NetworkError error, QNetworkReply* reply);
+     *                             void function(QString errorString, QNetworkReply* reply);
      * note: The same type is only triggered once
      */
     HttpRequest &onError(const QObject *receiver, const char *slot);

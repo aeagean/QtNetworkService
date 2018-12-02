@@ -29,7 +29,7 @@ public:
         onError_QNetworkReply_To_NetworkError, /* method: void function(QNetworkReply::NetworkError error); Is_AutoInfer: true */
         onError_QString,                       /* method: void function(QString errorString); Is_AutoInfer: true */
         onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer, /* method: void function(QNetworkReply::NetworkError error, QNetworkReply* reply); Is_AutoInfer: true */
-        onError_QString_QNetworkReply_A_Poniter/* method: void function(QString errorString), QNetworkReply* reply); Is_AutoInfer: true */
+        onError_QString_QNetworkReply_A_Poniter/* method: void function(QString errorString, QNetworkReply* reply); Is_AutoInfer: true */
     };
 
     explicit HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap);
