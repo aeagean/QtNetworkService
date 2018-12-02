@@ -8,6 +8,8 @@ Email:  2088201923@qq.com
 #include <QJsonDocument>
 #include <QBuffer>
 
+using namespace AeaQt;
+
 HttpService::HttpService()
 {
 }

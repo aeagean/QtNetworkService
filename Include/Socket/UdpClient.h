@@ -10,6 +10,8 @@ Email:  2088201923@qq.com
 #include <QHostAddress>
 #include <QUdpSocket>
 
+namespace AeaQt {
+
 class UdpClient : public QObject
 {
     Q_OBJECT
@@ -29,4 +31,5 @@ private:
     quint16 m_port;
 };
 
+}
 #endif // UDPCLIENT_H

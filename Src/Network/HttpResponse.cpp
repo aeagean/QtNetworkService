@@ -16,6 +16,8 @@ Email:  2088201923@qq.com
 #define N2S(n) NUMBER_TO_STRING(n)
 #define T2S(t) TYPE_TO_STRING(t)
 
+using namespace AeaQt;
+
 static const QMap<QString, QMap<QString, QVariant>> methodParams =
 {
     {

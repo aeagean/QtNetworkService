@@ -5,6 +5,8 @@ Email:  2088201923@qq.com
 **********************************************************/
 #include "UdpClient.h"
 
+using namespace AeaQt;
+
 UdpClient::UdpClient(QObject *parent, const QHostAddress &host, quint16 port) :
     QObject(parent)
 {

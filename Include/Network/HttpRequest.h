@@ -14,6 +14,8 @@ Email:  2088201923@qq.com
 
 #include <functional>
 
+namespace AeaQt {
+
 class HttpService;
 
 class HttpRequest
@@ -60,4 +62,5 @@ private:
     QMultiMap<QString, QMap<QString, const QObject *>> m_slotsMap;
 };
 
+}
 #endif // HTTP_REQUEST_H

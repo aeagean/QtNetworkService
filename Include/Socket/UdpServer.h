@@ -9,6 +9,8 @@ Email:  2088201923@qq.com
 #include <QObject>
 #include <QUdpSocket>
 
+namespace AeaQt {
+
 class UdpServer : public QObject
 {
     Q_OBJECT
@@ -31,4 +33,5 @@ private:
     QUdpSocket *m_udpServer;
 };
 
+}
 #endif // UDPSERVER_H

@@ -12,6 +12,8 @@ Email:  2088201923@qq.com
 
 #define NUMBER_TO_STRING(n) QString::number(n)
 
+using namespace AeaQt;
+
 HttpRequest::HttpRequest()
 {
 

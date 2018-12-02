@@ -5,6 +5,8 @@ Email:  2088201923@qq.com
 **********************************************************/
 #include "UdpServer.h"
 
+using namespace AeaQt;
+
 UdpServer::UdpServer(QObject *parent) : QObject(parent)
 {
 }

@@ -5,6 +5,8 @@
 #**********************************************************/
 CONFIG += c++11
 
+#CONFIG += QT_APP_MODE
+
 CONFIG(QT_APP_MODE) {
     QT      += core
     HEADERS += Demo/Test1/ApiTest.h

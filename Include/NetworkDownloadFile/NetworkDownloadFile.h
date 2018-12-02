@@ -10,6 +10,8 @@ Email:  2088201923@qq.com
 
 #include <QFileInfo>
 
+namespace AeaQt {
+
 class NetworkDownloadFile : public QObject
 {
     Q_OBJECT
@@ -24,4 +26,5 @@ private:
     HttpService m_httpService;
 };
 
+}
 #endif // NETWORK_DOWNLOAD_FILE_H

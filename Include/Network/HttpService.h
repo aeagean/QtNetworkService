@@ -11,6 +11,8 @@ Email:  2088201923@qq.com
 #include <QNetworkRequest>
 #include <QNetworkReply>
 
+namespace AeaQt {
+
 class HttpService : public QNetworkAccessManager
 {
     Q_OBJECT
@@ -27,4 +29,5 @@ public:
     HttpRequest send(const QString &url, Operation op = GetOperation);
 };
 
+}
 #endif // HTTP_SERVICE_H

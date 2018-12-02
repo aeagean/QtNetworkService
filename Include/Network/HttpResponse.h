@@ -9,6 +9,8 @@ Email:  2088201923@qq.com
 #include <QNetworkReply>
 #include <QMultiMap>
 
+namespace AeaQt {
+
 class HttpResponse : public QNetworkReply
 {
     Q_OBJECT
@@ -64,5 +66,6 @@ private:
    QMultiMap<QString, QMap<QString, const QObject *> > m_slotsMap;
 };
 
+}
 
 #endif // HTTP_RESPONSE_H

@@ -20,7 +20,7 @@ private slots:
     void error(QNetworkReply::NetworkError error, QNetworkReply* reply);
 
 private:
-    HttpService m_service;
+    AeaQt::HttpService m_service;
 };
 
 #endif // APITEST_H

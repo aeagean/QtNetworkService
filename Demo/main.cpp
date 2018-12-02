@@ -7,6 +7,8 @@ Email:  2088201923@qq.com
 #include <QCoreApplication>
 #include <QThread>
 
+using namespace AeaQt;
+
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);

@@ -5,6 +5,8 @@ Email:  2088201923@qq.com
 **********************************************************/
 #include "NetworkDownloadFile.h"
 
+using namespace AeaQt;
+
 NetworkDownloadFile::NetworkDownloadFile()
 {
     download("", QFileInfo());
