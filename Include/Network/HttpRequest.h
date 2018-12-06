@@ -13,10 +13,6 @@ Email:  2088201923@qq.com
 #include <QJsonObject>
 
 #include <functional>
-#include <future>
-
-Q_DECLARE_METATYPE(std::function<void (QNetworkReply*)>);
-
 
 namespace AeaQt {
 
@@ -47,11 +43,9 @@ public:
      */
     HttpRequest &onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type = HttpResponse::AutoInfer);
 
-    HttpRequest &onResopnse(std::function<void (QNetworkReply*)> lambda) {
-        QVariant variant = QVariant::fromValue(lambda);
-        return *this;
-    }
-
+    HttpRequest &onResopnse(std::function<void (QNetworkReply*)> lambda);
+    HttpRequest &onResopnse(std::function<void (QVariantMap)> lambda);
+    HttpRequest &onResopnse(std::function<void (QByteArray)> lambda);
     /*
      * @onError slot support type: void function(QNetworkReply::NetworkError error)
      *                             void function(QString errorString);
@@ -71,7 +65,7 @@ private:
     QJsonObject m_jsonBody;
     QNetworkAccessManager::Operation m_op;
     HttpService *m_httpService;
-    QMultiMap<QString, QMap<QString, const QObject *>> m_slotsMap;
+    QMultiMap<QString, QMap<QString, QVariant>> m_slotsMap;
 };
 
 }

@@ -92,7 +92,7 @@ static int extractCode(const char *member)
     return (((int)(*member) - '0') & 0x3);
 }
 
-HttpResponse::HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap)
+HttpResponse::HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<QString, QVariant> > &slotsMap)
     : QNetworkReply(parent), m_slotsMap(slotsMap)
 {
     slotsMapOperation(m_slotsMap);
@@ -118,15 +118,34 @@ void HttpResponse::abort()
 void HttpResponse::onFinished()
 {
     QNetworkReply *reply = (QNetworkReply *)this->parent();
-    if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QNetworkReply_A_Pointer))) {
+
+    if (m_lambdaMap.contains(N2S(onResponse_QNetworkReply_A_Pointer))) {
+        QVariant v = m_lambdaMap[N2S(onResponse_QNetworkReply_A_Pointer)];
+        std::function<void (QNetworkReply*)> f = v.value<std::function<void (QNetworkReply*)> >();
+        f(reply);
+    }
+    else if (m_lambdaMap.contains(N2S(onResponse_QByteArray))) {
+        QVariant v = m_lambdaMap[N2S(onResponse_QByteArray)];
+        std::function<void (QByteArray)> f = v.value<std::function<void (QByteArray)> >();
+        f(reply->readAll());
+        reply->deleteLater();
+    }
+    else if (m_lambdaMap.contains(N2S(onResponse_QVariantMap))) {
+        QVariant v = m_lambdaMap[N2S(onResponse_QVariantMap)];
+        std::function<void (QVariantMap)> f = v.value<std::function<void (QVariantMap)> >();
+        QByteArray result = reply->readAll();
+        f(QJsonDocument::fromJson(result).object().toVariantMap());
+        reply->deleteLater();
+    }
+    else if (m_slotsMap.contains(N2S(onResponse_QNetworkReply_A_Pointer))) {
         emit finished(reply);
     }
-    else if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QByteArray))) {
+    else if (m_slotsMap.contains(N2S(onResponse_QByteArray))) {
         QByteArray result = reply->readAll();
         emit finished(result);
         reply->deleteLater();
     }
-    else if (m_slotsMap.contains(N2S(SupportMethod::onResponse_QVariantMap))) {
+    else if (m_slotsMap.contains(N2S(onResponse_QVariantMap))) {
         QByteArray result = reply->readAll();
         emit finished(QJsonDocument::fromJson(result).object().toVariantMap());
         reply->deleteLater();
@@ -188,7 +207,7 @@ static void extractSlot(const QString &respReceiverSlot, QString &extractSlot, Q
 }
 
 /* from slotMap get [SupportMethod] */
-static QString getSupportMethod(const QMap<QString, const QObject *> &slotMap) {
+static QString getSupportMethod(const QMap<QString, QVariant> &slotMap) {
 
     QMapIterator<QString, QMap<QString, QVariant>> iter(methodParams);
 
@@ -209,15 +228,15 @@ static QString getSupportMethod(const QMap<QString, const QObject *> &slotMap) {
     return "";
 }
 
-static void autoInfterConvertedSupportMethod(QMultiMap<QString, QMap<QString, const QObject *> > &unconvertedSlotsMap)
+static void autoInfterConvertedSupportMethod(QMultiMap<QString, QMap<QString, QVariant> > &unconvertedSlotsMap)
 {
-    QMultiMap<QString, QMap<QString, const QObject *> > convertedSlotsMap;
-    QMapIterator<QString, QMap<QString, const QObject *> > iter(unconvertedSlotsMap);
+    QMultiMap<QString, QMap<QString, QVariant> > convertedSlotsMap;
+    QMapIterator<QString, QMap<QString, QVariant> > iter(unconvertedSlotsMap);
 
     while (iter.hasNext()) {
         iter.next();
         const QString &key = iter.key();
-        const QMap<QString, const QObject *> &slotMap = iter.value();
+        const QMap<QString, QVariant> &slotMap = iter.value();
 
         HttpResponse::SupportMethod supportMethod = (HttpResponse::SupportMethod)key.toInt();
         if (supportMethod == HttpResponse::AutoInfer) {
@@ -244,25 +263,30 @@ static void autoInfterConvertedSupportMethod(QMultiMap<QString, QMap<QString, co
 
 }
 
-void HttpResponse::slotsMapOperation(QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap)
+void HttpResponse::slotsMapOperation(QMultiMap<QString, QMap<QString, QVariant> > &slotsMap)
 {
     autoInfterConvertedSupportMethod(slotsMap);
 
-    QMapIterator<QString, QMap<QString, const QObject *> > iter(slotsMap);
+    QMapIterator<QString, QMap<QString, QVariant> > iter(slotsMap);
     while (iter.hasNext()) {
         iter.next();
         const QString &key = iter.key();
-        const QMap<QString, const QObject *> &slotMap = iter.value();
+        const QMap<QString, QVariant> &slotMap = iter.value();
 
-        const QObject *receiver = slotMap.first();
         const QString &receiverSlot = slotMap.firstKey();
 
-        if (methodParams.contains(key)) {
-            connect(this,
-                    methodParams[key].value("signal").toString().toStdString().data(),
-                    receiver,
-                    receiverSlot.toStdString().data(),
-                    Qt::QueuedConnection);
+        if (!receiverSlot.isEmpty()) {
+            const QObject *receiver = slotMap.first().value<QObject*>();
+            if (methodParams.contains(key)) {
+                connect(this,
+                        methodParams[key].value("signal").toString().toStdString().data(),
+                        receiver,
+                        receiverSlot.toStdString().data(),
+                        Qt::QueuedConnection);
+            }
+        }
+        else {
+            m_lambdaMap[key] = slotMap.first();
         }
     }
 }

@@ -9,6 +9,10 @@ Email:  2088201923@qq.com
 #include <QNetworkReply>
 #include <QMultiMap>
 
+Q_DECLARE_METATYPE(std::function<void (QNetworkReply*)>);
+Q_DECLARE_METATYPE(std::function<void (QByteArray)>);
+Q_DECLARE_METATYPE(std::function<void (QVariantMap)>);
+
 namespace AeaQt {
 
 class HttpResponse : public QNetworkReply
@@ -32,7 +36,7 @@ public:
         onError_QString_QNetworkReply_A_Poniter/* method: void function(QString errorString, QNetworkReply* reply); Is_AutoInfer: true */
     };
 
-    explicit HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap);
+    explicit HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<QString, QVariant> > &slotsMap);
 
     virtual ~HttpResponse();
 
@@ -47,7 +51,7 @@ private slots:
 protected:
     qint64 readData(char *data, qint64 maxlen);
 
-    void slotsMapOperation(QMultiMap<QString, QMap<QString, const QObject *> > &slotsMap);
+    void slotsMapOperation(QMultiMap<QString, QMap<QString, QVariant> > &slotsMap);
 
 signals:
     void finished(QNetworkReply *reply);
@@ -63,7 +67,8 @@ private:
     HttpResponse();
 
 private:
-   QMultiMap<QString, QMap<QString, const QObject *> > m_slotsMap;
+   QMultiMap<QString, QMap<QString, QVariant> > m_slotsMap;
+   QMap<QString, QVariant> m_lambdaMap;
 };
 
 }
