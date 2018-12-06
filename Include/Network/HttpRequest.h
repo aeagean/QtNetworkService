@@ -13,6 +13,10 @@ Email:  2088201923@qq.com
 #include <QJsonObject>
 
 #include <functional>
+#include <future>
+
+Q_DECLARE_METATYPE(std::function<void (QNetworkReply*)>);
+
 
 namespace AeaQt {
 
@@ -42,6 +46,11 @@ public:
      * note: The same type is only triggered once
      */
     HttpRequest &onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type = HttpResponse::AutoInfer);
+
+    HttpRequest &onResopnse(std::function<void (QNetworkReply*)> lambda) {
+        QVariant variant = QVariant::fromValue(lambda);
+        return *this;
+    }
 
     /*
      * @onError slot support type: void function(QNetworkReply::NetworkError error)

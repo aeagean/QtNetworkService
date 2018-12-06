@@ -19,12 +19,11 @@ ApiTest::~ApiTest()
 
 void ApiTest::exec()
 {
-    m_service.get("http://www.baidu.om")
+    m_service.get("http://www.baidu.com")
             .onResponse(this, SLOT(finish(QNetworkReply*)))
+            .onResopnse([](QNetworkReply *result){qDebug()<<">>>>>>>";return NULL;})
             .onError(this, SLOT(error(QNetworkReply::NetworkError, QNetworkReply*)))
             .exec();
-    static int i = 0;
-    qDebug()<<i++;
 }
 
 void ApiTest::finish(QVariantMap result)
