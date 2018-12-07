@@ -22,8 +22,8 @@ void ApiTest::exec()
     m_service.get("http://www.baidu.com")
 //            .onResponse(this, SLOT(finish(QNetworkReply*)))
 //            .onResopnse([](QNetworkReply *result){qDebug()<<result->readLine();})
-//            .onResopnse([](QByteArray result){qDebug()<<result;})
-            .onResopnse([](){qDebug()<<"11111";})
+            .onResopnse([](QByteArray result){qDebug()<<result;})
+//            .onResopnse([](QNetworkReply *result){qDebug()<<"11111"<<result->readLine();})
             .onError(this, SLOT(error(QNetworkReply::NetworkError, QNetworkReply*)))
             .exec();
 }

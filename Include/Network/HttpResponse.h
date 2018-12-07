@@ -8,10 +8,21 @@ Email:  2088201923@qq.com
 
 #include <QNetworkReply>
 #include <QMultiMap>
+#include <functional>
 
 Q_DECLARE_METATYPE(std::function<void (QNetworkReply*)>);
 Q_DECLARE_METATYPE(std::function<void (QByteArray)>);
 Q_DECLARE_METATYPE(std::function<void (QVariantMap)>);
+
+Q_DECLARE_METATYPE(std::function<void (QString)>);
+Q_DECLARE_METATYPE(std::function<void (QNetworkReply::NetworkError)>);
+Q_DECLARE_METATYPE(std::function<void (QNetworkReply::NetworkError, QNetworkReply *)>);
+Q_DECLARE_METATYPE(std::function<void (QString, QNetworkReply *)>);
+
+#define TYPE_TO_STRING(t) QString(#t).remove(QRegExp("\\s"))
+#define NUMBER_TO_STRING(n)  QString::number(n)
+#define N2S(n) NUMBER_TO_STRING(n)
+#define T2S(t) TYPE_TO_STRING(t)
 
 namespace AeaQt {
 
@@ -65,10 +76,10 @@ signals:
 
 private:
     HttpResponse();
+    template<typename T> bool canConvert(QVariant var);
 
 private:
    QMultiMap<QString, QMap<QString, QVariant> > m_slotsMap;
-   QMap<QString, QVariant> m_lambdaMap;
 };
 
 }

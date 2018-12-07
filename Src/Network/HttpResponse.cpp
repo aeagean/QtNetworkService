@@ -11,11 +11,6 @@ Email:  2088201923@qq.com
 #include <QNetworkConfigurationManager>
 #include <QMetaEnum>
 
-#define TYPE_TO_STRING(t) QString(#t)
-#define NUMBER_TO_STRING(n)  QString::number(n)
-#define N2S(n) NUMBER_TO_STRING(n)
-#define T2S(t) TYPE_TO_STRING(t)
-
 using namespace AeaQt;
 
 static const QMap<QString, QMap<QString, QVariant>> methodParams =
@@ -24,6 +19,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         N2S(HttpResponse::onResponse_QNetworkReply_A_Pointer),
         {
             {"types", QStringList({T2S(QNetworkReply*)})},
+            {"lambda", T2S(std::function<void (QNetworkReply*)>)},
             {"signal", SIGNAL(finished(QNetworkReply*))},
             {"isAutoInfer", true}
         }
@@ -32,6 +28,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         N2S(HttpResponse::onResponse_QByteArray),
         {
             {"types", QStringList({T2S(QByteArray)})},
+            {"lambda", T2S(std::function<void (QByteArray)>)},
             {"signal", SIGNAL(finished(QByteArray))},
             {"isAutoInfer", true}
         }
@@ -40,6 +37,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         N2S(HttpResponse::onResponse_QVariantMap),
         {
             {"types", QStringList({T2S(QVariantMap)})},
+            {"lambda", T2S(std::function<void (QVariantMap)>)},
             {"signal", SIGNAL(finished(QVariantMap))},
             {"isAutoInfer", true}
         }
@@ -48,6 +46,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         N2S(HttpResponse::onDownloadProgress_qint64_qint64),
         {
             {"types", QStringList({T2S(qint64), T2S(qint64)})},
+           // {"lambda", T2S(std::function<void ()>)},
             {"signal", SIGNAL(downloadProgress(qint64, qint64))},
             {"isAutoInfer", true}
         }
@@ -56,6 +55,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         N2S(HttpResponse::onError_QNetworkReply_To_NetworkError),
         {
             {"types", QStringList({T2S(QNetworkReply::NetworkError)})},
+            {"lambda", T2S(std::function<void (QNetworkReply::NetworkError)>)},
             {"signal", SIGNAL(error(QNetworkReply::NetworkError))},
             {"isAutoInfer", true}
         }
@@ -64,6 +64,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         N2S(HttpResponse::onError_QString),
         {
             {"types", QStringList({T2S(QString)})},
+            {"lambda", T2S(std::function<void (QString)>)},
             {"signal", SIGNAL(error(QString))},
             {"isAutoInfer", true}
         }
@@ -72,6 +73,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         N2S(HttpResponse::onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer),
         {
             {"types", QStringList({T2S(QNetworkReply::NetworkError), T2S(QNetworkReply*)})},
+            {"lambda", T2S(std::function<void (QNetworkReply::NetworkError, QNetworkReply*)>)},
             {"signal", SIGNAL(error(QNetworkReply::NetworkError, QNetworkReply*))},
             {"isAutoInfer", true}
         }
@@ -80,6 +82,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         N2S(HttpResponse::onError_QString_QNetworkReply_A_Poniter),
         {
             {"types", QStringList({T2S(QString), T2S(QNetworkReply*)})},
+            {"lambda", T2S(std::function<void (QString, QNetworkReply*)>)},
             {"signal", SIGNAL(error(QString, QNetworkReply*))},
             {"isAutoInfer", true}
         }
@@ -119,35 +122,42 @@ void HttpResponse::onFinished()
 {
     QNetworkReply *reply = (QNetworkReply *)this->parent();
 
-    if (m_lambdaMap.contains(N2S(onResponse_QNetworkReply_A_Pointer))) {
-        QVariant v = m_lambdaMap[N2S(onResponse_QNetworkReply_A_Pointer)];
-        std::function<void (QNetworkReply*)> f = v.value<std::function<void (QNetworkReply*)> >();
-        f(reply);
-    }
-    else if (m_lambdaMap.contains(N2S(onResponse_QByteArray))) {
-        QVariant v = m_lambdaMap[N2S(onResponse_QByteArray)];
-        std::function<void (QByteArray)> f = v.value<std::function<void (QByteArray)> >();
-        f(reply->readAll());
-        reply->deleteLater();
-    }
-    else if (m_lambdaMap.contains(N2S(onResponse_QVariantMap))) {
-        QVariant v = m_lambdaMap[N2S(onResponse_QVariantMap)];
-        std::function<void (QVariantMap)> f = v.value<std::function<void (QVariantMap)> >();
-        QByteArray result = reply->readAll();
-        f(QJsonDocument::fromJson(result).object().toVariantMap());
-        reply->deleteLater();
-    }
-    else if (m_slotsMap.contains(N2S(onResponse_QNetworkReply_A_Pointer))) {
-        emit finished(reply);
+    if (m_slotsMap.contains(N2S(onResponse_QNetworkReply_A_Pointer))) {
+        QVariant var = m_slotsMap.value(N2S(onResponse_QNetworkReply_A_Pointer)).first();
+
+        if (canConvert<std::function<void (QNetworkReply*)> >(var)) {
+            std::function<void (QNetworkReply*)> func = var.value<std::function<void (QNetworkReply*)> >();
+            func(reply);
+        }
+        else {
+            emit finished(reply);
+        }
     }
     else if (m_slotsMap.contains(N2S(onResponse_QByteArray))) {
         QByteArray result = reply->readAll();
-        emit finished(result);
+        QVariant var = m_slotsMap.value(N2S(onResponse_QByteArray)).first();
+
+        if (canConvert<std::function<void (QByteArray)> >(var)) {
+            std::function<void (QByteArray)> func = var.value<std::function<void (QByteArray)> >();
+            func(result);
+        }
+        else {
+            emit finished(result);
+        }
         reply->deleteLater();
     }
     else if (m_slotsMap.contains(N2S(onResponse_QVariantMap))) {
         QByteArray result = reply->readAll();
-        emit finished(QJsonDocument::fromJson(result).object().toVariantMap());
+        QVariantMap resultMap = QJsonDocument::fromJson(result).object().toVariantMap();
+        QVariant var = m_slotsMap.value(N2S(onResponse_QVariantMap)).first();
+
+        if (canConvert<std::function<void (QVariantMap)> >(var)) {
+            std::function<void (QVariantMap)> func = var.value<std::function<void (QVariantMap)> >();
+            func(resultMap);
+        }
+        else {
+            emit finished(resultMap);
+        }
         reply->deleteLater();
     }
 }
@@ -223,6 +233,9 @@ static QString getSupportMethod(const QMap<QString, QVariant> &slotMap) {
         if (slotTypes == value.value("types").toStringList()) {
             return key;
         }
+        else if (receiverSlot == value.value("lambda").toString()) {
+            return key;
+        }
     }
 
     return "";
@@ -274,9 +287,10 @@ void HttpResponse::slotsMapOperation(QMultiMap<QString, QMap<QString, QVariant> 
         const QMap<QString, QVariant> &slotMap = iter.value();
 
         const QString &receiverSlot = slotMap.firstKey();
+        QVariant target = slotMap.first();
+        const QObject *receiver = target.value<QObject*>();
 
-        if (!receiverSlot.isEmpty()) {
-            const QObject *receiver = slotMap.first().value<QObject*>();
+        if (receiver) {
             if (methodParams.contains(key)) {
                 connect(this,
                         methodParams[key].value("signal").toString().toStdString().data(),
@@ -285,13 +299,16 @@ void HttpResponse::slotsMapOperation(QMultiMap<QString, QMap<QString, QVariant> 
                         Qt::QueuedConnection);
             }
         }
-        else {
-            m_lambdaMap[key] = slotMap.first();
-        }
     }
 }
 
 HttpResponse::HttpResponse()
 {
 
+}
+
+template<typename T>
+bool HttpResponse::canConvert(QVariant var)
+{
+    return var.canConvert<T>();
 }
