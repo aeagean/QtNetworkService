@@ -75,28 +75,28 @@ HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *slot, 
     return *this;
 }
 
-HttpRequest &HttpRequest::onResopnse(std::function<void (QNetworkReply *)> lambda) {
-    m_slotsMap.insert(NUMBER_TO_STRING(HttpResponse::onResponse_QNetworkReply_A_Pointer),
-    {{"", QVariant::fromValue(lambda)}});
+//HttpRequest &HttpRequest::onResopnse(std::function<void (QNetworkReply *)> lambda) {
+//    m_slotsMap.insert(NUMBER_TO_STRING(HttpResponse::onResponse_QNetworkReply_A_Pointer),
+//    {{"", QVariant::fromValue(lambda)}});
 
-    return *this;
-}
+//    return *this;
+//}
 
-HttpRequest &HttpRequest::onResopnse(std::function<void (QVariantMap)> lambda)
-{
-    m_slotsMap.insert(NUMBER_TO_STRING(HttpResponse::onResponse_QVariantMap),
-    {{"", QVariant::fromValue(lambda)}});
+//HttpRequest &HttpRequest::onResopnse(std::function<void (QVariantMap)> lambda)
+//{
+//    m_slotsMap.insert(NUMBER_TO_STRING(HttpResponse::onResponse_QVariantMap),
+//    {{"", QVariant::fromValue(lambda)}});
 
-    return *this;
-}
+//    return *this;
+//}
 
-HttpRequest &HttpRequest::onResopnse(std::function<void (QByteArray)> lambda)
-{
-    m_slotsMap.insert(NUMBER_TO_STRING(HttpResponse::onResponse_QByteArray),
-    {{"", QVariant::fromValue(lambda)}});
+//HttpRequest &HttpRequest::onResopnse(std::function<void (QByteArray)> lambda)
+//{
+//    m_slotsMap.insert(NUMBER_TO_STRING(HttpResponse::onResponse_QByteArray),
+//    {{"", QVariant::fromValue(lambda)}});
 
-    return *this;
-}
+//    return *this;
+//}
 
 HttpRequest &HttpRequest::onError(const QObject *receiver, const char *slot)
 {

@@ -14,6 +14,16 @@ Email:  2088201923@qq.com
 
 #include <functional>
 
+template<typename T>
+struct isFunctor : std::false_type {
+};
+template<typename L, typename R, typename... Args>
+struct isFunctor<R (L::*)(Args...)> : std::true_type {
+};
+template<typename L>
+struct isLambda : isFunctor<decltype(&L::operator())> {
+};
+
 namespace AeaQt {
 
 class HttpService;
@@ -43,9 +53,18 @@ public:
      */
     HttpRequest &onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type = HttpResponse::AutoInfer);
 
-    HttpRequest &onResopnse(std::function<void (QNetworkReply*)> lambda);
-    HttpRequest &onResopnse(std::function<void (QVariantMap)> lambda);
-    HttpRequest &onResopnse(std::function<void (QByteArray)> lambda);
+//    HttpRequest &onResopnse(std::function<void (QNetworkReply*)> lambda);
+//    HttpRequest &onResopnse(std::function<void (QVariantMap)> lambda);
+//    HttpRequest &onResopnse(std::function<void (QByteArray)> lambda);
+
+    template<typename L> HttpRequest &onResopnse(L lambda) {
+//        QVariant::fromValue(lambda);
+//        std::function<void ()> aa = static_cast<std::function<void ()>>(lambda);
+
+//        qDebug()<<aa<<"dlfjslfjsldfj";
+//        QVariant::fromValue(lambda);
+            lambda();
+    }
     /*
      * @onError slot support type: void function(QNetworkReply::NetworkError error)
      *                             void function(QString errorString);
