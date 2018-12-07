@@ -11,6 +11,17 @@ Email:  2088201923@qq.com
 #include <QNetworkConfigurationManager>
 #include <QMetaEnum>
 
+#define exec(type, target, arg) \
+        if (canConvert<std::function<void (type)> >(target)) { \
+            std::function<void (type)> func = target.value<std::function<void (type)> >(); func(arg); \
+        } \
+        else
+
+#define exec2(type1, type2, target, arg1, arg2) \
+        if (canConvert<std::function<void (type1, type2)> >(target)) { \
+            std::function<void (type1, type2)> func = target.value<std::function<void (type1, type2)> >(); func(arg1, arg2); \
+        } else
+
 using namespace AeaQt;
 
 static const QMap<QString, QMap<QString, QVariant>> methodParams =
@@ -46,7 +57,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         N2S(HttpResponse::onDownloadProgress_qint64_qint64),
         {
             {"types", QStringList({T2S(qint64), T2S(qint64)})},
-           // {"lambda", T2S(std::function<void ()>)},
+            // {"lambda", T2S(std::function<void ()>)},
             {"signal", SIGNAL(downloadProgress(qint64, qint64))},
             {"isAutoInfer", true}
         }
@@ -169,19 +180,29 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
     QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
     QString errorString = reply->errorString().isEmpty() ? metaEnum.valueToKey(error) : reply->errorString();
 
-    if (m_slotsMap.contains(N2S(SupportMethod::onError_QString_QNetworkReply_A_Poniter))) {
-        emit this->error(errorString, reply);
+    if (m_slotsMap.contains(N2S(onError_QString_QNetworkReply_A_Poniter))) {
+        exec2(QString, QNetworkReply*, m_slotsMap.value(N2S(onError_QString_QNetworkReply_A_Poniter)).first(), errorString, reply) {
+            emit this->error(errorString, reply);
+        }
     }
-    else if (m_slotsMap.contains(N2S(SupportMethod::onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer))) {
-        emit this->error(error, reply);
+    else if (m_slotsMap.contains(N2S(onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer))) {
+        exec2(QNetworkReply::NetworkError, QNetworkReply*,
+              m_slotsMap.value(N2S(onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer)).first(),
+              error, reply) {
+            emit this->error(error, reply);
+        }
     }
-    else if (m_slotsMap.contains(N2S(SupportMethod::onError_QString))) {
-        emit this->error(errorString);
-        reply->deleteLater();
+    else if (m_slotsMap.contains(N2S(onError_QString))) {
+        exec(QString, m_slotsMap.value(N2S(onError_QString)).first(), errorString) {
+            emit this->error(errorString);
+            reply->deleteLater();
+        }
     }
-    else if (m_slotsMap.contains(N2S(SupportMethod::onError_QNetworkReply_To_NetworkError))) {
-        emit this->error(error);
-        reply->deleteLater();
+    else if (m_slotsMap.contains(N2S(onError_QNetworkReply_To_NetworkError))) {
+        exec(QNetworkReply::NetworkError, m_slotsMap.value(N2S(onError_QNetworkReply_To_NetworkError)).first(), error) {
+            emit this->error(error);
+            reply->deleteLater();
+        }
     }
 }
 

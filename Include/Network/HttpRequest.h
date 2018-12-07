@@ -64,7 +64,6 @@ private:
     HttpRequest();
     HttpRequest &onResopnse(QVariant lambda);
 
-
 private:
     QNetworkRequest m_networkRequest;
     QJsonObject m_jsonBody;

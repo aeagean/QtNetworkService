@@ -19,10 +19,10 @@ ApiTest::~ApiTest()
 
 void ApiTest::exec()
 {
-    m_service.get("http://www.baidu.com")
+    m_service.get("http://www.baidu.cmdddd")
 //            .onResponse(this, SLOT(finish(QNetworkReply*)))
 //            .onResopnse([](QNetworkReply *result){qDebug()<<result->readLine();})
-            .onResopnse([](QByteArray result){qDebug()<<result;})
+            .onResopnse([](QByteArray result){qDebug()<<"result"<<result;})
 //            .onResopnse([](QNetworkReply *result){qDebug()<<"11111"<<result->readLine();})
             .onError(this, SLOT(error(QNetworkReply::NetworkError, QNetworkReply*)))
             .exec();
