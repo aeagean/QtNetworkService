@@ -19,6 +19,8 @@ Q_DECLARE_METATYPE(std::function<void (QNetworkReply::NetworkError)>);
 Q_DECLARE_METATYPE(std::function<void (QNetworkReply::NetworkError, QNetworkReply *)>);
 Q_DECLARE_METATYPE(std::function<void (QString, QNetworkReply *)>);
 
+Q_DECLARE_METATYPE(std::function<void (qint64, qint64)>);
+
 #define TYPE_TO_STRING(t) QString(#t).remove(QRegExp("\\s"))
 #define NUMBER_TO_STRING(n)  QString::number(n)
 #define N2S(n) NUMBER_TO_STRING(n)
@@ -76,7 +78,6 @@ signals:
 
 private:
     HttpResponse();
-    template<typename T> bool canConvert(QVariant var);
 
 private:
    QMultiMap<QString, QMap<QString, QVariant> > m_slotsMap;

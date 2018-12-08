@@ -40,7 +40,6 @@ public:
      * note: The same type is only triggered once
      */
     HttpRequest &onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type = HttpResponse::AutoInfer);
-
     HttpRequest &onResopnse(std::function<void (QNetworkReply*)> lambda);
     HttpRequest &onResopnse(std::function<void (QVariantMap)> lambda);
     HttpRequest &onResopnse(std::function<void (QByteArray)> lambda);
