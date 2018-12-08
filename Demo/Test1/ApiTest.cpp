@@ -19,11 +19,14 @@ ApiTest::~ApiTest()
 
 void ApiTest::exec()
 {
+    std::function<void (QByteArray)> aa = [](QByteArray result) {qDebug()<<"result"<<result;};
+    QVariant bb = QVariant::fromValue(aa);
     m_service.get("http1://www.baidu.com")
-            .onResponse(this, SLOT(finish(QNetworkReply*)))
-            .onResopnse([](QNetworkReply *result){qDebug()<<result->readLine();})
-            .onResopnse([](QByteArray result){qDebug()<<"result"<<result;})
-            .onResopnse([](QNetworkReply *result){qDebug()<<"11111"<<result->readLine();})
+//            .onResponse(this, SLOT(finish(QNetworkReply*)))
+//            .onResopnse([](QNetworkReply *result){qDebug()<<result->readLine();})
+            .onResopnse([](QByteArray result) {qDebug()<<"result"<<result;})
+//            .onTest([](QByteArray result) {qDebug()<<"result"<<result;})
+//            .onResopnse([](QNetworkReply *result){qDebug()<<"11111"<<result->readLine();})
             .onError(this, SLOT(error(QNetworkReply::NetworkError, QNetworkReply*)))
             .exec();
 }

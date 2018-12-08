@@ -40,6 +40,12 @@ public:
      * note: The same type is only triggered once
      */
     HttpRequest &onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type = HttpResponse::AutoInfer);
+    template<typename L>
+    HttpRequest &onTest(L lambda) {
+        QVariant(qMetaTypeId<L>(reinterpret_cast<L *>(0)), &lambda, QTypeInfo<L>::isPointer);
+        return *this;
+    }
+
     HttpRequest &onResopnse(std::function<void (QNetworkReply*)> lambda);
     HttpRequest &onResopnse(std::function<void (QVariantMap)> lambda);
     HttpRequest &onResopnse(std::function<void (QByteArray)> lambda);

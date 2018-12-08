@@ -132,6 +132,8 @@ void HttpResponse::abort()
 void HttpResponse::onFinished()
 {
     QNetworkReply *reply = (QNetworkReply *)this->parent();
+    if (reply->error() != QNetworkReply::NoError)
+        return;
 
     if (m_slotsMap.contains(N2S(onResponse_QNetworkReply_A_Pointer))) {
         exec(m_slotsMap.value(N2S(onResponse_QNetworkReply_A_Pointer)).first(), QNetworkReply*, reply) {
