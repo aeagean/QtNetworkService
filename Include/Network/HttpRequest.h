@@ -42,7 +42,7 @@ public:
     HttpRequest &onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type = HttpResponse::AutoInfer);
     template<typename L>
     HttpRequest &onTest(L lambda) {
-        QVariant(qMetaTypeId<L>(reinterpret_cast<L *>(0)), &lambda, QTypeInfo<L>::isPointer);
+        qDebug()<<typeid(lambda).name();
         return *this;
     }
 

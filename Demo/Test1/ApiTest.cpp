@@ -19,41 +19,43 @@ ApiTest::~ApiTest()
 
 void ApiTest::exec()
 {
-    std::function<void (QByteArray)> aa = [](QByteArray result) {qDebug()<<"result"<<result;};
-    QVariant bb = QVariant::fromValue(aa);
-    m_service.get("http1://www.baidu.com")
-//            .onResponse(this, SLOT(finish(QNetworkReply*)))
-//            .onResopnse([](QNetworkReply *result){qDebug()<<result->readLine();})
-            .onResopnse([](QByteArray result) {qDebug()<<"result"<<result;})
-//            .onTest([](QByteArray result) {qDebug()<<"result"<<result;})
-//            .onResopnse([](QNetworkReply *result){qDebug()<<"11111"<<result->readLine();})
-            .onError(this, SLOT(error(QNetworkReply::NetworkError, QNetworkReply*)))
-            .exec();
+    m_service.get("1https://www.qt.io")
+             .onResopnse([](QByteArray result){ qDebug()<<"Result: "<<result; })
+             .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
+             .exec();
+
+    m_service.get("1https://www.qt.io")
+             .onResponse(this, SLOT(finish(QByteArray)))
+             .onError(this, SLOT(error(QString)))
+             .exec();
 }
 
 void ApiTest::finish(QVariantMap result)
 {
-//    this->deleteLater();
-    qDebug()<<result;
+    qDebug()<<"Result: "<<result;
 }
 
 void ApiTest::finish(QNetworkReply *reply)
 {
-//    this->deleteLater();
-    qDebug()<<reply->readLine();
+    qDebug()<<"Result: "<<reply->readLine();
+}
+
+void ApiTest::finish(QByteArray result)
+{
+    qDebug()<<"Result: "<<result;
 }
 
 void ApiTest::error(QString errorString)
 {
-    qDebug()<<errorString;
+    qDebug()<<"Error: "<<errorString;
 }
 
 void ApiTest::error(QString errorString, QNetworkReply *reply)
 {
-    qDebug()<<errorString<<reply->error()<<"Error Type";
+    qDebug()<<"Error: "<<reply->error();
 }
 
 void ApiTest::error(QNetworkReply::NetworkError error, QNetworkReply *reply)
 {
-    qDebug()<<error<<reply->error()<<"Error";
+    qDebug()<<"Error: "<<reply->error();
 }

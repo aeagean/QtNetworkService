@@ -15,6 +15,8 @@ public:
 private slots:
     void finish(QVariantMap result);
     void finish(QNetworkReply *reply);
+    void finish(QByteArray result);
+
     void error(QString errorString);
     void error(QString errorString, QNetworkReply* reply);
     void error(QNetworkReply::NetworkError error, QNetworkReply* reply);
