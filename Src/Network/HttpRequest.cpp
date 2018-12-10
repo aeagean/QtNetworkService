@@ -88,6 +88,11 @@ HttpRequest &HttpRequest::onResopnse(std::function<void (QByteArray)> lambda)
     return onResopnse(QVariant::fromValue(lambda));
 }
 
+HttpRequest &HttpRequest::onResopnse(std::function<void (qint64, qint64)> lambda)
+{
+    return onResopnse(QVariant::fromValue(lambda));
+}
+
 HttpRequest &HttpRequest::onError(const QObject *receiver, const char *slot)
 {
     return onResponse(receiver, slot, HttpResponse::AutoInfer);

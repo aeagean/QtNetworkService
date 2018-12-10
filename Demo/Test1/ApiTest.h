@@ -19,7 +19,10 @@ private slots:
 
     void error(QString errorString);
     void error(QString errorString, QNetworkReply* reply);
+    void error(QNetworkReply::NetworkError error);
     void error(QNetworkReply::NetworkError error, QNetworkReply* reply);
+
+    void downloadProgress(qint64 bytesReceived, qint64 bytesTotal);
 
 private:
     AeaQt::HttpService m_service;

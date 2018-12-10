@@ -19,13 +19,15 @@ ApiTest::~ApiTest()
 
 void ApiTest::exec()
 {
-    m_service.get("1https://www.qt.io")
+    m_service.get("http://www.aeagean.com")
              .onResopnse([](QByteArray result){ qDebug()<<"Result: "<<result; })
+             .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
              .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
              .exec();
 
-    m_service.get("1https://www.qt.io")
+    m_service.get("https://www.qt.io")
              .onResponse(this, SLOT(finish(QByteArray)))
+             .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
              .onError(this, SLOT(error(QString)))
              .exec();
 }
@@ -55,7 +57,17 @@ void ApiTest::error(QString errorString, QNetworkReply *reply)
     qDebug()<<"Error: "<<reply->error();
 }
 
+void ApiTest::error(QNetworkReply::NetworkError error)
+{
+    qDebug()<<"Error: "<<error;
+}
+
 void ApiTest::error(QNetworkReply::NetworkError error, QNetworkReply *reply)
 {
     qDebug()<<"Error: "<<reply->error();
+}
+
+void ApiTest::downloadProgress(qint64 bytesReceived, qint64 bytesTotal)
+{
+    qDebug()<<QString("Total: %1; Received: %2").arg(bytesTotal).arg(bytesReceived);
 }

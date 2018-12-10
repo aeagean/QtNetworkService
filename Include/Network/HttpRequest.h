@@ -40,16 +40,10 @@ public:
      * note: The same type is only triggered once
      */
     HttpRequest &onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type = HttpResponse::AutoInfer);
-    template<typename L>
-    HttpRequest &onTest(L lambda) {
-        qDebug()<<typeid(lambda).name();
-        return *this;
-    }
-
     HttpRequest &onResopnse(std::function<void (QNetworkReply*)> lambda);
     HttpRequest &onResopnse(std::function<void (QVariantMap)> lambda);
     HttpRequest &onResopnse(std::function<void (QByteArray)> lambda);
-
+    HttpRequest &onResopnse(std::function<void (qint64, qint64)> lambda);
     /*
      * @onError slot support type: void function(QNetworkReply::NetworkError error)
      *                             void function(QString errorString);
