@@ -1,3 +1,57 @@
+# 示例
+* (1) 简单示例
+```
+/* 使用lambda特性 */
+static HttpService http;
+http.get("https://www.qt.io")
+         .onResopnse([](QByteArray result){ qDebug()<<"Result: "<<result; })
+         .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
+         .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
+         .exec();
+```
+```
+/* 使用Qt信号与槽特性 */
+http.get("https://www.qt.io")
+         .onResponse(this, SLOT(finish(QByteArray)))
+         .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
+         .onError(this, SLOT(error(QString)))
+         .exec();
+```
+
+* (2) 复杂示例
+```
+/* 获取音乐url功能，请求嵌套请求 */
+static HttpService http;
+http.get("http://mobilecdn.kugou.com/api/v3/search/song")
+    .queryParam("format", "json")
+    .queryParam("keyword", "稻香")
+    .queryParam("page", 1)
+    .queryParam("pagesize", 3)
+    .queryParam("showtype", 1)
+    .onResopnse([](QVariantMap result){
+        QVariantMap data;
+        QList<QVariant> infos;
+        if (!result.isEmpty())
+            data = result.value("data").toMap();
+
+        if (!data.isEmpty())
+            infos = data.value("info").toList();
+
+        static HttpService http;
+        foreach (QVariant each, infos) {
+            http.get("http://m.kugou.com/app/i/getSongInfo.php")
+                .queryParam("cmd", "playInfo")
+                .queryParam("hash", each.toMap()["hash"])
+                .onResopnse([](QVariantMap result){
+                    qDebug()<<"mp3: "<<result["url"].toString();
+                 })
+                .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
+                .exec();
+        }
+    })
+    .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
+    .exec();
+```
 ## 1.如何使用？
 > 项目以库的形式使用，Qt子工程使用．再在其他子工程包含pri文件即可使用。
 
