@@ -10,7 +10,11 @@ public:
     ApiTest();
     virtual ~ApiTest();
 
+    void downloadOneMusic(const QString &name);
     void exec();
+
+private:
+    void saveFile(const QString &fileName, QByteArray data);
 
 private slots:
     void finish(QVariantMap result);
