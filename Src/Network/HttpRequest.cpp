@@ -69,7 +69,7 @@ HttpRequest &HttpRequest::jsonBody(const QVariant &jsonBody)
 
 HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type)
 {
-    m_slotsMap.insert(N2S(type), {{slot, QVariant::fromValue((QObject *)receiver)}});
+    m_slotsMap.insert(type, {slot, QVariant::fromValue((QObject *)receiver)});
     return *this;
 }
 
@@ -120,7 +120,7 @@ HttpRequest &HttpRequest::onError(std::function<void (QString, QNetworkReply *)>
 
 HttpRequest &HttpRequest::onResopnse(QVariant lambda)
 {
-    m_slotsMap.insert(N2S(HttpResponse::AutoInfer), {{lambda.typeName(), lambda}});
+    m_slotsMap.insert(HttpResponse::AutoInfer, {lambda.typeName(), lambda});
 
     return *this;
 }

@@ -27,6 +27,7 @@ public:
      * AutoInfer: Automatic derivation based on type
      */
     enum SupportMethod {
+        Invalid = 0,
         AutoInfer,
         onResponse_QNetworkReply_A_Pointer,    /* method: void function(QNetworkReply* reply); Is_AutoInfer: true */
         onResponse_QByteArray,                 /* method: void function(QByteArray data); Is_AutoInfer: true */
@@ -38,7 +39,7 @@ public:
         onError_QString_QNetworkReply_A_Poniter/* method: void function(QString errorString, QNetworkReply* reply); Is_AutoInfer: true */
     };
 
-    explicit HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<QString, QVariant> > &slotsMap);
+    explicit HttpResponse(QNetworkReply *parent, const QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap);
 
     virtual ~HttpResponse();
 
@@ -53,7 +54,7 @@ private slots:
 protected:
     qint64 readData(char *data, qint64 maxlen);
 
-    void slotsMapOperation(QMultiMap<QString, QMap<QString, QVariant> > &slotsMap);
+    void slotsMapOperation(QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap);
 
 signals:
     void finished(QNetworkReply *reply);
@@ -69,7 +70,7 @@ private:
     HttpResponse();
 
 private:
-   QMultiMap<QString, QMap<QString, QVariant> > m_slotsMap;
+   QMultiMap<SupportMethod, QPair<QString, QVariant> > m_slotsMap;
 };
 
 }

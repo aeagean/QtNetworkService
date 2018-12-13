@@ -15,6 +15,6 @@ int main(int argc, char *argv[])
 
     ApiTest *apiTest = new ApiTest();
     apiTest->downloadOneMusic("稻香");
-//    apiTest->exec();
+    apiTest->exec();
     return a.exec();
 }

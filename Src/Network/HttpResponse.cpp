@@ -24,10 +24,10 @@ Email:  2088201923@qq.com
 
 using namespace AeaQt;
 
-static const QMap<QString, QMap<QString, QVariant>> methodParams =
+static const QMap<HttpResponse::SupportMethod, QMap<QString, QVariant>> methodParams =
 {
     {
-        N2S(HttpResponse::onResponse_QNetworkReply_A_Pointer),
+        (HttpResponse::onResponse_QNetworkReply_A_Pointer),
         {
             {"types", QStringList({T2S(QNetworkReply*)})},
             {"lambda", T2S(std::function<void (QNetworkReply*)>)},
@@ -36,7 +36,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         }
     },
     {
-        N2S(HttpResponse::onResponse_QByteArray),
+        (HttpResponse::onResponse_QByteArray),
         {
             {"types", QStringList({T2S(QByteArray)})},
             {"lambda", T2S(std::function<void (QByteArray)>)},
@@ -45,7 +45,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         }
     },
     {
-        N2S(HttpResponse::onResponse_QVariantMap),
+        (HttpResponse::onResponse_QVariantMap),
         {
             {"types", QStringList({T2S(QVariantMap)})},
             {"lambda", T2S(std::function<void (QVariantMap)>)},
@@ -54,7 +54,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         }
     },
     {
-        N2S(HttpResponse::onDownloadProgress_qint64_qint64),
+        (HttpResponse::onDownloadProgress_qint64_qint64),
         {
             {"types", QStringList({T2S(qint64), T2S(qint64)})},
             {"lambda", T2S(std::function<void (qint64, qint64)>)},
@@ -63,7 +63,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         }
     },
     {
-        N2S(HttpResponse::onError_QNetworkReply_To_NetworkError),
+        (HttpResponse::onError_QNetworkReply_To_NetworkError),
         {
             {"types", QStringList({T2S(QNetworkReply::NetworkError)})},
             {"lambda", T2S(std::function<void (QNetworkReply::NetworkError)>)},
@@ -72,7 +72,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         }
     },
     {
-        N2S(HttpResponse::onError_QString),
+        (HttpResponse::onError_QString),
         {
             {"types", QStringList({T2S(QString)})},
             {"lambda", T2S(std::function<void (QString)>)},
@@ -81,7 +81,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         }
     },
     {
-        N2S(HttpResponse::onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer),
+        (HttpResponse::onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer),
         {
             {"types", QStringList({T2S(QNetworkReply::NetworkError), T2S(QNetworkReply*)})},
             {"lambda", T2S(std::function<void (QNetworkReply::NetworkError, QNetworkReply*)>)},
@@ -90,7 +90,7 @@ static const QMap<QString, QMap<QString, QVariant>> methodParams =
         }
     },
     {
-        N2S(HttpResponse::onError_QString_QNetworkReply_A_Poniter),
+        (HttpResponse::onError_QString_QNetworkReply_A_Poniter),
         {
             {"types", QStringList({T2S(QString), T2S(QNetworkReply*)})},
             {"lambda", T2S(std::function<void (QString, QNetworkReply*)>)},
@@ -106,7 +106,7 @@ static int extractCode(const char *member)
     return (((int)(*member) - '0') & 0x3);
 }
 
-HttpResponse::HttpResponse(QNetworkReply *parent, const QMultiMap<QString, QMap<QString, QVariant> > &slotsMap)
+HttpResponse::HttpResponse(QNetworkReply *parent, const QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap)
     : QNetworkReply(parent), m_slotsMap(slotsMap)
 {
     slotsMapOperation(m_slotsMap);
@@ -135,25 +135,25 @@ void HttpResponse::onFinished()
     if (reply->error() != QNetworkReply::NoError)
         return;
 
-    if (m_slotsMap.contains(N2S(onResponse_QNetworkReply_A_Pointer))) {
-        exec(m_slotsMap.value(N2S(onResponse_QNetworkReply_A_Pointer)).first(), QNetworkReply*, reply) {
+    if (m_slotsMap.contains(onResponse_QNetworkReply_A_Pointer)) {
+        exec(m_slotsMap.value(onResponse_QNetworkReply_A_Pointer).second, QNetworkReply*, reply) {
             emit finished(reply);
         }
     }
-    else if (m_slotsMap.contains(N2S(onResponse_QByteArray))) {
+    else if (m_slotsMap.contains((onResponse_QByteArray))) {
         QByteArray result = reply->readAll();
 
-        exec(m_slotsMap.value(N2S(onResponse_QByteArray)).first(), QByteArray, result) {
+        exec(m_slotsMap.value((onResponse_QByteArray)).second, QByteArray, result) {
             emit finished(result);
         }
 
         reply->deleteLater();
     }
-    else if (m_slotsMap.contains(N2S(onResponse_QVariantMap))) {
+    else if (m_slotsMap.contains((onResponse_QVariantMap))) {
         QByteArray result = reply->readAll();
         QVariantMap resultMap = QJsonDocument::fromJson(result).object().toVariantMap();
 
-        exec(m_slotsMap.value(N2S(onResponse_QVariantMap)).first(), QVariantMap, resultMap){
+        exec(m_slotsMap.value((onResponse_QVariantMap)).second, QVariantMap, resultMap){
             emit finished(resultMap);
         }
 
@@ -168,26 +168,26 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
     QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
     QString errorString = reply->errorString().isEmpty() ? metaEnum.valueToKey(error) : reply->errorString();
 
-    if (m_slotsMap.contains(N2S(onError_QString_QNetworkReply_A_Poniter))) {
-        exec2(m_slotsMap.value(N2S(onError_QString_QNetworkReply_A_Poniter)).first(), QString, QNetworkReply*, errorString, reply) {
+    if (m_slotsMap.contains((onError_QString_QNetworkReply_A_Poniter))) {
+        exec2(m_slotsMap.value((onError_QString_QNetworkReply_A_Poniter)).second, QString, QNetworkReply*, errorString, reply) {
             emit this->error(errorString, reply);
         }
     }
-    else if (m_slotsMap.contains(N2S(onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer))) {
-        exec2(m_slotsMap.value(N2S(onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer)).first(),
+    else if (m_slotsMap.contains((onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer))) {
+        exec2(m_slotsMap.value((onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer)).second,
               QNetworkReply::NetworkError, QNetworkReply*,
               error, reply) {
             emit this->error(error, reply);
         }
     }
-    else if (m_slotsMap.contains(N2S(onError_QString))) {
-        exec(m_slotsMap.value(N2S(onError_QString)).first(), QString, errorString) {
+    else if (m_slotsMap.contains((onError_QString))) {
+        exec(m_slotsMap.value((onError_QString)).second, QString, errorString) {
             emit this->error(errorString);
             reply->deleteLater();
         }
     }
-    else if (m_slotsMap.contains(N2S(onError_QNetworkReply_To_NetworkError))) {
-        exec(m_slotsMap.value(N2S(onError_QNetworkReply_To_NetworkError)).first(), QNetworkReply::NetworkError, error) {
+    else if (m_slotsMap.contains((onError_QNetworkReply_To_NetworkError))) {
+        exec(m_slotsMap.value((onError_QNetworkReply_To_NetworkError)).second, QNetworkReply::NetworkError, error) {
             emit this->error(error);
             reply->deleteLater();
         }
@@ -196,8 +196,8 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
 
 void HttpResponse::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
 {
-    if (m_slotsMap.contains(N2S(onDownloadProgress_qint64_qint64))) {
-        exec2(m_slotsMap.value(N2S(onDownloadProgress_qint64_qint64)).first(), qint64, qint64, bytesReceived, bytesTotal) {
+    if (m_slotsMap.contains((onDownloadProgress_qint64_qint64))) {
+        exec2(m_slotsMap.value((onDownloadProgress_qint64_qint64)).second, qint64, qint64, bytesReceived, bytesTotal) {
             emit downloadProgress(bytesReceived, bytesTotal);
         }
     }
@@ -230,58 +230,57 @@ static void extractSlot(const QString &respReceiverSlot, QString &extractSlot, Q
 }
 
 /* from slotMap get [SupportMethod] */
-static QString getSupportMethod(const QMap<QString, QVariant> &slotMap) {
+static HttpResponse::SupportMethod getSupportMethod(const QPair<QString, QVariant> &slotMap) {
 
-    QMapIterator<QString, QMap<QString, QVariant>> iter(methodParams);
+    QMapIterator<HttpResponse::SupportMethod, QMap<QString, QVariant>> iter(methodParams);
 
-    QString receiverSlot = slotMap.firstKey();
+    QString receiverSlot = slotMap.first;
     QString slot;
     QStringList slotTypes;
     extractSlot(receiverSlot, slot, slotTypes);
 
     while (iter.hasNext()) {
         iter.next();
-        QString key = iter.key();
+        HttpResponse::SupportMethod supportMethod = iter.key();
         QMap<QString, QVariant> value = iter.value();
         if (slotTypes == value.value("types").toStringList()) {
-            return key;
+            return supportMethod;
         }
         else if (receiverSlot == value.value("lambda").toString()) {
-            return key;
+            return supportMethod;
         }
     }
 
-    return "";
+    return HttpResponse::Invalid;
 }
 
-static void autoInfterConvertedSupportMethod(QMultiMap<QString, QMap<QString, QVariant> > &unconvertedSlotsMap)
+static void autoInfterConvertedSupportMethod(QMultiMap<HttpResponse::SupportMethod, QPair<QString, QVariant> > &unconvertedSlotsMap)
 {
-    QMultiMap<QString, QMap<QString, QVariant> > convertedSlotsMap;
-    QMapIterator<QString, QMap<QString, QVariant> > iter(unconvertedSlotsMap);
+    QMultiMap<HttpResponse::SupportMethod, QPair<QString, QVariant> > convertedSlotsMap;
+    QMapIterator<HttpResponse::SupportMethod, QPair<QString, QVariant> > iter(unconvertedSlotsMap);
 
     while (iter.hasNext()) {
         iter.next();
-        const QString &key = iter.key();
-        const QMap<QString, QVariant> &slotMap = iter.value();
+        const HttpResponse::SupportMethod supportMethod = iter.key();
+        const QPair<QString, QVariant> slotMap = iter.value();
 
-        HttpResponse::SupportMethod supportMethod = (HttpResponse::SupportMethod)key.toInt();
         if (supportMethod == HttpResponse::AutoInfer) {
-            QString key = getSupportMethod(slotMap);
-            if (key == "") {
-                qDebug()<<"Not find support Method!"<<slotMap.firstKey();
+            HttpResponse::SupportMethod supportMethod  = getSupportMethod(slotMap);
+            if (supportMethod == HttpResponse::Invalid) {
+                qDebug()<<"Not find support Method!"<<slotMap.first;
             }
             else {
-                if (methodParams[key].value("isAutoInfer").toBool())
-                    convertedSlotsMap.insert(key, slotMap);
+                if (methodParams[supportMethod].value("isAutoInfer").toBool())
+                    convertedSlotsMap.insert(supportMethod, slotMap);
                 else
-                    qDebug()<<"This type["<<methodParams[key].value("types").toString()<<"] does not support automatic derivation";
+                    qDebug()<<"This type["<<methodParams[supportMethod].value("types").toString()<<"] does not support automatic derivation";
             }
         }
         else {
-            if (methodParams[key].value("isAutoInfer").toBool())
-                convertedSlotsMap.insert(key, slotMap);
+            if (methodParams[supportMethod].value("isAutoInfer").toBool())
+                convertedSlotsMap.insert(supportMethod, slotMap);
             else
-                qDebug()<<"This type["<<methodParams[key].value("types").toString()<<"] does not support automatic derivation";
+                qDebug()<<"This type["<<methodParams[supportMethod].value("types").toString()<<"] does not support automatic derivation";
         }
     }
 
@@ -289,24 +288,24 @@ static void autoInfterConvertedSupportMethod(QMultiMap<QString, QMap<QString, QV
 
 }
 
-void HttpResponse::slotsMapOperation(QMultiMap<QString, QMap<QString, QVariant> > &slotsMap)
+void HttpResponse::slotsMapOperation(QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap)
 {
     autoInfterConvertedSupportMethod(slotsMap);
 
-    QMapIterator<QString, QMap<QString, QVariant> > iter(slotsMap);
+    QMapIterator<SupportMethod, QPair<QString, QVariant> > iter(slotsMap);
     while (iter.hasNext()) {
         iter.next();
-        const QString &key = iter.key();
-        const QMap<QString, QVariant> &slotMap = iter.value();
+        SupportMethod supportMethod = iter.key();
+        const QPair<QString, QVariant> &slotMap = iter.value();
 
-        const QString &receiverSlot = slotMap.firstKey();
-        QVariant target = slotMap.first();
+        const QString &receiverSlot = slotMap.first;
+        QVariant target = slotMap.second;
         const QObject *receiver = target.value<QObject*>();
 
         if (receiver) {
-            if (methodParams.contains(key)) {
+            if (methodParams.contains(supportMethod)) {
                 connect(this,
-                        methodParams[key].value("signal").toString().toStdString().data(),
+                        methodParams[supportMethod].value("signal").toString().toStdString().data(),
                         receiver,
                         receiverSlot.toStdString().data(),
                         Qt::QueuedConnection);
