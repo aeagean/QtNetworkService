@@ -10,17 +10,6 @@ Email:  2088201923@qq.com
 #include <QMultiMap>
 #include <functional>
 
-Q_DECLARE_METATYPE(std::function<void (QNetworkReply*)>);
-Q_DECLARE_METATYPE(std::function<void (QByteArray)>);
-Q_DECLARE_METATYPE(std::function<void (QVariantMap)>);
-
-Q_DECLARE_METATYPE(std::function<void (QString)>);
-Q_DECLARE_METATYPE(std::function<void (QNetworkReply::NetworkError)>);
-Q_DECLARE_METATYPE(std::function<void (QNetworkReply::NetworkError, QNetworkReply *)>);
-Q_DECLARE_METATYPE(std::function<void (QString, QNetworkReply *)>);
-
-Q_DECLARE_METATYPE(std::function<void (qint64, qint64)>);
-
 #define TYPE_TO_STRING(t) QString(#t).remove(QRegExp("\\s"))
 #define NUMBER_TO_STRING(n)  QString::number(n)
 #define N2S(n) NUMBER_TO_STRING(n)
@@ -84,5 +73,16 @@ private:
 };
 
 }
+
+Q_DECLARE_METATYPE(std::function<void (QNetworkReply*)>)
+Q_DECLARE_METATYPE(std::function<void (QByteArray)>)
+Q_DECLARE_METATYPE(std::function<void (QVariantMap)>)
+
+Q_DECLARE_METATYPE(std::function<void (QString)>)
+Q_DECLARE_METATYPE(std::function<void (QNetworkReply::NetworkError)>)
+Q_DECLARE_METATYPE(std::function<void (QNetworkReply::NetworkError, QNetworkReply *)>)
+Q_DECLARE_METATYPE(std::function<void (QString, QNetworkReply *)>)
+
+Q_DECLARE_METATYPE(std::function<void (qint64, qint64)>)
 
 #endif // HTTP_RESPONSE_H
