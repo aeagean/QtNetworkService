@@ -11,6 +11,8 @@ Email:  2088201923@qq.com
 #include <QNetworkConfigurationManager>
 #include <QMetaEnum>
 
+#define T2S(t) (QString(#t).remove(QRegExp("\\s"))) //type to string
+
 #define exec(target, type, arg) \
         if (target.canConvert<std::function<void (type)> >()) { \
             std::function<void (type)> func = target.value<std::function<void (type)> >(); func(arg); \
@@ -27,7 +29,7 @@ using namespace AeaQt;
 static const QMap<HttpResponse::SupportMethod, QMap<QString, QVariant>> methodParams =
 {
     {
-        (HttpResponse::onResponse_QNetworkReply_A_Pointer),
+        HttpResponse::onResponse_QNetworkReply_A_Pointer,
         {
             {"types", QStringList({T2S(QNetworkReply*)})},
             {"lambda", T2S(std::function<void (QNetworkReply*)>)},
@@ -36,7 +38,7 @@ static const QMap<HttpResponse::SupportMethod, QMap<QString, QVariant>> methodPa
         }
     },
     {
-        (HttpResponse::onResponse_QByteArray),
+        HttpResponse::onResponse_QByteArray,
         {
             {"types", QStringList({T2S(QByteArray)})},
             {"lambda", T2S(std::function<void (QByteArray)>)},
@@ -45,7 +47,7 @@ static const QMap<HttpResponse::SupportMethod, QMap<QString, QVariant>> methodPa
         }
     },
     {
-        (HttpResponse::onResponse_QVariantMap),
+        HttpResponse::onResponse_QVariantMap,
         {
             {"types", QStringList({T2S(QVariantMap)})},
             {"lambda", T2S(std::function<void (QVariantMap)>)},
@@ -54,7 +56,7 @@ static const QMap<HttpResponse::SupportMethod, QMap<QString, QVariant>> methodPa
         }
     },
     {
-        (HttpResponse::onDownloadProgress_qint64_qint64),
+        HttpResponse::onDownloadProgress_qint64_qint64,
         {
             {"types", QStringList({T2S(qint64), T2S(qint64)})},
             {"lambda", T2S(std::function<void (qint64, qint64)>)},
@@ -63,7 +65,7 @@ static const QMap<HttpResponse::SupportMethod, QMap<QString, QVariant>> methodPa
         }
     },
     {
-        (HttpResponse::onError_QNetworkReply_To_NetworkError),
+        HttpResponse::onError_QNetworkReply_To_NetworkError,
         {
             {"types", QStringList({T2S(QNetworkReply::NetworkError)})},
             {"lambda", T2S(std::function<void (QNetworkReply::NetworkError)>)},
@@ -72,7 +74,7 @@ static const QMap<HttpResponse::SupportMethod, QMap<QString, QVariant>> methodPa
         }
     },
     {
-        (HttpResponse::onError_QString),
+        HttpResponse::onError_QString,
         {
             {"types", QStringList({T2S(QString)})},
             {"lambda", T2S(std::function<void (QString)>)},
@@ -81,7 +83,7 @@ static const QMap<HttpResponse::SupportMethod, QMap<QString, QVariant>> methodPa
         }
     },
     {
-        (HttpResponse::onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer),
+        HttpResponse::onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer,
         {
             {"types", QStringList({T2S(QNetworkReply::NetworkError), T2S(QNetworkReply*)})},
             {"lambda", T2S(std::function<void (QNetworkReply::NetworkError, QNetworkReply*)>)},
@@ -90,7 +92,7 @@ static const QMap<HttpResponse::SupportMethod, QMap<QString, QVariant>> methodPa
         }
     },
     {
-        (HttpResponse::onError_QString_QNetworkReply_A_Poniter),
+        HttpResponse::onError_QString_QNetworkReply_A_Poniter,
         {
             {"types", QStringList({T2S(QString), T2S(QNetworkReply*)})},
             {"lambda", T2S(std::function<void (QString, QNetworkReply*)>)},
@@ -102,7 +104,7 @@ static const QMap<HttpResponse::SupportMethod, QMap<QString, QVariant>> methodPa
 
 static int extractCode(const char *member)
 {
-    // extract code, ensure QMETHOD_CODE <= code <= QSIGNAL_CODE
+    /* extract code, ensure QMETHOD_CODE <= code <= QSIGNAL_CODE */
     return (((int)(*member) - '0') & 0x3);
 }
 
@@ -126,12 +128,13 @@ HttpResponse::~HttpResponse()
 
 void HttpResponse::abort()
 {
-
+//    QNetworkReply::abort();
+    close();
 }
 
 void HttpResponse::onFinished()
 {
-    QNetworkReply *reply = (QNetworkReply *)this->parent();
+    QNetworkReply *reply = static_cast<QNetworkReply *>(parent());
     if (reply->error() != QNetworkReply::NoError)
         return;
 

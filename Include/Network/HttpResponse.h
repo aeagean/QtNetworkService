@@ -10,11 +10,6 @@ Email:  2088201923@qq.com
 #include <QMultiMap>
 #include <functional>
 
-#define TYPE_TO_STRING(t) QString(#t).remove(QRegExp("\\s"))
-#define NUMBER_TO_STRING(n)  QString::number(n)
-#define N2S(n) NUMBER_TO_STRING(n)
-#define T2S(t) TYPE_TO_STRING(t)
-
 namespace AeaQt {
 
 class HttpResponse : public QNetworkReply

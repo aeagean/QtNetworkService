@@ -24,45 +24,45 @@ ApiTest::~ApiTest()
 void ApiTest::downloadOneMusic(const QString &name)
 {
     m_service.get("http://mobilecdn.kugou.com/api/v3/search/song")
-        .queryParam("format", "json")
-        .queryParam("keyword", name)
-        .queryParam("page", 1)
-        .queryParam("pagesize", 3)
-        .queryParam("showtype", 1)
-        .onResopnse([this, name](QVariantMap result){
-            QVariantMap data;
-            QList<QVariant> infos;
-            if (!result.isEmpty())
-                data = result.value("data").toMap();
+            .queryParam("format", "json")
+            .queryParam("keyword", name)
+            .queryParam("page", 1)
+            .queryParam("pagesize", 3)
+            .queryParam("showtype", 1)
+            .onResopnse([this, name](QVariantMap result){
+                QVariantMap data;
+                QList<QVariant> infos;
+                if (!result.isEmpty())
+                    data = result.value("data").toMap();
 
-            if (!data.isEmpty())
-                infos = data.value("info").toList();
+                if (!data.isEmpty())
+                    infos = data.value("info").toList();
 
-            foreach (QVariant each, infos) {
-                m_service.get("http://m.kugou.com/app/i/getSongInfo.php")
-                    .queryParam("cmd", "playInfo")
-                    .queryParam("hash", each.toMap()["hash"])
-                    .onResopnse([this, name](QVariantMap result){
-                        QString url = result["url"].toString();
-                        qDebug()<<"Get Url: "<<url;
-                        m_service.get(url)
-                                .userAttribute(name)
-                                .onResopnse([this](QNetworkReply *result) {
-                                    QByteArray data = result->readAll();
-                                    QString fileName = result->request().attribute(QNetworkRequest::User).toString() + QUuid::createUuid().toString();
-                                    qDebug()<<"Saving: "<<fileName;
-                                    saveFile(fileName, data);
-                                 })
-                                .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
-                                .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
-                                .exec();
-                     })
-                    .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
-                    .exec();
-            }
-        })
-        .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
-        .exec();
+                foreach (QVariant each, infos) {
+                    m_service.get("http://m.kugou.com/app/i/getSongInfo.php")
+                        .queryParam("cmd", "playInfo")
+                        .queryParam("hash", each.toMap()["hash"])
+                        .onResopnse([this, name](QVariantMap result){
+                            QString url = result["url"].toString();
+                            qDebug()<<"Get Url: "<<url;
+                            m_service.get(url)
+                                    .userAttribute(name)
+                                    .onResopnse([this](QNetworkReply *result) {
+                                        QByteArray data = result->readAll();
+                                        QString fileName = result->request().attribute(QNetworkRequest::User).toString() + QUuid::createUuid().toString();
+                                        qDebug()<<"Saving: "<<fileName;
+                                        saveFile(fileName, data);
+                                     })
+                                    .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
+                                    .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
+                                    .exec();
+                         })
+                        .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
+                        .exec();
+                }
+            })
+            .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
+            .exec()->abort();
 }
 
 void ApiTest::exec()
