@@ -62,7 +62,7 @@ void ApiTest::downloadOneMusic(const QString &name)
                 }
             })
             .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
-            .exec()->abort();
+            .exec();
 }
 
 void ApiTest::exec()
@@ -72,13 +72,13 @@ void ApiTest::exec()
              .onResopnse([](QByteArray result){ qDebug()<<"Result: "<<result; })
              .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
              .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
-             .exec();
+             .exec()->networkReply()->abort();
 
-    http.get("https://www.qt.io")
-             .onResponse(this, SLOT(finish(QByteArray)))
-             .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
-             .onError(this, SLOT(error(QString)))
-            .exec();
+//    http.get("https://www.qt.io")
+//             .onResponse(this, SLOT(finish(QByteArray)))
+//             .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
+//             .onError(this, SLOT(error(QString)))
+//             .exec()->networkReply()->abort();
 }
 
 void ApiTest::saveFile(const QString &_fileName, QByteArray data)

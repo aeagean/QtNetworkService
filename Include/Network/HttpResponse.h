@@ -12,7 +12,7 @@ Email:  2088201923@qq.com
 
 namespace AeaQt {
 
-class HttpResponse : public QNetworkReply
+class HttpResponse : public QObject
 {
     Q_OBJECT
 public:
@@ -34,20 +34,13 @@ public:
         onError_QString_QNetworkReply_A_Poniter/* method: void function(QString errorString, QNetworkReply* reply); Is_AutoInfer: true */
     };
 
-    explicit HttpResponse(QNetworkReply *parent, const QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap);
+    explicit HttpResponse(QNetworkReply *networkReply, const QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap);
 
     virtual ~HttpResponse();
 
-public slots:
-    void abort();
-
-private slots:
-    void onFinished();
-    void onError(QNetworkReply::NetworkError error);
-    void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
+    QNetworkReply *networkReply();
 
 protected:
-    qint64 readData(char *data, qint64 maxlen);
 
     void slotsMapOperation(QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap);
 
@@ -61,11 +54,17 @@ signals:
     void error(QNetworkReply::NetworkError error, QNetworkReply *reply);
     void downloadProgress(qint64 bytesReceived, qint64 bytesTotal);
 
+private slots:
+    void onFinished();
+    void onError(QNetworkReply::NetworkError error);
+    void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
+
 private:
     HttpResponse();
 
 private:
    QMultiMap<SupportMethod, QPair<QString, QVariant> > m_slotsMap;
+   QNetworkReply *m_networkReply;
 };
 
 }

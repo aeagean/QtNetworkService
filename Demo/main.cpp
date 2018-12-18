@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
     QCoreApplication a(argc, argv);
 
     ApiTest *apiTest = new ApiTest();
-    apiTest->downloadOneMusic("稻香");
+//    apiTest->downloadOneMusic("稻香");
     apiTest->exec();
     return a.exec();
 }
