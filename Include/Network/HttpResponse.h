@@ -9,8 +9,26 @@ Email:  2088201923@qq.com
 #include <QNetworkReply>
 #include <QMultiMap>
 #include <functional>
+#include <QTimer>
 
 namespace AeaQt {
+
+class HttpResponseTimeout : public QObject {
+    Q_OBJECT
+public:
+    HttpResponseTimeout(QNetworkReply *parent = NULL, const int timeout = 3000) : QObject(parent) {
+        QTimer::singleShot(timeout, this, SLOT(onTimeout()));
+    }
+
+private slots:
+    void onTimeout() {
+        QNetworkReply *reply = static_cast<QNetworkReply*>(parent());
+        if (reply->isRunning()) {
+            reply->abort();
+            reply->deleteLater();
+        }
+    }
+};
 
 class HttpResponse : public QObject
 {

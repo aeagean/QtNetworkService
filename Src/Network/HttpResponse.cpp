@@ -112,7 +112,7 @@ HttpResponse::HttpResponse(QNetworkReply *networkReply, const QMultiMap<SupportM
     : m_networkReply(networkReply), m_slotsMap(slotsMap), QObject(networkReply)
 {
     slotsMapOperation(m_slotsMap);
-
+    new HttpResponseTimeout(networkReply);
     connect(m_networkReply, SIGNAL(finished()), this, SLOT(onFinished()));
     connect(m_networkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
     connect(m_networkReply, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(onDownloadProgress(qint64, qint64)));

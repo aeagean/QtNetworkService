@@ -53,7 +53,7 @@ void ApiTest::downloadOneMusic(const QString &name)
                                         qDebug()<<"Saving: "<<fileName;
                                         saveFile(fileName, data);
                                      })
-                                    .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
+//                                    .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
                                     .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
                                     .exec();
                          })
@@ -68,17 +68,17 @@ void ApiTest::downloadOneMusic(const QString &name)
 void ApiTest::exec()
 {
     static HttpService http;
-    http.get("https://www.qt.io")
-             .onResopnse([](QByteArray result){ qDebug()<<"Result: "<<result; })
-             .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
-             .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
-             .exec()->networkReply()->abort();
-
 //    http.get("https://www.qt.io")
-//             .onResponse(this, SLOT(finish(QByteArray)))
+//             .onResopnse([](QByteArray result){ qDebug()<<"Result: "<<result; })
+//             .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
+//             .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
+//             .exec();//->networkReply()->abort();
+
+    http.get("https://stackoverflow.com/questions/43707722/cant-run-qt-apps-version-qt-5-not-found")
+             .onResponse(this, SLOT(finish(QByteArray)))
 //             .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
-//             .onError(this, SLOT(error(QString)))
-//             .exec()->networkReply()->abort();
+             .onError(this, SLOT(error(QString)))
+             .exec();
 }
 
 void ApiTest::saveFile(const QString &_fileName, QByteArray data)
