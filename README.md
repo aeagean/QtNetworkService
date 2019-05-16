@@ -1,6 +1,6 @@
 # 示例
 * (1) 简单示例
-```
+```cpp
 /* 使用lambda特性 */
 static HttpService http;
 http.get("https://www.qt.io")
@@ -9,7 +9,7 @@ http.get("https://www.qt.io")
     .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
     .exec();
 ```
-```
+```cpp
 /* 使用Qt信号与槽特性 */
 http.get("https://www.qt.io")
     .onResponse(this, SLOT(finish(QByteArray)))
@@ -19,7 +19,7 @@ http.get("https://www.qt.io")
 ```
 
 * (2) 复杂示例
-```
+```cpp
 /* 获取音乐url功能，请求嵌套请求 */
 static HttpService http;
 http.get("http://mobilecdn.kugou.com/api/v3/search/song")
