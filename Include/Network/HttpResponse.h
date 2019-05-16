@@ -16,7 +16,7 @@ namespace AeaQt {
 class HttpResponseTimeout : public QObject {
     Q_OBJECT
 public:
-    HttpResponseTimeout(QNetworkReply *parent = NULL, const int timeout = 3000) : QObject(parent) {
+    HttpResponseTimeout(QNetworkReply *parent = NULL, const int timeout = 30*1000) : QObject(parent) {
         QTimer::singleShot(timeout, this, SLOT(onTimeout()));
     }
 
