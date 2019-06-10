@@ -1,7 +1,10 @@
-/**********************************************************
-Author: 微信公众号(你才小学生)
-WeChat Official Accounts Platform: nicaixiaoxuesheng
+﻿/**********************************************************
+Author: Qt君
+微信公众号: Qt君(文章首发)
+Website: qtbig.com(后续更新)
 Email:  2088201923@qq.com
+QQ交流群: 732271126
+LISCENSE: MIT
 **********************************************************/
 #include "ApiTest.h"
 #include <QDebug>
@@ -74,10 +77,10 @@ void ApiTest::exec()
 //             .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
 //             .exec();//->networkReply()->abort();
 
-    http.get("https://stackoverflow.com/questions/43707722/cant-run-qt-apps-version-qt-5-not-found")
+    http.get("http://www.baidu.com")
              .onResponse(this, SLOT(finish(QByteArray)))
 //             .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
-             .onError(this, SLOT(error(QString)))
+             .onError(this, SLOT(error(QNetworkReply::NetworkError, QNetworkReply*)))
              .exec();
 }
 
@@ -132,7 +135,8 @@ void ApiTest::finish(QNetworkReply *reply)
 
 void ApiTest::finish(QByteArray result)
 {
-    qDebug()<<"Result: "<<result;
+    qDebug()<<"Result: ";
+    qDebug()<<result.left(10);
 }
 
 void ApiTest::error(QString errorString)
