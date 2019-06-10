@@ -120,13 +120,17 @@ HttpResponse::HttpResponse(QNetworkReply *networkReply, const QMultiMap<SupportM
     connect(m_networkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
     connect(m_networkReply, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(onDownloadProgress(qint64, qint64)));
 
-    if (!QNetworkConfigurationManager().isOnline())
+    if (!QNetworkConfigurationManager().isOnline()) {
         onError(QNetworkReply::UnknownNetworkError);
+#ifdef QT_APP_DEBUG
+        qDebug()<<"[AeaQt::HttpResponse]"<<__LINE__<<"No internet connection.";
+        /* 无互联网连接。如果认为系统通过活动网络接口连接到另一个设备。*/
+#endif
+    }
 }
 
 HttpResponse::~HttpResponse()
 {
-    qDebug()<<"delete";
 }
 
 QNetworkReply *HttpResponse::networkReply()
