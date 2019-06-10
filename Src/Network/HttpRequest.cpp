@@ -185,7 +185,3 @@ HttpRequest &HttpRequest::userAttribute(const QVariant &value)
     m_networkRequest.setAttribute(QNetworkRequest::User, value);
     return *this;
 }
-
-
-
-

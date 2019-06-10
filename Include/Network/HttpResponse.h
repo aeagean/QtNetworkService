@@ -62,7 +62,6 @@ public:
     QNetworkReply *networkReply();
 
 protected:
-
     void slotsMapOperation(QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap);
 
 signals:
