@@ -71,13 +71,14 @@ void ApiTest::downloadOneMusic(const QString &name)
 void ApiTest::exec()
 {
     static HttpService http;
-    http.get("https://www.qt.io")
-             .onResopnse([](QByteArray result){ qDebug()<<"Result: "<<result; })
-             .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
-             .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
-             .exec();
+//    http.get("https://www.qt.io")
+//             .onResopnse([](QByteArray result){ qDebug()<<"Result: "<<result; })
+//             .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
+//             .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
+//             .exec();
 
     http.get("http://www.baidu.com")
+             .queryParam("aa", true)
              .onResponse(this, SLOT(finish(QByteArray)))
              .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
              .onError(this, SLOT(error(QNetworkReply::NetworkError, QNetworkReply*)))

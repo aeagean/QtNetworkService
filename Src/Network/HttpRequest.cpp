@@ -70,6 +70,41 @@ HttpRequest &HttpRequest::jsonBody(const QVariant &jsonBody)
     return *this;
 }
 
+HttpRequest &HttpRequest::body(const QVariant &body, const HttpRequest::BodyType &type)
+{
+    if (type == None) {
+        m_body = QByteArray();
+    }
+    else if (type == X_Www_Form_Urlencoded) {
+        if (body.type() == QVariant::Map) {
+            m_body = QJsonDocument(QJsonObject::fromVariantMap(body.toMap())).toJson();
+        }
+        else if (body.typeName() ==  QMetaType::typeName(QMetaType::QJsonObject)) {
+            m_body = QJsonDocument(body.toJsonObject()).toJson();
+        }
+        else {
+            m_body = body.toByteArray();
+        }
+    }
+    else if (type == Raw_Text_Json) {
+        if (body.type() == QVariant::Map) {
+            m_body = QJsonDocument(QJsonObject::fromVariantMap(body.toMap())).toJson();
+        }
+        else if (body.typeName() ==  QMetaType::typeName(QMetaType::QJsonObject)) {
+            m_body = QJsonDocument(body.toJsonObject()).toJson();
+        }
+        else {
+            m_body = QByteArray();
+            // warning output
+        }
+    }
+    else {
+        m_body = QByteArray();
+        // warning output
+    }
+    return *this;
+}
+
 HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type)
 {
     m_slotsMap.insert(type, {slot, QVariant::fromValue((QObject *)receiver)});

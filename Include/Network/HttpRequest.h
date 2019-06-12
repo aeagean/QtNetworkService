@@ -22,6 +22,12 @@ class HttpService;
 class HttpRequest
 {
 public:
+    enum BodyType {
+        None = 0, // This request does not have a body.
+        X_Www_Form_Urlencoded, // x-www-form-urlencoded
+        Raw_Text_Json, // application/json
+    };
+
     explicit HttpRequest(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient);
     virtual ~HttpRequest();
 
@@ -35,7 +41,13 @@ public:
     /* Mainly used for identification */
     HttpRequest &userAttribute(const QVariant &value);
 
+    /**
+     * @note Will be removed in the future
+     */
     HttpRequest &jsonBody(const QVariant &jsonBody);
+
+    HttpRequest &body(const QVariant &body, const BodyType &type = X_Www_Form_Urlencoded);
+
     /*
      * @onRespone slot support type: void function(QVariantMap resultMap) OR
      *                               void function(QByteArray resultData) OR
