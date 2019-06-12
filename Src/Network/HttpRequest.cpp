@@ -25,7 +25,10 @@ HttpRequest::~HttpRequest()
 }
 
 HttpRequest::HttpRequest(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient) :
-    m_op(op), m_httpService(jsonHttpClient), m_timeout(-1)
+    m_body(QByteArray()),
+    m_op(op),
+    m_httpService(jsonHttpClient),
+    m_timeout(-1)
 {
 }
 
@@ -60,6 +63,7 @@ HttpRequest &HttpRequest::headers(const QMap<QString, QVariant> &headers)
 
 HttpRequest &HttpRequest::jsonBody(const QVariant &jsonBody)
 {
+    m_body.clear();
     if (jsonBody.type() == QVariant::Map) {
         m_jsonBody = QJsonObject::fromVariantMap(jsonBody.toMap());
     }
@@ -72,6 +76,8 @@ HttpRequest &HttpRequest::jsonBody(const QVariant &jsonBody)
 
 HttpRequest &HttpRequest::body(const QVariant &body, const HttpRequest::BodyType &type)
 {
+    m_jsonBody = QJsonObject();
+
     if (type == None) {
         m_body = QByteArray();
     }
@@ -102,6 +108,7 @@ HttpRequest &HttpRequest::body(const QVariant &body, const HttpRequest::BodyType
         m_body = QByteArray();
         // warning output
     }
+//toString(QUrl::FullyEncoded).toUtf8()转换
     return *this;
 }
 
