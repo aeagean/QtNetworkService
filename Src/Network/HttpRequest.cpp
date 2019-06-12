@@ -25,7 +25,7 @@ HttpRequest::~HttpRequest()
 }
 
 HttpRequest::HttpRequest(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient) :
-    m_op(op), m_httpService(jsonHttpClient)
+    m_op(op), m_httpService(jsonHttpClient), m_timeout(-1)
 {
 }
 
@@ -121,6 +121,12 @@ HttpRequest &HttpRequest::onError(std::function<void (QString, QNetworkReply *)>
     return onResopnse(QVariant::fromValue(lambda));
 }
 
+HttpRequest &HttpRequest::timeout(const int &msec)
+{
+    m_timeout = msec;
+    return *this;
+}
+
 HttpRequest &HttpRequest::onResopnse(QVariant lambda)
 {
     m_slotsMap.insert(HttpResponse::AutoInfer, {lambda.typeName(), lambda});
@@ -148,7 +154,7 @@ HttpResponse *HttpRequest::exec()
         sendBuffer->setParent(reply);
     }
 
-    return new HttpResponse(reply, m_slotsMap);
+    return new HttpResponse(reply, m_slotsMap, m_timeout);
 }
 
 HttpRequest &HttpRequest::queryParam(const QString &key, const QVariant &value)

@@ -60,6 +60,12 @@ public:
     HttpRequest &onError(std::function<void (QNetworkReply::NetworkError, QNetworkReply*)> lambda);
     HttpRequest &onError(std::function<void (QString, QNetworkReply*)> lambda);
 
+    /**
+     * @brief msec <= 0, disable timeout
+     *        msec >  0, enable timeout
+     */
+    HttpRequest &timeout(const int &msec = -1);
+
     HttpResponse *exec();
 
 private:
@@ -67,10 +73,11 @@ private:
     HttpRequest &onResopnse(QVariant lambda);
 
 private:
-    QNetworkRequest m_networkRequest;
-    QJsonObject m_jsonBody;
+    QNetworkRequest                  m_networkRequest;
+    QJsonObject                      m_jsonBody;
     QNetworkAccessManager::Operation m_op;
-    HttpService *m_httpService;
+    HttpService                      *m_httpService;
+    int                              m_timeout;
     QMultiMap<HttpResponse::SupportMethod, QPair<QString, QVariant>> m_slotsMap;
 };
 

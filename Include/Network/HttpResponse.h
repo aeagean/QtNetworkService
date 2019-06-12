@@ -19,8 +19,9 @@ namespace AeaQt {
 class HttpResponseTimeout : public QObject {
     Q_OBJECT
 public:
-    HttpResponseTimeout(QNetworkReply *parent = NULL, const int timeout = 30*1000) : QObject(parent) {
-        QTimer::singleShot(timeout, this, SLOT(onTimeout()));
+    HttpResponseTimeout(QNetworkReply *parent = NULL, const int timeout = -1) : QObject(parent) {
+        if (timeout > 0)
+            QTimer::singleShot(timeout, this, SLOT(onTimeout()));
     }
 
 private slots:
@@ -55,7 +56,9 @@ public:
         onError_QString_QNetworkReply_A_Poniter/* method: void function(QString errorString, QNetworkReply* reply); Is_AutoInfer: true */
     };
 
-    explicit HttpResponse(QNetworkReply *networkReply, const QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap);
+    explicit HttpResponse(QNetworkReply *networkReply,
+                          const QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap,
+                          const int &timeout);
 
     virtual ~HttpResponse();
 

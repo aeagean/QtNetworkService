@@ -111,22 +111,19 @@ static int extractCode(const char *member)
     return (((int)(*member) - '0') & 0x3);
 }
 
-HttpResponse::HttpResponse(QNetworkReply *networkReply, const QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap)
-    : m_networkReply(networkReply), m_slotsMap(slotsMap), QObject(networkReply)
+HttpResponse::HttpResponse(QNetworkReply *networkReply,
+                           const QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap,
+                           const int &timeout)
+    : m_networkReply(networkReply),
+      m_slotsMap(slotsMap),
+      QObject(networkReply)
 {
     slotsMapOperation(m_slotsMap);
-    new HttpResponseTimeout(networkReply);
+    new HttpResponseTimeout(networkReply, timeout);
+
     connect(m_networkReply, SIGNAL(finished()), this, SLOT(onFinished()));
     connect(m_networkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
     connect(m_networkReply, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(onDownloadProgress(qint64, qint64)));
-
-    if (!QNetworkConfigurationManager().isOnline()) {
-        onError(QNetworkReply::UnknownNetworkError);
-#ifdef QT_APP_DEBUG
-        qDebug()<<"[AeaQt::HttpResponse]"<<__LINE__<<"No internet connection.";
-        /* 无互联网连接。如果认为系统通过活动网络接口连接到另一个设备。*/
-#endif
-    }
 }
 
 HttpResponse::~HttpResponse()
