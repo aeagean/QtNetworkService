@@ -77,8 +77,8 @@ void ApiTest::exec()
 //             .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
 //             .exec();
 
-    http.get("http://www.baidu.com")
-             .queryParam("aa", true)
+    http.post("http://translate.google.cn/translate_a/single?client=gtx&dt=t&dj=1&ie=UTF-8&sl=auto&tl=zh_TW")
+             .body(QJsonObject({{"q", "hello"}}))
              .onResponse(this, SLOT(finish(QByteArray)))
              .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
              .onError(this, SLOT(error(QNetworkReply::NetworkError, QNetworkReply*)))
@@ -138,7 +138,7 @@ void ApiTest::finish(QNetworkReply *reply)
 void ApiTest::finish(QByteArray result)
 {
     qDebug()<<"Result: ";
-    qDebug()<<result.left(10);
+    qDebug()<<result.left(100);
 }
 
 void ApiTest::error(QString errorString)
