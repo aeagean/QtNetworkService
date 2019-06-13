@@ -40,12 +40,7 @@ HttpRequest &HttpRequest::url(const QString &url)
 
 HttpRequest &HttpRequest::header(const QString &key, const QVariant &value)
 {
-    if (value.type() == QVariant::Bool) {
-        m_networkRequest.setRawHeader(QByteArray(key.toStdString().data()), QByteArray(value.toBool() ? "true" : "false"));
-    }
-    else {
-        m_networkRequest.setRawHeader(QByteArray(key.toStdString().data()), QByteArray(value.toString().toStdString().data()));
-    }
+    m_networkRequest.setRawHeader(QByteArray(key.toStdString().data()), QByteArray(value.toString().toStdString().data()));
 
     return *this;
 }
@@ -76,39 +71,47 @@ HttpRequest &HttpRequest::jsonBody(const QVariant &jsonBody)
 
 HttpRequest &HttpRequest::body(const QVariant &body, const HttpRequest::BodyType &type)
 {
+    /// clear m_jsonBody
     m_jsonBody = QJsonObject();
 
-    if (type == None) {
-        m_body = QByteArray();
-    }
-    else if (type == X_Www_Form_Urlencoded) {
-        if (body.type() == QVariant::Map) {
-            m_body = QJsonDocument(QJsonObject::fromVariantMap(body.toMap())).toJson();
-        }
-        else if (body.typeName() ==  QMetaType::typeName(QMetaType::QJsonObject)) {
-            m_body = QJsonDocument(body.toJsonObject()).toJson();
+    if (type == X_Www_Form_Urlencoded) {
+        QUrl url;
+        QUrlQuery urlQuery(url);
+
+        if (body.type() == QVariant::Map
+            || body.typeName() ==  QMetaType::typeName(QMetaType::QJsonObject)) {
+
+            QMapIterator<QString, QVariant> i(body.toMap());
+            while (i.hasNext()) {
+                i.next();
+                urlQuery.addQueryItem(i.key(), i.value().toString());
+            }
+
+            url.setQuery(urlQuery);
+            m_body = url.toString(QUrl::FullyEncoded).toUtf8().remove(0, 1);
         }
         else {
             m_body = body.toByteArray();
         }
     }
     else if (type == Raw_Text_Json) {
-        if (body.type() == QVariant::Map) {
+        if (body.type() == QVariant::Map
+            || body.typeName() ==  QMetaType::typeName(QMetaType::QJsonObject)) {
+
             m_body = QJsonDocument(QJsonObject::fromVariantMap(body.toMap())).toJson();
         }
-        else if (body.typeName() ==  QMetaType::typeName(QMetaType::QJsonObject)) {
-            m_body = QJsonDocument(body.toJsonObject()).toJson();
-        }
         else {
+            debugger<<"This is not data in JSON format(QVariantMap or QJsonObject).";
             m_body = QByteArray();
             // warning output
         }
     }
     else {
         m_body = QByteArray();
-        // warning output
+        debugger<<"Disable body.";
     }
-//toString(QUrl::FullyEncoded).toUtf8()转换
+
+    debugger<<"Body Content:"<<m_body;
     return *this;
 }
 
@@ -181,10 +184,16 @@ HttpResponse *HttpRequest::exec()
     QNetworkReply* reply = NULL;
     QBuffer* sendBuffer = new QBuffer();
     QJsonObject sendJson = m_jsonBody;
-    if (!sendJson.isEmpty()) {
+    if (! sendJson.isEmpty()) {
         QByteArray sendByteArray = QJsonDocument(sendJson).toJson();
         sendBuffer->setData(sendByteArray);
     }
+
+    if (! m_body.isEmpty()) {
+        sendBuffer->setData(m_body);
+    }
+
+    debugger<<"Send buffer(Body): "<<m_body;
 
     reply = m_httpService->createRequest(m_op, m_networkRequest, sendBuffer);
 
@@ -204,12 +213,7 @@ HttpRequest &HttpRequest::queryParam(const QString &key, const QVariant &value)
     QUrl url(m_networkRequest.url());
     QUrlQuery urlQuery(url);
 
-    if (value.type() == QVariant::Bool) {
-        urlQuery.addQueryItem(key, value.toBool() ? "true" : "false");
-    }
-    else {
-        urlQuery.addQueryItem(key, value.toString());
-    }
+    urlQuery.addQueryItem(key, value.toString());
     url.setQuery(urlQuery);
 
     m_networkRequest.setUrl(url);

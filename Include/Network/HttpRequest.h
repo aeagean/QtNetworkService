@@ -17,6 +17,13 @@ LISCENSE: MIT
 
 namespace AeaQt {
 
+#ifdef QT_APP_DEBUG
+#include <QDebug>
+#define debugger qDebug()<<"[AeaQt::Network]"<<__func__
+#else
+#define debug QString()
+#endif
+
 class HttpService;
 
 class HttpRequest
