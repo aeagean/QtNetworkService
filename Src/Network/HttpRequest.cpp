@@ -121,24 +121,24 @@ HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *slot, 
     return *this;
 }
 
-HttpRequest &HttpRequest::onResopnse(std::function<void (QNetworkReply *)> lambda)
+HttpRequest &HttpRequest::onResponse(std::function<void (QNetworkReply *)> lambda)
 {
-    return onResopnse(QVariant::fromValue(lambda));
+    return onResponse(QVariant::fromValue(lambda));
 }
 
-HttpRequest &HttpRequest::onResopnse(std::function<void (QVariantMap)> lambda)
+HttpRequest &HttpRequest::onResponse(std::function<void (QVariantMap)> lambda)
 {
-    return onResopnse(QVariant::fromValue(lambda));
+    return onResponse(QVariant::fromValue(lambda));
 }
 
-HttpRequest &HttpRequest::onResopnse(std::function<void (QByteArray)> lambda)
+HttpRequest &HttpRequest::onResponse(std::function<void (QByteArray)> lambda)
 {
-    return onResopnse(QVariant::fromValue(lambda));
+    return onResponse(QVariant::fromValue(lambda));
 }
 
-HttpRequest &HttpRequest::onResopnse(std::function<void (qint64, qint64)> lambda)
+HttpRequest &HttpRequest::onResponse(std::function<void (qint64, qint64)> lambda)
 {
-    return onResopnse(QVariant::fromValue(lambda));
+    return onResponse(QVariant::fromValue(lambda));
 }
 
 HttpRequest &HttpRequest::onError(const QObject *receiver, const char *slot)
@@ -148,22 +148,22 @@ HttpRequest &HttpRequest::onError(const QObject *receiver, const char *slot)
 
 HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply::NetworkError)> lambda)
 {
-    return onResopnse(QVariant::fromValue(lambda));
+    return onResponse(QVariant::fromValue(lambda));
 }
 
 HttpRequest &HttpRequest::onError(std::function<void (QString)> lambda)
 {
-    return onResopnse(QVariant::fromValue(lambda));
+    return onResponse(QVariant::fromValue(lambda));
 }
 
 HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply::NetworkError, QNetworkReply *)> lambda)
 {
-    return onResopnse(QVariant::fromValue(lambda));
+    return onResponse(QVariant::fromValue(lambda));
 }
 
 HttpRequest &HttpRequest::onError(std::function<void (QString, QNetworkReply *)> lambda)
 {
-    return onResopnse(QVariant::fromValue(lambda));
+    return onResponse(QVariant::fromValue(lambda));
 }
 
 HttpRequest &HttpRequest::timeout(const int &msec)
@@ -172,7 +172,7 @@ HttpRequest &HttpRequest::timeout(const int &msec)
     return *this;
 }
 
-HttpRequest &HttpRequest::onResopnse(QVariant lambda)
+HttpRequest &HttpRequest::onResponse(QVariant lambda)
 {
     m_slotsMap.insert(HttpResponse::AutoInfer, {lambda.typeName(), lambda});
 
