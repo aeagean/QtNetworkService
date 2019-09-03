@@ -33,19 +33,19 @@ else {
 }
 
 SOURCES += \
-    Src/Network/HttpService.cpp \
     Src/Network/HttpResponse.cpp \
     Src/Network/HttpRequest.cpp \
     Src/NetworkDownloadFile/NetworkDownloadFile.cpp \
     Src/Socket/UdpServer.cpp \
-    Src/Socket/UdpClient.cpp
+    Src/Socket/UdpClient.cpp \
+    Src/Network/HttpClient.cpp
 
 HEADERS += \
-    Include/Network/HttpService.h \
     Include/Network/HttpResponse.h \
     Include/Network/HttpRequest.h \
     Include/NetworkDownloadFile/NetworkDownloadFile.h \
     Include/Socket/UdpServer.h \
-    Include/Socket/UdpClient.h
+    Include/Socket/UdpClient.h \
+    Include/Network/HttpClient.h
 
 include(QtNetworkService.pri)

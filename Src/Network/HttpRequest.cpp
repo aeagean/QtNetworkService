@@ -7,7 +7,7 @@ QQ交流群: 732271126
 LISCENSE: MIT
 **********************************************************/
 #include "HttpRequest.h"
-#include "HttpService.h"
+#include "HttpClient.h"
 
 #include <QJsonDocument>
 #include <QUrlQuery>
@@ -24,7 +24,7 @@ HttpRequest::~HttpRequest()
 {
 }
 
-HttpRequest::HttpRequest(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient) :
+HttpRequest::HttpRequest(QNetworkAccessManager::Operation op, HttpClient *jsonHttpClient) :
     m_body(QByteArray()),
     m_op(op),
     m_httpService(jsonHttpClient),

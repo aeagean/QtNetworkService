@@ -9,7 +9,7 @@ LISCENSE: MIT
 #ifndef NETWORK_DOWNLOAD_FILE_H
 #define NETWORK_DOWNLOAD_FILE_H
 
-#include "HttpService.h"
+#include "HttpClient.h"
 
 #include <QFileInfo>
 
@@ -26,7 +26,7 @@ public:
                   std::function<void(QString errorString)> errorFunctor = {},
                   std::function<void(qint64 bytesReceived, qint64 bytesTotal)> processFunctor = {});
 private:
-    HttpService m_httpService;
+    HttpClient m_httpService;
 };
 
 }

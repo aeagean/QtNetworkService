@@ -70,7 +70,7 @@ void ApiTest::downloadOneMusic(const QString &name)
 
 void ApiTest::exec()
 {
-    static HttpService http;
+    static HttpClient http;
 //    http.get("https://www.qt.io")
 //             .onResopnse([](QByteArray result){ qDebug()<<"Result: "<<result; })
 //             .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })

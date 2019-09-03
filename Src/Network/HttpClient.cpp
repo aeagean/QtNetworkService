@@ -6,37 +6,37 @@ Email:  2088201923@qq.com
 QQ交流群: 732271126
 LISCENSE: MIT
 **********************************************************/
-#include "HttpService.h"
+#include "HttpClient.h"
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QBuffer>
 
 using namespace AeaQt;
 
-HttpService::HttpService()
+HttpClient::HttpClient()
 {
 }
 
-HttpService::~HttpService()
+HttpClient::~HttpClient()
 {
 }
 
-HttpRequest HttpService::get(const QString &url)
+HttpRequest HttpClient::get(const QString &url)
 {
     return HttpRequest(QNetworkAccessManager::GetOperation, this).url(url);
 }
 
-HttpRequest HttpService::post(const QString &url)
+HttpRequest HttpClient::post(const QString &url)
 {
     return HttpRequest(QNetworkAccessManager::PostOperation, this).url(url);
 }
 
-HttpRequest HttpService::put(const QString &url)
+HttpRequest HttpClient::put(const QString &url)
 {
     return HttpRequest(QNetworkAccessManager::PutOperation, this).url(url);
 }
 
-HttpRequest HttpService::send(const QString &url, QNetworkAccessManager::Operation op)
+HttpRequest HttpClient::send(const QString &url, QNetworkAccessManager::Operation op)
 {
     return HttpRequest(op, this).url(url);
 }

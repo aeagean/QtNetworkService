@@ -6,8 +6,8 @@ Email:  2088201923@qq.com
 QQ交流群: 732271126
 LISCENSE: MIT
 **********************************************************/
-#ifndef HTTP_SERVICE_H
-#define HTTP_SERVICE_H
+#ifndef HTTP_CLIENT_H
+#define HTTP_CLIENT_H
 
 #include "HttpRequest.h"
 #include "HttpResponse.h"
@@ -16,14 +16,14 @@ LISCENSE: MIT
 
 namespace AeaQt {
 
-class HttpService : public QNetworkAccessManager
+class HttpClient : public QNetworkAccessManager
 {
     Q_OBJECT
 public:
     friend class HttpRequest;
 
-    HttpService();
-    ~HttpService();
+    HttpClient();
+    ~HttpClient();
 
     HttpRequest get(const QString &url);
     HttpRequest post(const QString &url);
@@ -33,4 +33,4 @@ public:
 };
 
 }
-#endif // HTTP_SERVICE_H
+#endif

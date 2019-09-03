@@ -1,7 +1,7 @@
-#ifndef APITEST_H
+﻿#ifndef APITEST_H
 #define APITEST_H
 
-#include "HttpService.h"
+#include "HttpClient.h"
 
 class ApiTest : public QObject
 {
@@ -29,7 +29,7 @@ private slots:
     void downloadProgress(qint64 bytesReceived, qint64 bytesTotal);
 
 private:
-    AeaQt::HttpService m_service;
+    AeaQt::HttpClient m_service;
 };
 
 #endif // APITEST_H

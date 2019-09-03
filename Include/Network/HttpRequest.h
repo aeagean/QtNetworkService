@@ -24,7 +24,7 @@ namespace AeaQt {
 #define debug QString()
 #endif
 
-class HttpService;
+class HttpClient;
 
 class HttpRequest
 {
@@ -35,7 +35,7 @@ public:
         Raw_Text_Json, // application/json
     };
 
-    explicit HttpRequest(QNetworkAccessManager::Operation op, HttpService *jsonHttpClient);
+    explicit HttpRequest(QNetworkAccessManager::Operation op, HttpClient *jsonHttpClient);
     virtual ~HttpRequest();
 
     HttpRequest &url(const QString &url);
@@ -96,7 +96,7 @@ private:
     QJsonObject                      m_jsonBody;
     QByteArray                       m_body;
     QNetworkAccessManager::Operation m_op;
-    HttpService                      *m_httpService;
+    HttpClient                      *m_httpService;
     int                              m_timeout;
     QMultiMap<HttpResponse::SupportMethod, QPair<QString, QVariant>> m_slotsMap;
 };
