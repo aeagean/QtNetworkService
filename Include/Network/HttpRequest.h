@@ -14,15 +14,17 @@ LISCENSE: MIT
 #include <QNetworkRequest>
 #include <QNetworkAccessManager>
 #include <QJsonObject>
+#include <QDebug>
 
 namespace AeaQt {
 
 #ifdef QT_APP_DEBUG
-#include <QDebug>
-#define debugger qDebug()<<"[AeaQt::Network]"<<__func__
+#define debugger qDebug() << "[AeaQt::Network] Debug: " << __func__
 #else
 #define debug QString()
 #endif
+
+#define warning qWarning() << "[AeaQt::Network] Warning: " << __func__
 
 class HttpClient;
 

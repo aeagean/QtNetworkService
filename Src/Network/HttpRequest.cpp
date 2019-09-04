@@ -101,14 +101,14 @@ HttpRequest &HttpRequest::body(const QVariant &body, const HttpRequest::BodyType
             m_body = QJsonDocument(QJsonObject::fromVariantMap(body.toMap())).toJson();
         }
         else {
-            debugger<<"This is not data in JSON format(QVariantMap or QJsonObject).";
+            warning << "This is not data in JSON format(QVariantMap or QJsonObject).";
             m_body = QByteArray();
             // warning output
         }
     }
     else {
         m_body = QByteArray();
-        debugger<<"Disable body.";
+        warning << "Disable body.";
     }
 
     debugger<<"Body Content:"<<m_body;
