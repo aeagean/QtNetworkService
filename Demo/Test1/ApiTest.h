@@ -29,7 +29,7 @@ private slots:
     void downloadProgress(qint64 bytesReceived, qint64 bytesTotal);
 
 private:
-    AeaQt::HttpClient m_service;
+    AeaQt::HttpClient m_httpClient;
 };
 
 #endif // APITEST_H

@@ -26,7 +26,7 @@ ApiTest::~ApiTest()
 
 void ApiTest::downloadOneMusic(const QString &name)
 {
-    m_service.get("http://mobilecdn.kugou.com/api/v3/search/song")
+    m_httpClient.get("http://mobilecdn.kugou.com/api/v3/search/song")
             .queryParam("format", "json")
             .queryParam("keyword", name)
             .queryParam("page", 1)
@@ -42,13 +42,13 @@ void ApiTest::downloadOneMusic(const QString &name)
                     infos = data.value("info").toList();
 
                 foreach (QVariant each, infos) {
-                    m_service.get("http://m.kugou.com/app/i/getSongInfo.php")
+                    m_httpClient.get("http://m.kugou.com/app/i/getSongInfo.php")
                         .queryParam("cmd", "playInfo")
                         .queryParam("hash", each.toMap()["hash"])
                         .onResponse([this, name](QVariantMap result){
                             QString url = result["url"].toString();
                             qDebug()<<"Get Url: "<<url;
-                            m_service.get(url)
+                            m_httpClient.get(url)
                                     .userAttribute(name)
                                     .onResponse([this](QNetworkReply *result) {
                                         QByteArray data = result->readAll();
@@ -70,20 +70,29 @@ void ApiTest::downloadOneMusic(const QString &name)
 
 void ApiTest::exec()
 {
-    static HttpClient http;
-//    http.get("https://www.qt.io")
+//    m_httpClient.get("https://www.qt.io")
 //             .onResopnse([](QByteArray result){ qDebug()<<"Result: "<<result; })
 //             .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
 //             .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
 //             .exec();
 
-    http.post("http://translate.google.cn/translate_a/single?client=gtx&dt=t&dj=1&ie=UTF-8&sl=auto&tl=zh_TW")
-             .body(QJsonObject({{"q", "hello"}}))
-             .onResponse(this, SLOT(finish(QByteArray)))
-             .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
-             .onError(this, SLOT(error(QNetworkReply::NetworkError, QNetworkReply*)))
-             .timeout(30*1000) // 30s
-             .exec();
+#if 0
+    m_httpClient.post("http://127.0.0.1:8000/blog/")
+                .body(R"({"3": 2})")
+                .onResponse([](QByteArray result) {
+                    qDebug() << "Result: " << result;
+                 })
+                .exec();
+#endif
+
+    m_httpClient.post("http://translate.google.cn/translate_a/single?client=gtx&dt=t&dj=1&ie=UTF-8&sl=auto&tl=zh_TW")
+                .header("content-type", "application/json")
+                .body(QJsonObject({{"q", "hello"}}))
+                .onResponse(this, SLOT(finish(QByteArray)))
+                .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
+                .onError(this, SLOT(error(QNetworkReply::NetworkError, QNetworkReply*)))
+                .timeout(30*1000) // 30s
+                .exec();
 }
 
 void ApiTest::saveFile(const QString &_fileName, QByteArray data)
@@ -158,6 +167,9 @@ void ApiTest::error(QNetworkReply::NetworkError error)
 
 void ApiTest::error(QNetworkReply::NetworkError error, QNetworkReply *reply)
 {
+#if 0
+    qDebug() << "Error content: " << reply->readAll();
+#endif
     qDebug()<<"Error: "<<reply->error();
 }
 
