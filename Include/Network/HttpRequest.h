@@ -19,12 +19,18 @@ LISCENSE: MIT
 namespace AeaQt {
 
 #ifdef QT_APP_DEBUG
-#define debugger qDebug() << "[AeaQt::Network] Debug: " << __func__
+#define debugger qDebug().noquote().nospace() \
+                          << "[AeaQt::Network] Debug: -> " \
+                          << "function: " << __func__ << "; " \
+                          << "line: " << __LINE__ << "; "
 #else
 #define debug QString()
 #endif
 
-#define warning qWarning() << "[AeaQt::Network] Warning: " << __func__
+#define warning qWarning().noquote().nospace() \
+                           << "[AeaQt::Network] Warning: -> " \
+                           << "function: " << __func__ << "; " \
+                           << "line: " << __LINE__ << "; "
 
 class HttpClient;
 
@@ -50,12 +56,9 @@ public:
     /* Mainly used for identification */
     HttpRequest &userAttribute(const QVariant &value);
 
-    /**
-     * @note Will be removed in the future
-     */
-    HttpRequest &jsonBody(const QVariant &jsonBody);
-
-    HttpRequest &body(const QVariant &body, const BodyType &type = X_Www_Form_Urlencoded);
+    HttpRequest &body(const QVariantMap &content);
+    HttpRequest &body(const QJsonObject &content);
+    HttpRequest &body(const QByteArray &content);
 
     /*
      * @onRespone slot support type: void function(QVariantMap resultMap) OR

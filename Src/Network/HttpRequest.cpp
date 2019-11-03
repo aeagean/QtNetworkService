@@ -12,6 +12,7 @@ LISCENSE: MIT
 #include <QJsonDocument>
 #include <QUrlQuery>
 #include <QBuffer>
+#include <QMetaEnum>
 
 using namespace AeaQt;
 
@@ -56,20 +57,26 @@ HttpRequest &HttpRequest::headers(const QMap<QString, QVariant> &headers)
    return *this;
 }
 
-HttpRequest &HttpRequest::jsonBody(const QVariant &jsonBody)
+HttpRequest &HttpRequest::body(const QVariantMap &content)
 {
-    m_body.clear();
-    if (jsonBody.type() == QVariant::Map) {
-        m_jsonBody = QJsonObject::fromVariantMap(jsonBody.toMap());
-    }
-    else if (jsonBody.typeName() ==  QMetaType::typeName(QMetaType::QJsonObject)) {
-        m_jsonBody = jsonBody.toJsonObject();
-    }
-
+    m_body = QJsonDocument(QJsonObject::fromVariantMap(content)).toJson();
     return *this;
 }
 
-HttpRequest &HttpRequest::body(const QVariant &body, const HttpRequest::BodyType &type)
+HttpRequest &HttpRequest::body(const QJsonObject &content)
+{
+    m_body = QJsonDocument(QJsonObject::fromVariantMap(content.toVariantMap())).toJson();
+    return *this;
+}
+
+HttpRequest &HttpRequest::body(const QByteArray &content)
+{
+    m_body = content;
+    return *this;
+}
+
+#if 0
+HttpRequest &HttpRequest::body(const QVariant &body)
 {
     /// clear m_jsonBody
     m_jsonBody = QJsonObject();
@@ -111,9 +118,10 @@ HttpRequest &HttpRequest::body(const QVariant &body, const HttpRequest::BodyType
         warning << "Disable body.";
     }
 
-    debugger<<"Body Content:"<<m_body;
+    debugger << "Body Content:" << m_body;
     return *this;
 }
+#endif
 
 HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type)
 {
@@ -193,7 +201,24 @@ HttpResponse *HttpRequest::exec()
         sendBuffer->setData(m_body);
     }
 
-    debugger<<"Send buffer(Body): "<<m_body;
+    debugger << "Http Client info: ";
+    debugger << "Type: " << (const char *[]){"UnknownOperation",
+                                            "HeadOperation",
+                                            "GetOperation",
+                                            "PutOperation",
+                                            "PostOperation",
+                                            "DeleteOperation",
+                                            "CustomOperation"}[m_op];
+    debugger << "Url: " << m_networkRequest.url().toString();
+    QString headers;
+    for (int i = 0; i < m_networkRequest.rawHeaderList().count(); i++) {
+        QString each = m_networkRequest.rawHeaderList().at(i);
+        QString header = m_networkRequest.rawHeader(each.toUtf8());
+        headers += QString("%1: %2;").arg(each)
+                                        .arg(header);
+    }
+    debugger << "Header: " << headers;
+    debugger << "Send buffer(Body):\r\n" << m_body;
 
     reply = m_httpService->createRequest(m_op, m_networkRequest, sendBuffer);
 
