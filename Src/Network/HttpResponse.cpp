@@ -13,16 +13,17 @@ LISCENSE: MIT
 #include <QJsonObject>
 #include <QNetworkConfigurationManager>
 #include <QMetaEnum>
+#include <QEventLoop>
 
 #define T2S(t) (QString(#t).remove(QRegExp("\\s"))) //type to string
 
-#define exec(target, type, arg) \
+#define _exec(target, type, arg) \
         if (target.canConvert<std::function<void (type)> >()) { \
             std::function<void (type)> func = target.value<std::function<void (type)> >(); func(arg); \
         } \
         else
 
-#define exec2(target, type1, type2, arg1, arg2) \
+#define _exec2(target, type1, type2, arg1, arg2) \
         if (target.canConvert<std::function<void (type1, type2)> >()) { \
             std::function<void (type1, type2)> func = target.value<std::function<void (type1, type2)> >(); func(arg1, arg2); \
         } else
@@ -113,7 +114,8 @@ static int extractCode(const char *member)
 
 HttpResponse::HttpResponse(QNetworkReply *networkReply,
                            const QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap,
-                           const int &timeout)
+                           const int &timeout,
+                           bool isBlock)
     : m_networkReply(networkReply),
       m_slotsMap(slotsMap),
       QObject(networkReply)
@@ -124,6 +126,12 @@ HttpResponse::HttpResponse(QNetworkReply *networkReply,
     connect(m_networkReply, SIGNAL(finished()), this, SLOT(onFinished()));
     connect(m_networkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
     connect(m_networkReply, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(onDownloadProgress(qint64, qint64)));
+
+    if (isBlock) {
+        QEventLoop loop;
+        QObject::connect(m_networkReply, SIGNAL(finished()), &loop, SLOT(quit()));
+        loop.exec();
+    }
 }
 
 HttpResponse::~HttpResponse()
@@ -142,14 +150,14 @@ void HttpResponse::onFinished()
         return;
 
     if (m_slotsMap.contains(onResponse_QNetworkReply_A_Pointer)) {
-        exec(m_slotsMap.value(onResponse_QNetworkReply_A_Pointer).second, QNetworkReply*, reply) {
+        _exec(m_slotsMap.value(onResponse_QNetworkReply_A_Pointer).second, QNetworkReply*, reply) {
             emit finished(reply);
         }
     }
     else if (m_slotsMap.contains((onResponse_QByteArray))) {
         QByteArray result = reply->readAll();
 
-        exec(m_slotsMap.value((onResponse_QByteArray)).second, QByteArray, result) {
+        _exec(m_slotsMap.value((onResponse_QByteArray)).second, QByteArray, result) {
             emit finished(result);
         }
 
@@ -159,7 +167,7 @@ void HttpResponse::onFinished()
         QByteArray result = reply->readAll();
         QVariantMap resultMap = QJsonDocument::fromJson(result).object().toVariantMap();
 
-        exec(m_slotsMap.value((onResponse_QVariantMap)).second, QVariantMap, resultMap){
+        _exec(m_slotsMap.value((onResponse_QVariantMap)).second, QVariantMap, resultMap){
             emit finished(resultMap);
         }
 
@@ -175,26 +183,26 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
     QString errorString = reply->errorString().isEmpty() ? metaEnum.valueToKey(error) : reply->errorString();
 
     if (m_slotsMap.contains((onError_QString_QNetworkReply_A_Poniter))) {
-        exec2(m_slotsMap.value((onError_QString_QNetworkReply_A_Poniter)).second, QString, QNetworkReply*, errorString, reply) {
+        _exec2(m_slotsMap.value((onError_QString_QNetworkReply_A_Poniter)).second, QString, QNetworkReply*, errorString, reply) {
             emit this->error(errorString, reply);
         }
     }
     else if (m_slotsMap.contains((onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer))) {
-        exec2(m_slotsMap.value((onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer)).second,
+        _exec2(m_slotsMap.value((onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer)).second,
               QNetworkReply::NetworkError, QNetworkReply*,
               error, reply) {
             emit this->error(error, reply);
         }
     }
     else if (m_slotsMap.contains((onError_QString))) {
-        exec(m_slotsMap.value((onError_QString)).second, QString, errorString) {
+        _exec(m_slotsMap.value((onError_QString)).second, QString, errorString) {
             emit this->error(errorString);
         }
 
         reply->deleteLater();
     }
     else if (m_slotsMap.contains((onError_QNetworkReply_To_NetworkError))) {
-        exec(m_slotsMap.value((onError_QNetworkReply_To_NetworkError)).second, QNetworkReply::NetworkError, error) {
+        _exec(m_slotsMap.value((onError_QNetworkReply_To_NetworkError)).second, QNetworkReply::NetworkError, error) {
             emit this->error(error);
         }
 
@@ -205,7 +213,7 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
 void HttpResponse::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
 {
     if (m_slotsMap.contains((onDownloadProgress_qint64_qint64))) {
-        exec2(m_slotsMap.value((onDownloadProgress_qint64_qint64)).second, qint64, qint64, bytesReceived, bytesTotal) {
+        _exec2(m_slotsMap.value((onDownloadProgress_qint64_qint64)).second, qint64, qint64, bytesReceived, bytesTotal) {
             emit downloadProgress(bytesReceived, bytesTotal);
         }
     }

@@ -58,7 +58,8 @@ public:
 
     explicit HttpResponse(QNetworkReply *networkReply,
                           const QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap,
-                          const int &timeout);
+                          const int &timeout,
+                          bool isBlock);
 
     virtual ~HttpResponse();
 

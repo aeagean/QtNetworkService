@@ -180,6 +180,12 @@ HttpRequest &HttpRequest::timeout(const int &msec)
     return *this;
 }
 
+HttpRequest &HttpRequest::block()
+{
+    m_isBlock = true;
+    return *this;
+}
+
 HttpRequest &HttpRequest::onResponse(QVariant lambda)
 {
     m_slotsMap.insert(HttpResponse::AutoInfer, {lambda.typeName(), lambda});
@@ -203,19 +209,19 @@ HttpResponse *HttpRequest::exec()
 
     debugger << "Http Client info: ";
     debugger << "Type: " << (const char *[]){"UnknownOperation",
-                                            "HeadOperation",
-                                            "GetOperation",
-                                            "PutOperation",
-                                            "PostOperation",
-                                            "DeleteOperation",
-                                            "CustomOperation"}[m_op];
+                                             "HeadOperation",
+                                             "GetOperation",
+                                             "PutOperation",
+                                             "PostOperation",
+                                             "DeleteOperation",
+                                             "CustomOperation"}[m_op];
     debugger << "Url: " << m_networkRequest.url().toString();
     QString headers;
     for (int i = 0; i < m_networkRequest.rawHeaderList().count(); i++) {
         QString each = m_networkRequest.rawHeaderList().at(i);
         QString header = m_networkRequest.rawHeader(each.toUtf8());
         headers += QString("%1: %2;").arg(each)
-                                        .arg(header);
+                                     .arg(header);
     }
     debugger << "Header: " << headers;
     debugger << "Send buffer(Body):\r\n" << m_body;
@@ -230,7 +236,7 @@ HttpResponse *HttpRequest::exec()
         sendBuffer->setParent(reply);
     }
 
-    return new HttpResponse(reply, m_slotsMap, m_timeout);
+    return new HttpResponse(reply, m_slotsMap, m_timeout, m_isBlock);
 }
 
 HttpRequest &HttpRequest::queryParam(const QString &key, const QVariant &value)

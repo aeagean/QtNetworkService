@@ -90,6 +90,11 @@ public:
      */
     HttpRequest &timeout(const int &msec = -1);
 
+    /**
+     * @brief Block current thread, entering an event loop.
+     */
+    HttpRequest &block();
+
     HttpResponse *exec();
 
 private:
@@ -103,6 +108,7 @@ private:
     QNetworkAccessManager::Operation m_op;
     HttpClient                      *m_httpService;
     int                              m_timeout;
+    bool                             m_isBlock;
     QMultiMap<HttpResponse::SupportMethod, QPair<QString, QVariant>> m_slotsMap;
 };
 
