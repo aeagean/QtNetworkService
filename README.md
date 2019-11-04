@@ -1,24 +1,41 @@
 # 示例
-* (1) 简单示例
+(1) 简单示例
+* 使用lambda特性
 ```cpp
-/* 使用lambda特性 */
-static HttpService http;
-http.get("https://www.qt.io")
-    .onResopnse([](QByteArray result){ qDebug()<<"Result: "<<result; })
-    .onResopnse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
-    .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
-    .exec();
-```
-```cpp
-/* 使用Qt信号与槽特性 */
-http.get("https://www.qt.io")
-    .onResponse(this, SLOT(finish(QByteArray)))
-    .onResponse(this, SLOT(downloadProgress(qint64,qint64)))
-    .onError(this, SLOT(error(QString)))
+static HttpClient http;
+http.post("https://example.com")
+    .header("content-type", "application/json")
+    .queryParam("key", "Hello world!")
+    .body(R"({"user": "test"})")
+    .onResponse([](QByteArray result) { /* 接收数据 */
+        qDebug() << "Result: " << result;
+     })
+    .onResponse([](qint64 recv, qint64 total) { /* 接收进度 */
+        qDebug() << "Total: " << total << "; Received: " << recv;
+     })
+    .onError([](QString errorStr) { /* 错误处理 */
+        qDebug()<<"Error: "<<errorStr;
+     })
+    .timeout(30 * 1000) /* 超时操作(30s) */
+    .block() /* 阻塞操作 */
     .exec();
 ```
 
-* (2) 复杂示例
+* 使用Qt信号与槽特性
+```cpp
+http.post("https://example.com")
+    .header("content-type", "application/json")
+    .queryParam("key", "Hello world!")
+    .body(R"({"user": "test"})")
+    .onResponse(this, SLOT(finish(QByteArray)))
+    .onResponse(this, SLOT(downloadProgress(qint64, qint64)))
+    .onError(this, SLOT(error(QString)))
+    .timeout(30 * 1000) /* 超时操作(30s) */
+    .block() /* 阻塞操作 */
+    .exec();
+```
+
+(2) 复杂示例
 ```cpp
 /* 获取音乐url功能，请求嵌套请求 */
 static HttpService http;
@@ -63,16 +80,4 @@ http.get("http://mobilecdn.kugou.com/api/v3/search/song")
 <p align="center">
   <img src="http://www.qtbig.com/about/index/my_qrcode.jpg" alt="微信公众号:Qt君">
   <p align="center"><em>Qt君</em></p>
-</p>
-
-## 4.以下摘自公众号部分文章:
-> Qt开源网络库[1]-介绍篇
-<p align="center">
-  <img src="https://github.com/aeagean/QtNetworkService/blob/master/Image/Qt%E5%BC%80%E6%BA%90%E7%BD%91%E7%BB%9C%E5%BA%93%5B1%5D-%E4%BB%8B%E7%BB%8D%E7%AF%87.png" alt="Qt开源网络库[1]-介绍篇">
-</p>
-
----
-> Qt开源网络库[2]-接口篇
-<p align="center">
-  <img src="https://github.com/aeagean/QtNetworkService/blob/master/Image/Qt%E5%BC%80%E6%BA%90%E7%BD%91%E7%BB%9C%E5%BA%93%5B2%5D-%E6%8E%A5%E5%8F%A3%E7%AF%87.png" alt="Qt开源网络库[2]-接口篇">
 </p>
