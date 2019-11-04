@@ -70,16 +70,38 @@ void ApiTest::downloadOneMusic(const QString &name)
 
 void ApiTest::exec()
 {
-#if 1
-    m_httpClient.get("https://stackoverflow.com")
-                .onResponse([](QByteArray result){ qDebug()<<"Result: "<<result.left(100); })
-                .onResponse([](qint64 recv, qint64 total){ qDebug()<<"Total: "<<total<<"; Received: "<<recv; })
-                .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
-                .block()
-                .exec();
+#if 0
+    static HttpClient http;
+    http.post("https://example.com")
+        .header("content-type", "application/json")
+        .queryParam("key", "Hello world!")
+        .body(R"({"user": "test"})")
+        .onResponse([](QByteArray result) { /* 接收数据 */
+            qDebug() << "Result: " << result;
+         })
+        .onResponse([](qint64 recv, qint64 total) { /* 接收进度 */
+            qDebug() << "Total: " << total << "; Received: " << recv;
+         })
+        .onError([](QString errorStr) { /* 错误处理 */
+            qDebug()<<"Error: "<<errorStr;
+         })
+        .timeout(30 * 1000) /* 超时操作(30s) */
+        .block() /* 阻塞操作 */
+        .exec();
+
+    http.post("https://example.com")
+        .header("content-type", "application/json")
+        .queryParam("key", "Hello world!")
+        .body(R"({"user": "test"})")
+        .onResponse(this, SLOT(finish(QByteArray)))
+        .onResponse(this, SLOT(downloadProgress(qint64, qint64)))
+        .onError(this, SLOT(error(QString)))
+        .timeout(30 * 1000) /* 超时操作(30s) */
+        .block() /* 阻塞操作 */
+        .exec();
 #endif
 
-#if 0
+#if 1
     m_httpClient.post("http://127.0.0.1:8000/blog/")
                 .body(R"({"3": 2})")
                 .onResponse([](QByteArray result) {

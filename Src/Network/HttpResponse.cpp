@@ -8,12 +8,14 @@ LISCENSE: MIT
 **********************************************************/
 #include "HttpResponse.h"
 
+#include <QRegExp>
+#include <QStringList>
 #include <QByteArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QNetworkConfigurationManager>
 #include <QMetaEnum>
 #include <QEventLoop>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #define T2S(t) (QString(#t).remove(QRegExp("\\s"))) //type to string
 

@@ -103,7 +103,6 @@ private:
 
 private:
     QNetworkRequest                  m_networkRequest;
-    QJsonObject                      m_jsonBody;
     QByteArray                       m_body;
     QNetworkAccessManager::Operation m_op;
     HttpClient                      *m_httpService;

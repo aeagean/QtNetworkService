@@ -16,6 +16,16 @@ LISCENSE: MIT
 
 using namespace AeaQt;
 
+static const char *s_httpOperation[] = {
+    "UnknownOperation",
+    "HeadOperation",
+    "GetOperation",
+    "PutOperation",
+    "PostOperation",
+    "DeleteOperation",
+    "CustomOperation"
+};
+
 HttpRequest::HttpRequest()
 {
 
@@ -197,24 +207,12 @@ HttpResponse *HttpRequest::exec()
 {
     QNetworkReply* reply = NULL;
     QBuffer* sendBuffer = new QBuffer();
-    QJsonObject sendJson = m_jsonBody;
-    if (! sendJson.isEmpty()) {
-        QByteArray sendByteArray = QJsonDocument(sendJson).toJson();
-        sendBuffer->setData(sendByteArray);
-    }
-
     if (! m_body.isEmpty()) {
         sendBuffer->setData(m_body);
     }
 
     debugger << "Http Client info: ";
-    debugger << "Type: " << (const char *[]){"UnknownOperation",
-                                             "HeadOperation",
-                                             "GetOperation",
-                                             "PutOperation",
-                                             "PostOperation",
-                                             "DeleteOperation",
-                                             "CustomOperation"}[m_op];
+    debugger << "Type: " << s_httpOperation[m_op];
     debugger << "Url: " << m_networkRequest.url().toString();
     QString headers;
     for (int i = 0; i < m_networkRequest.rawHeaderList().count(); i++) {
