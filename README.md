@@ -76,7 +76,7 @@ http.get("http://mobilecdn.kugou.com/api/v3/search/song")
 ## 2.如何启用demo测试？
 * 在QtNetworkService.pro文件中将"#CONFIG += QT_APP_MODE"这一行的#去除即可转为可执行文件形式，在Demo目录的main.cpp为主执行文件，如需要测试接口编辑便可。
 
-## 3.更多请关注微信公众号
+## 3.扫码关注，第一时间获取推送
 <p align="center">
   <img src="http://www.qtbig.com/about/index/my_qrcode.jpg" alt="微信公众号:Qt君">
   <p align="center"><em>Qt君</em></p>
