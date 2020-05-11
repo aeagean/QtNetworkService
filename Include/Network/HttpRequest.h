@@ -24,7 +24,7 @@ namespace AeaQt {
                           << "function: " << __func__ << "; " \
                           << "line: " << __LINE__ << "; "
 #else
-#define debug QString()
+#define debugger QNoDebug()
 #endif
 
 #define warning qWarning().noquote().nospace() \
