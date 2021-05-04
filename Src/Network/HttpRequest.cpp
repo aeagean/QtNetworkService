@@ -28,7 +28,7 @@ static const char *s_httpOperation[] = {
 
 HttpRequest::HttpRequest()
 {
-
+    m_isBlock = false;
 }
 
 HttpRequest::~HttpRequest()
@@ -39,6 +39,7 @@ HttpRequest::HttpRequest(QNetworkAccessManager::Operation op, HttpClient *jsonHt
     m_body(QByteArray()),
     m_op(op),
     m_httpService(jsonHttpClient),
+    m_isBlock(fakse),
     m_timeout(-1)
 {
 }
