@@ -101,15 +101,6 @@ void ApiTest::exec()
         .exec();
 #endif
 
-#if 1
-    m_httpClient.post("http://127.0.0.1:8000/blog/")
-                .body(R"({"3": 2})")
-                .onResponse([](QByteArray result) {
-                    qDebug() << "Result: " << result;
-                 })
-                .exec();
-#endif
-
 #if 0
     m_httpClient.post("http://translate.google.cn/translate_a/single?client=gtx&dt=t&dj=1&ie=UTF-8&sl=auto&tl=zh_TW")
                 .header("content-type", "application/json")
@@ -120,6 +111,15 @@ void ApiTest::exec()
                 .timeout(30*1000) // 30s
                 .block()
                 .exec();
+#else
+    m_httpClient.get("https://qthub.com")
+            .onResponse([](QByteArray result){
+                qDebug() << result.left(100);
+             })
+            .onError([](QString error) {
+                qDebug() << "error: " << error;
+             })
+            .exec();
 
 #endif
     qDebug() << "Finished!";

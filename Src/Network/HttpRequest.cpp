@@ -39,7 +39,7 @@ HttpRequest::HttpRequest(QNetworkAccessManager::Operation op, HttpClient *jsonHt
     m_body(QByteArray()),
     m_op(op),
     m_httpService(jsonHttpClient),
-    m_isBlock(fakse),
+    m_isBlock(false),
     m_timeout(-1)
 {
 }
@@ -119,14 +119,14 @@ HttpRequest &HttpRequest::body(const QVariant &body)
             m_body = QJsonDocument(QJsonObject::fromVariantMap(body.toMap())).toJson();
         }
         else {
-            warning << "This is not data in JSON format(QVariantMap or QJsonObject).";
+            _warning << "This is not data in JSON format(QVariantMap or QJsonObject).";
             m_body = QByteArray();
             // warning output
         }
     }
     else {
         m_body = QByteArray();
-        warning << "Disable body.";
+        _warning << "Disable body.";
     }
 
     debugger << "Body Content:" << m_body;

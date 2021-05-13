@@ -27,7 +27,7 @@ namespace AeaQt {
 #define debugger QNoDebug()
 #endif
 
-#define warning qWarning().noquote().nospace() \
+#define _warning qWarning().noquote().nospace() \
                            << "[AeaQt::Network] Warning: -> " \
                            << "function: " << __func__ << "; " \
                            << "line: " << __LINE__ << "; "

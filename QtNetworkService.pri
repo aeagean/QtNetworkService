@@ -7,11 +7,15 @@
 #LISCENSE: MIT
 #**********************************************************
 INCLUDEPATH += $$PWD/Include/Network \
-               $$PWD/Include/NetworkDownloadFile \
-               $$PWD/Include/Socket
+
+SOURCES += \
+    Src/Network/HttpResponse.cpp \
+    Src/Network/HttpRequest.cpp \
+    Src/Network/HttpClient.cpp
+
+HEADERS += \
+    Include/Network/HttpResponse.h \
+    Include/Network/HttpRequest.h \
+    Include/Network/HttpClient.h
 
 QT += network
-
-!CONFIG(QT_APP_MODE) {
-    LIBS += -L$$PWD/Lib -lQtNetworkService
-}
