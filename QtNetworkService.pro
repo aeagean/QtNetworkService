@@ -15,17 +15,17 @@ DEFINES += QT_APP_DEBUG
 DEFINES += QT_APP_MODE
 
 contains(DEFINES, QT_APP_MODE) {
-    HEADERS += Demo/Test1/ApiTest.h
-    SOURCES += Demo/main.cpp \
-               Demo/Test1/ApiTest.cpp
-    INCLUDEPATH += Demo Demo/Test1 Demo/Test2
+    HEADERS += demo/Test1/ApiTest.h
+    SOURCES += demo/main.cpp \
+               demo/Test1/ApiTest.cpp
+    INCLUDEPATH += demo demo/Test1 demo/Test2
 
     message(" ================ QtNetworkService APPLICATION ================ ")
 }
 else {
     CONFIG += staticlib
     TEMPLATE = lib
-    unix: TARGET = $$PWD/Lib/QtNetworkService
+    unix: TARGET = $$PWD/lib/QtNetworkService
 
     win32: {
         DESTDIR = $$PWD/Lib/
@@ -35,4 +35,4 @@ else {
     message(" ================ QtNetworkService Library ================ ")
 }
 
-include(QtNetworkService.pri)
+include($$PWD/src/QtNetworkService.pri)

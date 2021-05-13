@@ -6,16 +6,16 @@
 #QQ交流群: 732271126
 #LISCENSE: MIT
 #**********************************************************
-INCLUDEPATH += $$PWD/Include/Network \
+INCLUDEPATH += $$PWD/
 
 SOURCES += \
-    Src/Network/HttpResponse.cpp \
-    Src/Network/HttpRequest.cpp \
-    Src/Network/HttpClient.cpp
+    $$PWD/HttpResponse.cpp \
+    $$PWD/HttpRequest.cpp \
+    $$PWD/HttpClient.cpp
 
 HEADERS += \
-    Include/Network/HttpResponse.h \
-    Include/Network/HttpRequest.h \
-    Include/Network/HttpClient.h
+    $$PWD/HttpResponse.h \
+    $$PWD/HttpRequest.h \
+    $$PWD/HttpClient.h
 
 QT += network
