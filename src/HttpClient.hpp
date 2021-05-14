@@ -49,6 +49,11 @@ public:
     inline HttpClient();
     inline ~HttpClient();
 
+    HttpClient &instance() {
+        static HttpClient client;
+        return client;
+    }
+
     inline HttpRequest get(const QString &url);
     inline HttpRequest post(const QString &url);
     inline HttpRequest put(const QString &url);
@@ -160,7 +165,7 @@ signals:
     void error(QByteArray error);
     void error(QString errorString);
     void error(QNetworkReply::NetworkError error);
-    void error(QNetworkReply *reply);
+    void error(QNetworkReply *reply); 
 
 private slots:
     inline void onFinished();
@@ -312,7 +317,7 @@ HttpRequest &HttpRequest::body(const QVariant &body)
 
 HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char *slot)
 {
-    m_handleMap.insert(h_onFinished, {slot, QVariant::fromValue((QObject *)receiver)});
+    m_handleMap.insert(h_onFinished, {QMetaObject::normalizedSignature(slot), QVariant::fromValue((QObject *)receiver)});
     return *this;
 }
 
@@ -333,7 +338,8 @@ HttpRequest &HttpRequest::onFinished(std::function<void (QByteArray)> lambda)
 
 HttpRequest &HttpRequest::onDownloadProgress(const QObject *receiver, const char *slot)
 {
-    m_handleMap.insert(h_onDownloadProgress, {slot, QVariant::fromValue((QObject *)receiver)});
+    m_handleMap.insert(h_onDownloadProgress, {QMetaObject::normalizedSignature(slot), QVariant::fromValue((QObject *)receiver)});
+//    m_handleMap.insert(h_onDownloadProgress, {slot, QVariant::fromValue((QObject *)receiver)});
     return *this;
 }
 
@@ -535,17 +541,39 @@ HttpResponse::HttpResponse(QNetworkReply *reply,
 
     connect(reply, SIGNAL(finished()), this, SLOT(onFinished()));
     connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
-    connect(reply, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(onDownloadProgress(qint64, qint64)));
+    connect(reply, SIGNAL(downloadProgress(qint64, qint64)), this, SLOT(onDownloadProgress(qint64, qint64)));
+
+    auto func = [&](const QStringList &signalsList,
+                    const QObject *receiver,
+                    const QString &method)
+    {
+        bool isConnected = false;
+        for (QString signal : signalsList) {
+            signal = QMetaObject::normalizedSignature(qPrintable(signal));
+            if (QMetaObject::checkConnectArgs(qPrintable(signal), qPrintable(method))) {
+                isConnected = true;
+
+                connect(this, qPrintable(signal), receiver, qPrintable(method));
+            }
+            else {
+                // do nothing
+            }
+        }
+
+        if (!isConnected) {
+            _warning << QString(method).remove(0, 1) << "failed!";
+        }
+    };
 
     for (auto each : m_handleMap.toStdMap()) {
         HandleType key                 = each.first;
         QPair<QString, QVariant> value = each.second;
 
-        QString lambdaString = value.first;
         QVariant lambda      = value.second;
+        QString lambdaString = value.first;
+
         const QObject *receiver = lambda.value<QObject *>();
-        char method[512] = {0};
-        strncpy(method, lambdaString.toStdString().data(), 512);
+        QString method          = lambdaString;
 
         if (key == h_onFinished) {
 
@@ -560,25 +588,13 @@ HttpResponse::HttpResponse(QNetworkReply *reply,
                         lambda.value<std::function<void (QByteArray)>>());
             }
             else {
-                QList<const char *> signalsList = {
+                QStringList signalsList = {
                     SIGNAL(finished(QNetworkReply *)),
                     SIGNAL(finished(QByteArray)),
                     SIGNAL(finished(QString)),
                     SIGNAL(finished(QVariantMap))};
 
-                bool isConnected = false;
-                for (auto signal : signalsList) {
-                    if (QMetaObject::checkConnectArgs(signal, method)) {
-                        isConnected = true;
-
-                        connect(this, signal, receiver, method);
-                    }
-
-                }
-
-                if (!isConnected) {
-                    qDebug() << lambdaString.remove(0, 1) << "failed!";
-                }
+                func(signalsList, receiver, method);
             }
         }
         else if (key == h_onDownloadProgress) {
@@ -588,24 +604,11 @@ HttpResponse::HttpResponse(QNetworkReply *reply,
                         lambda.value<std::function<void (qint64, qint64)>>());
             }
             else {
-                // fixme
-                QList<const char *> signalsList = {
+                QStringList signalsList = {
                     SIGNAL(downloadProgress(qint64, qint64))
                 };
 
-                bool isConnected = false;
-                for (auto signal : signalsList) {
-                    if (QMetaObject::checkConnectArgs(signal, method)) {
-                        isConnected = true;
-
-                        connect(this, signal, receiver, method);
-                    }
-
-                }
-
-                if (!isConnected) {
-                    qDebug() << lambdaString.remove(0, 1) << "failed!";
-                }
+                func(signalsList, receiver, method);
             }
 
         }
@@ -626,28 +629,13 @@ HttpResponse::HttpResponse(QNetworkReply *reply,
                         lambda.value<std::function<void (QNetworkReply::NetworkError)>>());
             }
             else {
-                // fixme
-                QList<const char *> signalsList = {
+                QStringList signalsList = {
                     SIGNAL(error(QNetworkReply *)),
                     SIGNAL(error(QString)),
                     SIGNAL(error(QByteArray)),
                     SIGNAL(error(QNetworkReply::NetworkError))};
 
-                bool isConnected = false;
-                for (auto signal : signalsList) {
-                    if (QMetaObject::checkConnectArgs(signal, method)) {
-                        isConnected = true;
-
-                        connect(this, signal, receiver, method);
-                    }
-                    else {
-                        // do nothing
-                    }
-                }
-
-                if (!isConnected) {
-                    qDebug() << lambdaString.remove(0, 1) << "failed!";
-                }
+                func(signalsList, receiver, method);
             }
         }
     }
