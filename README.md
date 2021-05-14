@@ -70,7 +70,7 @@ http.get("http://mobilecdn.kugou.com/api/v3/search/song")
     .exec();
 ```
 ## 1.如何使用？
-* 在其工程包含pri文件和src目录即可;
+* 在其工程包含src目录的HttpClient.hpp文件即可;
 
 ## 2.如何启用demo测试？
 * 在QtNetworkService.pro文件中将"#DEFINES += QT_APP_MODE"这一行的#去除即可转为可执行文件形式，在Demo目录的main.cpp为主执行文件，如需要测试接口编辑便可。

@@ -6,9 +6,8 @@ Email:  2088201923@qq.com
 QQ交流群: 732271126
 LISCENSE: MIT
 **********************************************************/
-#include "ApiTest.h"
+#include "HttpClient.hpp"
 #include <QCoreApplication>
-#include <QThread>
 
 using namespace AeaQt;
 
@@ -16,8 +15,11 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-    ApiTest *apiTest = new ApiTest();
+//    ApiTest *apiTest = new ApiTest();
 //    apiTest->downloadOneMusic("稻香");
-    apiTest->exec();
+//    apiTest->exec();
+    HttpClient c;
+    c.get("https://qthub.com")
+     .exec();
     return a.exec();
 }

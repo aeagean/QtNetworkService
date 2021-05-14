@@ -15,10 +15,7 @@ DEFINES += QT_APP_DEBUG
 DEFINES += QT_APP_MODE
 
 contains(DEFINES, QT_APP_MODE) {
-    HEADERS += demo/Test1/ApiTest.h
-    SOURCES += demo/main.cpp \
-               demo/Test1/ApiTest.cpp
-    INCLUDEPATH += demo demo/Test1 demo/Test2
+    SOURCES += demo/main.cpp
 
     message(" ================ QtNetworkService APPLICATION ================ ")
 }

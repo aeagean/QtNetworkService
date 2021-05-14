@@ -1,4 +1,12 @@
-﻿#ifndef HTTPCLIENT_HPP
+﻿/**********************************************************
+ * Author: Qt君
+ * 微信公众号: Qt君(文章首发)
+ * Website: qthub.com(后续更新)
+ * Email:  2088201923@qq.com
+ * QQ交流群: 732271126
+ * LISCENSE: MIT
+**********************************************************/
+#ifndef HTTPCLIENT_HPP
 #define HTTPCLIENT_HPP
 
 #include <QNetworkRequest>
@@ -189,12 +197,12 @@ private slots:
 };
 
 #ifdef QT_APP_DEBUG
-#define debugger qDebug().noquote().nospace() \
+#define _debugger qDebug().noquote().nospace() \
                           << "[AeaQt::Network] Debug: -> " \
                           << "function: " << __func__ << "; " \
                           << "line: " << __LINE__ << "; "
 #else
-#define debugger QNoDebug()
+#define _debugger QNoDebug()
 #endif
 
 #define _warning qWarning().noquote().nospace() \
@@ -616,7 +624,7 @@ HttpRequest &HttpRequest::body(const QVariant &body)
         _warning << "Disable body.";
     }
 
-    debugger << "Body Content:" << m_body;
+    _debugger << "Body Content:" << m_body;
     return *this;
 }
 #endif
@@ -709,9 +717,9 @@ HttpResponse *HttpRequest::exec()
         sendBuffer->setData(m_body);
     }
 
-    debugger << "Http Client info: ";
-    debugger << "Type: " << s_httpOperation[m_op];
-    debugger << "Url: " << m_networkRequest.url().toString();
+    _debugger << "Http Client info: ";
+    _debugger << "Type: " << s_httpOperation[m_op];
+    _debugger << "Url: " << m_networkRequest.url().toString();
     QString headers;
     for (int i = 0; i < m_networkRequest.rawHeaderList().count(); i++) {
         QString each = m_networkRequest.rawHeaderList().at(i);
@@ -719,8 +727,8 @@ HttpResponse *HttpRequest::exec()
         headers += QString("%1: %2;").arg(each)
                                      .arg(header);
     }
-    debugger << "Header: " << headers;
-    debugger << "Send buffer(Body):\r\n" << m_body;
+    _debugger << "Header: " << headers;
+    _debugger << "Send buffer(Body):\r\n" << m_body;
 
     reply = m_httpService->createRequest(m_op, m_networkRequest, sendBuffer);
 
