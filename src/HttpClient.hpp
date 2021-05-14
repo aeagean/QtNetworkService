@@ -33,7 +33,8 @@ namespace AeaQt {
 enum HandleType {
     h_onFinished = 0,
     h_onError,
-    h_onDownloadProgress
+    h_onDownloadProgress,
+    h_onTimeout
 };
 
 class HttpClient;
@@ -88,28 +89,28 @@ public:
     inline HttpRequest &body(const QByteArray &content);
 
     // onFinished == onSuccess
-    inline HttpRequest &onFinished(const QObject *receiver, const char *slot);
+    inline HttpRequest &onFinished(const QObject *receiver, const char *methoc);
     inline HttpRequest &onFinished(std::function<void (QNetworkReply*)> lambda);
     inline HttpRequest &onFinished(std::function<void (QVariantMap)> lambda);
     inline HttpRequest &onFinished(std::function<void (QByteArray)> lambda);
 
-    inline HttpRequest &onDownloadProgress(const QObject *receiver, const char *slot);
+    inline HttpRequest &onDownloadProgress(const QObject *receiver, const char *method);
     inline HttpRequest &onDownloadProgress(std::function<void (qint64, qint64)> lambda);
 
     // onError == onFailed
-    inline HttpRequest &onError(const QObject *receiver, const char *slot);
+    inline HttpRequest &onError(const QObject *receiver, const char *method);
     inline HttpRequest &onError(std::function<void (QString)> lambda);
     inline HttpRequest &onError(std::function<void (QNetworkReply::NetworkError)> lambda);
     inline HttpRequest &onError(std::function<void (QNetworkReply*)> lambda);
 
     // onFinished == onSuccess
-    inline HttpRequest &onSuccess(const QObject *receiver, const char *slot);
+    inline HttpRequest &onSuccess(const QObject *receiver, const char *method);
     inline HttpRequest &onSuccess(std::function<void (QNetworkReply*)> lambda);
     inline HttpRequest &onSuccess(std::function<void (QVariantMap)> lambda);
     inline HttpRequest &onSuccess(std::function<void (QByteArray)> lambda);
 
     // onError == onFailed
-    inline HttpRequest &onFailed(const QObject *receiver, const char *slot);
+    inline HttpRequest &onFailed(const QObject *receiver, const char *method);
     inline HttpRequest &onFailed(std::function<void (QString)> lambda);
     inline HttpRequest &onFailed(std::function<void (QNetworkReply::NetworkError)> lambda);
     inline HttpRequest &onFailed(std::function<void (QNetworkReply*)> lambda);
@@ -119,6 +120,9 @@ public:
      *        msec >  0, enable timeout
      */
     inline HttpRequest &timeout(const int &msec = -1);
+    inline HttpRequest &onTimeout(const QObject *receiver, const char *method);
+    inline HttpRequest &onTimeout(std::function<void (QNetworkReply*)> lambda);
+    inline HttpRequest &onTimeout(std::function<void ()> lambda);
 
     /**
      * @brief Block current thread, entering an event loop.
@@ -129,6 +133,7 @@ public:
 
 private:
     inline HttpRequest();
+    inline HttpRequest &onResponse(HandleType type, const QObject *receiver, const char *method);
     inline HttpRequest &onResponse(HandleType type, QVariant lambda);
 
 private:
@@ -150,7 +155,7 @@ public:
                           const int &timeout,
                           bool isBlock);
 
-    inline virtual ~HttpResponse() {}
+    inline virtual ~HttpResponse() { qDebug() << "destory: " << __FUNCTION__; }
 
     QNetworkReply *reply() { return static_cast<QNetworkReply*>(this->parent()); }
 
@@ -167,27 +172,22 @@ signals:
     void error(QNetworkReply::NetworkError error);
     void error(QNetworkReply *reply); 
 
+    void timeout();
+    void timeout(QNetworkReply *reply);
+
 private slots:
     inline void onFinished();
     inline void onError(QNetworkReply::NetworkError error);
     inline void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
+    inline void onTimeout();
 };
 
 class HttpResponseTimeout : public QObject {
     Q_OBJECT
 public:
-    HttpResponseTimeout(QNetworkReply *parent = NULL, const int timeout = -1) : QObject(parent) {
+    HttpResponseTimeout(HttpResponse *parent, const int timeout = -1) : QObject(parent) {
         if (timeout > 0)
-            QTimer::singleShot(timeout, this, SLOT(onTimeout()));
-    }
-
-private slots:
-    void onTimeout() {
-        QNetworkReply *reply = static_cast<QNetworkReply*>(parent());
-        if (reply->isRunning()) {
-            reply->abort();
-            reply->deleteLater();
-        }
+            QTimer::singleShot(timeout, parent, SLOT(onTimeout()));
     }
 };
 
@@ -315,10 +315,9 @@ HttpRequest &HttpRequest::body(const QVariant &body)
 }
 #endif
 
-HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char *slot)
+HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char *method)
 {
-    m_handleMap.insert(h_onFinished, {QMetaObject::normalizedSignature(slot), QVariant::fromValue((QObject *)receiver)});
-    return *this;
+    return onResponse(h_onFinished, receiver, method);
 }
 
 HttpRequest &HttpRequest::onFinished(std::function<void (QNetworkReply *)> lambda)
@@ -336,11 +335,9 @@ HttpRequest &HttpRequest::onFinished(std::function<void (QByteArray)> lambda)
     return onResponse(h_onFinished, QVariant::fromValue(lambda));
 }
 
-HttpRequest &HttpRequest::onDownloadProgress(const QObject *receiver, const char *slot)
+HttpRequest &HttpRequest::onDownloadProgress(const QObject *receiver, const char *method)
 {
-    m_handleMap.insert(h_onDownloadProgress, {QMetaObject::normalizedSignature(slot), QVariant::fromValue((QObject *)receiver)});
-//    m_handleMap.insert(h_onDownloadProgress, {slot, QVariant::fromValue((QObject *)receiver)});
-    return *this;
+    return onResponse(h_onDownloadProgress, receiver, method);
 }
 
 HttpRequest &HttpRequest::onDownloadProgress(std::function<void (qint64, qint64)> lambda)
@@ -348,10 +345,9 @@ HttpRequest &HttpRequest::onDownloadProgress(std::function<void (qint64, qint64)
     return onResponse(h_onDownloadProgress, QVariant::fromValue(lambda));
 }
 
-HttpRequest &HttpRequest::onError(const QObject *receiver, const char *slot)
+HttpRequest &HttpRequest::onError(const QObject *receiver, const char *method)
 {
-    m_handleMap.insert(h_onError, {slot, QVariant::fromValue((QObject *)receiver)});
-    return *this;
+    return onResponse(h_onError, receiver, method);
 }
 
 HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply::NetworkError)> lambda)
@@ -369,9 +365,9 @@ HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply *)> lambda)
     return onResponse(h_onError, QVariant::fromValue(lambda));
 }
 
-HttpRequest &HttpRequest::onSuccess(const QObject *receiver, const char *slot)
+HttpRequest &HttpRequest::onSuccess(const QObject *receiver, const char *method)
 {
-    return onFinished(receiver, slot);
+    return onFinished(receiver, method);
 }
 
 HttpRequest &HttpRequest::onSuccess(std::function<void (QNetworkReply *)> lambda)
@@ -389,9 +385,9 @@ HttpRequest &HttpRequest::onSuccess(std::function<void (QByteArray)> lambda)
     return onFinished(lambda);
 }
 
-HttpRequest &HttpRequest::onFailed(const QObject *receiver, const char *slot)
+HttpRequest &HttpRequest::onFailed(const QObject *receiver, const char *method)
 {
-    return onError(receiver, slot);
+    return onError(receiver, method);
 }
 
 HttpRequest &HttpRequest::onFailed(std::function<void (QNetworkReply::NetworkError)> lambda)
@@ -415,6 +411,21 @@ HttpRequest &HttpRequest::timeout(const int &msec)
     return *this;
 }
 
+HttpRequest &HttpRequest::onTimeout(const QObject *receiver, const char *method)
+{
+    return onResponse(h_onTimeout, receiver, method);
+}
+
+HttpRequest &HttpRequest::onTimeout(std::function<void (QNetworkReply *)> lambda)
+{
+    return onResponse(h_onTimeout, QVariant::fromValue(lambda));
+}
+
+HttpRequest &HttpRequest::onTimeout(std::function<void ()> lambda)
+{
+    return onResponse(h_onTimeout, QVariant::fromValue(lambda));
+}
+
 HttpRequest &HttpRequest::block()
 {
     m_isBlock = true;
@@ -424,7 +435,12 @@ HttpRequest &HttpRequest::block()
 HttpRequest &HttpRequest::onResponse(HandleType type, QVariant lambda)
 {
     m_handleMap.insert(type, {lambda.typeName(), lambda});
+    return *this;
+}
 
+HttpRequest &HttpRequest::onResponse(HandleType type, const QObject *receiver, const char *method)
+{
+    m_handleMap.insert(type, {QMetaObject::normalizedSignature(method), QVariant::fromValue((QObject *)receiver)});
     return *this;
 }
 
@@ -537,7 +553,7 @@ HttpResponse::HttpResponse(QNetworkReply *reply,
                            const int &timeout,
                            bool isBlock) : QObject(reply)
 {
-    new HttpResponseTimeout(reply, timeout);
+    new HttpResponseTimeout(this, timeout);
 
     connect(reply, SIGNAL(finished()), this, SLOT(onFinished()));
     connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
@@ -638,6 +654,29 @@ HttpResponse::HttpResponse(QNetworkReply *reply,
                 func(signalsList, receiver, method);
             }
         }
+        else if (key == h_onTimeout) {
+            if (lambdaString == T2S(std::function<void (QNetworkReply*)>)) {
+                connect(this,
+                        QOverload<QNetworkReply *>::of(&HttpResponse::timeout),
+                        lambda.value<std::function<void (QNetworkReply*)>>());
+            }
+            else if (lambdaString == T2S(std::function<void ()>)) {
+                connect(this,
+                        QOverload<void>::of(&HttpResponse::timeout),
+                        lambda.value<std::function<void ()>>());
+            }
+            else {
+                QStringList signalsList = {
+                    SIGNAL(error(QNetworkReply *)),
+                    SIGNAL(error())
+                };
+
+                func(signalsList, receiver, method);
+            }
+        }
+        else {
+            // do nothing
+        }
     }
 
     if (isBlock) {
@@ -694,8 +733,26 @@ void HttpResponse::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
     emit this->downloadProgress(bytesReceived, bytesTotal);
 }
 
+void HttpResponse::onTimeout()
+{
+    QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+    if (reply->isRunning()) {
+        reply->abort();
+
+        if (this->receivers(SIGNAL(timeout(QNetworkReply*))) > 0) {
+            emit this->timeout(reply);
+            return;
+        }
+
+        emit this->timeout();
+
+        reply->deleteLater();
+    }
 }
 
+}
+
+Q_DECLARE_METATYPE(std::function<void ()>)
 Q_DECLARE_METATYPE(std::function<void (QByteArray)>)
 Q_DECLARE_METATYPE(std::function<void (QString)>)
 Q_DECLARE_METATYPE(std::function<void (QVariantMap)>)

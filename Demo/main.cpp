@@ -51,6 +51,35 @@ public:
               .onFailed([](QString error) { qDebug()<<"error: " << error; })
               .exec();
         // [3]
+
+        // [4] 自定义超时处理
+        client.get("https://qthub.com")
+              .onSuccess([](QString result) { qDebug()<<"result: " << result.left(10); })
+              .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
+                  qDebug() << "lambda bytes received: " << bytesReceived
+                           << "bytes total: " << bytesTotal;
+               })
+              .onFailed([](QString error) { qDebug()<<"error: " << error; })
+              .onTimeout([](QNetworkReply *) { qDebug()<<"timeout"; })
+              .timeout(1000) // 1s超时
+              .exec();
+        // [4]
+
+        // [x] test
+        client.get("https://qthub.com")
+              .onSuccess([](QString result) { qDebug()<<"result: " << result.left(10); })
+              .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
+                  qDebug() << "lambda bytes received: " << bytesReceived
+                           << "bytes total: " << bytesTotal;
+               })
+              .onFailed([](QString error) { qDebug()<<"error: " << error; })
+              .onTimeout([](QNetworkReply *reply) { qDebug()<<"timeout"; reply->deleteLater();})
+              .onTimeout([]() { qDebug()<<"timeout"; })
+              .onTimeout(this, SLOT(onTimeout()))
+              .onTimeout(this, SLOT(onTimeout(QNetworkReply *)))
+              .timeout(100) // 1s超时
+              .exec();
+        // [x]
     }
 
 
@@ -74,6 +103,17 @@ public slots:
                  << "bytes total: " << bytesTotal;
     }
 
+    void onTimeout()
+    {
+        qDebug() << "timeout" << __LINE__;
+    }
+
+    void onTimeout(QNetworkReply *reply)
+    {
+        qDebug() << "timeout" << __LINE__;
+        reply->deleteLater();
+    }
+
 private:
     HttpClient m_httpClient;
 };
@@ -83,7 +123,6 @@ private:
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
-//    QByteArray data = QMetaObject::normalizedSignature(SLOT(error(const int   *)));
     Object object;
 
     return a.exec();
