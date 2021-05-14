@@ -24,9 +24,21 @@
 #include <QEventLoop>
 #include <QDebug>
 
+#include <utility>
 #include <functional>
 
+
 namespace AeaQt {
+
+enum HandleType {
+    h_onFinished = 0,
+    h_onError,
+    h_onDownloadProgress
+};
+
+class HttpClient;
+class HttpRequest;
+class HttpResponse;
 
 class HttpClient : public QNetworkAccessManager
 {
@@ -42,63 +54,6 @@ public:
     inline HttpRequest put(const QString &url);
 
     inline HttpRequest send(const QString &url, Operation op = GetOperation);
-};
-
-class HttpResponse : public QObject
-{
-    Q_OBJECT
-public:
-    /*
-     * Support Reflex Method
-     * default: AutoInfer
-     * AutoInfer: Automatic derivation based on type
-     */
-    enum SupportMethod {
-        Invalid = 0,
-        AutoInfer,
-        onResponse_QNetworkReply_A_Pointer,    /* method: void function(QNetworkReply* reply); Is_AutoInfer: true */
-        onResponse_QByteArray,                 /* method: void function(QByteArray data); Is_AutoInfer: true */
-        onResponse_QVariantMap,                /* method: void function(QVariantMap map); Is_AutoInfer: true */
-        onDownloadProgress_qint64_qint64,      /* method: void function(qint64 bytesReceived, qint64 bytesTotal); Is_AutoInfer: true */
-        onError_QNetworkReply_To_NetworkError, /* method: void function(QNetworkReply::NetworkError error); Is_AutoInfer: true */
-        onError_QString,                       /* method: void function(QString errorString); Is_AutoInfer: true */
-        onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer, /* method: void function(QNetworkReply::NetworkError error, QNetworkReply* reply); Is_AutoInfer: true */
-        onError_QString_QNetworkReply_A_Poniter/* method: void function(QString errorString, QNetworkReply* reply); Is_AutoInfer: true */
-    };
-
-    inline explicit HttpResponse(QNetworkReply *networkReply,
-                          const QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap,
-                          const int &timeout,
-                          bool isBlock);
-
-    inline virtual ~HttpResponse();
-
-    inline QNetworkReply *networkReply();
-
-signals:
-    void finished(QNetworkReply *reply);
-    void finished(QByteArray data);
-    void finished(QVariantMap map);
-    void error(QString errorString);
-    void error(QNetworkReply::NetworkError error);
-    void error(QString errorString, QNetworkReply *reply);
-    void error(QNetworkReply::NetworkError error, QNetworkReply *reply);
-    void downloadProgress(qint64 bytesReceived, qint64 bytesTotal);
-
-protected:
-    inline void slotsMapOperation(QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap);
-
-private slots:
-    inline void onFinished();
-    inline void onError(QNetworkReply::NetworkError error);
-    inline void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
-
-private:
-    inline HttpResponse();
-
-private:
-   QMultiMap<SupportMethod, QPair<QString, QVariant> > m_slotsMap;
-   QNetworkReply *m_networkReply;
 };
 
 class HttpRequest
@@ -127,29 +82,32 @@ public:
     inline HttpRequest &body(const QJsonObject &content);
     inline HttpRequest &body(const QByteArray &content);
 
-    /*
-     * @onRespone slot support type: void function(QVariantMap resultMap) OR
-     *                               void function(QByteArray resultData) OR
-     *                               void function(QNetworkReply* reply)
-     * note: The same type is only triggered once
-     */
-    inline HttpRequest &onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type = HttpResponse::AutoInfer);
-    inline HttpRequest &onResponse(std::function<void (QNetworkReply*)> lambda);
-    inline HttpRequest &onResponse(std::function<void (QVariantMap)> lambda);
-    inline HttpRequest &onResponse(std::function<void (QByteArray)> lambda);
-    inline HttpRequest &onResponse(std::function<void (qint64, qint64)> lambda);
-    /*
-     * @onError slot support type: void function(QNetworkReply::NetworkError error)
-     *                             void function(QString errorString);
-     *                             void function(QNetworkReply::NetworkError error, QNetworkReply* reply);
-     *                             void function(QString errorString, QNetworkReply* reply);
-     * note: The same type is only triggered once
-     */
+    // onFinished == onSuccess
+    inline HttpRequest &onFinished(const QObject *receiver, const char *slot);
+    inline HttpRequest &onFinished(std::function<void (QNetworkReply*)> lambda);
+    inline HttpRequest &onFinished(std::function<void (QVariantMap)> lambda);
+    inline HttpRequest &onFinished(std::function<void (QByteArray)> lambda);
+
+    inline HttpRequest &onDownloadProgress(const QObject *receiver, const char *slot);
+    inline HttpRequest &onDownloadProgress(std::function<void (qint64, qint64)> lambda);
+
+    // onError == onFailed
     inline HttpRequest &onError(const QObject *receiver, const char *slot);
-    inline HttpRequest &onError(std::function<void (QNetworkReply::NetworkError)> lambda);
     inline HttpRequest &onError(std::function<void (QString)> lambda);
-    inline HttpRequest &onError(std::function<void (QNetworkReply::NetworkError, QNetworkReply*)> lambda);
-    inline HttpRequest &onError(std::function<void (QString, QNetworkReply*)> lambda);
+    inline HttpRequest &onError(std::function<void (QNetworkReply::NetworkError)> lambda);
+    inline HttpRequest &onError(std::function<void (QNetworkReply*)> lambda);
+
+    // onFinished == onSuccess
+    inline HttpRequest &onSuccess(const QObject *receiver, const char *slot);
+    inline HttpRequest &onSuccess(std::function<void (QNetworkReply*)> lambda);
+    inline HttpRequest &onSuccess(std::function<void (QVariantMap)> lambda);
+    inline HttpRequest &onSuccess(std::function<void (QByteArray)> lambda);
+
+    // onError == onFailed
+    inline HttpRequest &onFailed(const QObject *receiver, const char *slot);
+    inline HttpRequest &onFailed(std::function<void (QString)> lambda);
+    inline HttpRequest &onFailed(std::function<void (QNetworkReply::NetworkError)> lambda);
+    inline HttpRequest &onFailed(std::function<void (QNetworkReply*)> lambda);
 
     /**
      * @brief msec <= 0, disable timeout
@@ -166,7 +124,7 @@ public:
 
 private:
     inline HttpRequest();
-    inline HttpRequest &onResponse(QVariant lambda);
+    inline HttpRequest &onResponse(HandleType type, QVariant lambda);
 
 private:
     QNetworkRequest                  m_networkRequest;
@@ -175,7 +133,39 @@ private:
     HttpClient                      *m_httpService;
     int                              m_timeout;
     bool                             m_isBlock;
-    QMultiMap<HttpResponse::SupportMethod, QPair<QString, QVariant>> m_slotsMap;
+    QMap<HandleType, QPair<QString, QVariant> > m_handleMap;
+};
+
+class HttpResponse : public QObject
+{
+    Q_OBJECT
+public:
+    inline explicit HttpResponse(QNetworkReply *reply,
+                          const QMap<HandleType, QPair<QString, QVariant> > &m_handleMap,
+                          const int &timeout,
+                          bool isBlock);
+
+    inline virtual ~HttpResponse() {}
+
+    QNetworkReply *reply() { return static_cast<QNetworkReply*>(this->parent()); }
+
+signals:
+    void finished(QNetworkReply *reply);
+    void finished(QString result);
+    void finished(QByteArray result);
+    void finished(QVariantMap resultMap);
+
+    void downloadProgress(qint64, qint64);
+
+    void error(QByteArray error);
+    void error(QString errorString);
+    void error(QNetworkReply::NetworkError error);
+    void error(QNetworkReply *reply);
+
+private slots:
+    inline void onFinished();
+    inline void onError(QNetworkReply::NetworkError error);
+    inline void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
 };
 
 class HttpResponseTimeout : public QObject {
@@ -196,6 +186,8 @@ private slots:
     }
 };
 
+#define T2S(t) (QString(#t).remove(QRegExp("\\s"))) //type to string
+
 #ifdef QT_APP_DEBUG
 #define _debugger qDebug().noquote().nospace() \
                           << "[AeaQt::Network] Debug: -> " \
@@ -209,317 +201,6 @@ private slots:
                            << "[AeaQt::Network] Warning: -> " \
                            << "function: " << __func__ << "; " \
                            << "line: " << __LINE__ << "; "
-
-#define T2S(t) (QString(#t).remove(QRegExp("\\s"))) //type to string
-
-#define _exec(target, type, arg) \
-        if (target.canConvert<std::function<void (type)> >()) { \
-            std::function<void (type)> func = target.value<std::function<void (type)> >(); func(arg); \
-        } \
-        else
-
-#define _exec2(target, type1, type2, arg1, arg2) \
-        if (target.canConvert<std::function<void (type1, type2)> >()) { \
-            std::function<void (type1, type2)> func = target.value<std::function<void (type1, type2)> >(); func(arg1, arg2); \
-        } else
-
-static const QMap<HttpResponse::SupportMethod, QMap<QString, QVariant>> methodParams =
-{
-    {
-        HttpResponse::onResponse_QNetworkReply_A_Pointer,
-        {
-            {"types", QStringList({T2S(QNetworkReply*)})},
-            {"lambda", T2S(std::function<void (QNetworkReply*)>)},
-            {"signal", SIGNAL(finished(QNetworkReply*))},
-            {"isAutoInfer", true}
-        }
-    },
-    {
-        HttpResponse::onResponse_QByteArray,
-        {
-            {"types", QStringList({T2S(QByteArray)})},
-            {"lambda", T2S(std::function<void (QByteArray)>)},
-            {"signal", SIGNAL(finished(QByteArray))},
-            {"isAutoInfer", true}
-        }
-    },
-    {
-        HttpResponse::onResponse_QVariantMap,
-        {
-            {"types", QStringList({T2S(QVariantMap)})},
-            {"lambda", T2S(std::function<void (QVariantMap)>)},
-            {"signal", SIGNAL(finished(QVariantMap))},
-            {"isAutoInfer", true}
-        }
-    },
-    {
-        HttpResponse::onDownloadProgress_qint64_qint64,
-        {
-            {"types", QStringList({T2S(qint64), T2S(qint64)})},
-            {"lambda", T2S(std::function<void (qint64, qint64)>)},
-            {"signal", SIGNAL(downloadProgress(qint64, qint64))},
-            {"isAutoInfer", true}
-        }
-    },
-    {
-        HttpResponse::onError_QNetworkReply_To_NetworkError,
-        {
-            {"types", QStringList({T2S(QNetworkReply::NetworkError)})},
-            {"lambda", T2S(std::function<void (QNetworkReply::NetworkError)>)},
-            {"signal", SIGNAL(error(QNetworkReply::NetworkError))},
-            {"isAutoInfer", true}
-        }
-    },
-    {
-        HttpResponse::onError_QString,
-        {
-            {"types", QStringList({T2S(QString)})},
-            {"lambda", T2S(std::function<void (QString)>)},
-            {"signal", SIGNAL(error(QString))},
-            {"isAutoInfer", true}
-        }
-    },
-    {
-        HttpResponse::onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer,
-        {
-            {"types", QStringList({T2S(QNetworkReply::NetworkError), T2S(QNetworkReply*)})},
-            {"lambda", T2S(std::function<void (QNetworkReply::NetworkError, QNetworkReply*)>)},
-            {"signal", SIGNAL(error(QNetworkReply::NetworkError, QNetworkReply*))},
-            {"isAutoInfer", true}
-        }
-    },
-    {
-        HttpResponse::onError_QString_QNetworkReply_A_Poniter,
-        {
-            {"types", QStringList({T2S(QString), T2S(QNetworkReply*)})},
-            {"lambda", T2S(std::function<void (QString, QNetworkReply*)>)},
-            {"signal", SIGNAL(error(QString, QNetworkReply*))},
-            {"isAutoInfer", true}
-        }
-    },
-};
-
-static int extractCode(const char *member)
-{
-    /* extract code, ensure QMETHOD_CODE <= code <= QSIGNAL_CODE */
-    return (((int)(*member) - '0') & 0x3);
-}
-
-HttpResponse::HttpResponse(QNetworkReply *networkReply,
-                           const QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap,
-                           const int &timeout,
-                           bool isBlock)
-    : m_networkReply(networkReply),
-      m_slotsMap(slotsMap),
-      QObject(networkReply)
-{
-    slotsMapOperation(m_slotsMap);
-    new HttpResponseTimeout(networkReply, timeout);
-
-    connect(m_networkReply, SIGNAL(finished()), this, SLOT(onFinished()));
-    connect(m_networkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
-    connect(m_networkReply, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(onDownloadProgress(qint64, qint64)));
-
-    if (isBlock) {
-        QEventLoop loop;
-        QObject::connect(m_networkReply, SIGNAL(finished()), &loop, SLOT(quit()));
-        loop.exec();
-    }
-}
-
-HttpResponse::~HttpResponse()
-{
-}
-
-QNetworkReply *HttpResponse::networkReply()
-{
-    return m_networkReply;
-}
-
-void HttpResponse::onFinished()
-{
-    QNetworkReply *reply = m_networkReply;
-    if (reply->error() != QNetworkReply::NoError)
-        return;
-
-    if (m_slotsMap.contains(onResponse_QNetworkReply_A_Pointer)) {
-        _exec(m_slotsMap.value(onResponse_QNetworkReply_A_Pointer).second, QNetworkReply*, reply) {
-            emit finished(reply);
-        }
-    }
-    else if (m_slotsMap.contains((onResponse_QByteArray))) {
-        QByteArray result = reply->readAll();
-
-        _exec(m_slotsMap.value((onResponse_QByteArray)).second, QByteArray, result) {
-            emit finished(result);
-        }
-
-        reply->deleteLater();
-    }
-    else if (m_slotsMap.contains((onResponse_QVariantMap))) {
-        QByteArray result = reply->readAll();
-        QVariantMap resultMap = QJsonDocument::fromJson(result).object().toVariantMap();
-
-        _exec(m_slotsMap.value((onResponse_QVariantMap)).second, QVariantMap, resultMap){
-            emit finished(resultMap);
-        }
-
-        reply->deleteLater();
-    }
-}
-
-void HttpResponse::onError(QNetworkReply::NetworkError error)
-{
-    QNetworkReply *reply = m_networkReply;
-    const QMetaObject & metaObject = QNetworkReply::staticMetaObject;
-    QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
-    QString errorString = reply->errorString().isEmpty() ? metaEnum.valueToKey(error) : reply->errorString();
-
-    if (m_slotsMap.contains((onError_QString_QNetworkReply_A_Poniter))) {
-        _exec2(m_slotsMap.value((onError_QString_QNetworkReply_A_Poniter)).second, QString, QNetworkReply*, errorString, reply) {
-            emit this->error(errorString, reply);
-        }
-    }
-    else if (m_slotsMap.contains((onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer))) {
-        _exec2(m_slotsMap.value((onError_QNetworkReply_To_NetworkError_QNetworkReply_A_Pointer)).second,
-              QNetworkReply::NetworkError, QNetworkReply*,
-              error, reply) {
-            emit this->error(error, reply);
-        }
-    }
-    else if (m_slotsMap.contains((onError_QString))) {
-        _exec(m_slotsMap.value((onError_QString)).second, QString, errorString) {
-            emit this->error(errorString);
-        }
-
-        reply->deleteLater();
-    }
-    else if (m_slotsMap.contains((onError_QNetworkReply_To_NetworkError))) {
-        _exec(m_slotsMap.value((onError_QNetworkReply_To_NetworkError)).second, QNetworkReply::NetworkError, error) {
-            emit this->error(error);
-        }
-
-        reply->deleteLater();
-    }
-}
-
-void HttpResponse::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
-{
-    if (m_slotsMap.contains((onDownloadProgress_qint64_qint64))) {
-        _exec2(m_slotsMap.value((onDownloadProgress_qint64_qint64)).second, qint64, qint64, bytesReceived, bytesTotal) {
-            emit downloadProgress(bytesReceived, bytesTotal);
-        }
-    }
-}
-
-static void extractSlot(const QString &respReceiverSlot, QString &extractSlot, QStringList &extractSlotTypes)
-{
-    QString slot(respReceiverSlot);
-    if (extractCode(respReceiverSlot.toStdString().data()) == QSLOT_CODE && !slot.isEmpty()) {
-        slot.remove(0, 1);
-
-        QString unconvertedSlotType = slot;
-        int startIndex = slot.indexOf('(');
-        int endIndex = slot.indexOf(')');
-        Q_ASSERT(startIndex != -1 && endIndex != -1);
-
-        extractSlot = slot.remove(startIndex, endIndex-startIndex+1);
-
-        extractSlotTypes = unconvertedSlotType.mid(startIndex+1, endIndex-startIndex-1)
-                .remove(QRegExp("\\s"))
-                .split(',');
-    }
-}
-
-/* from slotMap get [SupportMethod] */
-static HttpResponse::SupportMethod getSupportMethod(const QPair<QString, QVariant> &slotMap) {
-
-    QMapIterator<HttpResponse::SupportMethod, QMap<QString, QVariant>> iter(methodParams);
-
-    QString receiverSlot = slotMap.first;
-    QString slot;
-    QStringList slotTypes;
-    extractSlot(receiverSlot, slot, slotTypes);
-
-    while (iter.hasNext()) {
-        iter.next();
-        HttpResponse::SupportMethod supportMethod = iter.key();
-        QMap<QString, QVariant> value = iter.value();
-        if (slotTypes == value.value("types").toStringList()) {
-            return supportMethod;
-        }
-        else if (receiverSlot == value.value("lambda").toString()) {
-            return supportMethod;
-        }
-    }
-
-    return HttpResponse::Invalid;
-}
-
-static void autoInfterConvertedSupportMethod(QMultiMap<HttpResponse::SupportMethod, QPair<QString, QVariant> > &unconvertedSlotsMap)
-{
-    QMultiMap<HttpResponse::SupportMethod, QPair<QString, QVariant> > convertedSlotsMap;
-    QMapIterator<HttpResponse::SupportMethod, QPair<QString, QVariant> > iter(unconvertedSlotsMap);
-
-    while (iter.hasNext()) {
-        iter.next();
-        const HttpResponse::SupportMethod supportMethod = iter.key();
-        const QPair<QString, QVariant> slotMap = iter.value();
-
-        if (supportMethod == HttpResponse::AutoInfer) {
-            HttpResponse::SupportMethod supportMethod  = getSupportMethod(slotMap);
-            if (supportMethod == HttpResponse::Invalid) {
-                qDebug()<<"Not find support Method!"<<slotMap.first;
-            }
-            else {
-                if (methodParams[supportMethod].value("isAutoInfer").toBool())
-                    convertedSlotsMap.insert(supportMethod, slotMap);
-                else
-                    qDebug()<<"This type["<<methodParams[supportMethod].value("types").toString()<<"] does not support automatic derivation";
-            }
-        }
-        else {
-            if (methodParams[supportMethod].value("isAutoInfer").toBool())
-                convertedSlotsMap.insert(supportMethod, slotMap);
-            else
-                qDebug()<<"This type["<<methodParams[supportMethod].value("types").toString()<<"] does not support automatic derivation";
-        }
-    }
-
-    unconvertedSlotsMap = convertedSlotsMap;
-
-}
-
-void HttpResponse::slotsMapOperation(QMultiMap<SupportMethod, QPair<QString, QVariant> > &slotsMap)
-{
-    autoInfterConvertedSupportMethod(slotsMap);
-
-    QMapIterator<SupportMethod, QPair<QString, QVariant> > iter(slotsMap);
-    while (iter.hasNext()) {
-        iter.next();
-        SupportMethod supportMethod = iter.key();
-        const QPair<QString, QVariant> &slotMap = iter.value();
-
-        const QString &receiverSlot = slotMap.first;
-        QVariant target = slotMap.second;
-        const QObject *receiver = target.value<QObject*>();
-
-        if (receiver) {
-            if (methodParams.contains(supportMethod)) {
-                connect(this,
-                        methodParams[supportMethod].value("signal").toString().toStdString().data(),
-                        receiver,
-                        receiverSlot.toStdString().data(),
-                        Qt::QueuedConnection);
-            }
-        }
-    }
-}
-
-HttpResponse::HttpResponse()
-{
-
-}
 
 HttpRequest::HttpRequest()
 {
@@ -629,55 +310,97 @@ HttpRequest &HttpRequest::body(const QVariant &body)
 }
 #endif
 
-HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *slot, HttpResponse::SupportMethod type)
+HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char *slot)
 {
-    m_slotsMap.insert(type, {slot, QVariant::fromValue((QObject *)receiver)});
+    m_handleMap.insert(h_onFinished, {slot, QVariant::fromValue((QObject *)receiver)});
     return *this;
 }
 
-HttpRequest &HttpRequest::onResponse(std::function<void (QNetworkReply *)> lambda)
+HttpRequest &HttpRequest::onFinished(std::function<void (QNetworkReply *)> lambda)
 {
-    return onResponse(QVariant::fromValue(lambda));
+    return onResponse(h_onFinished, QVariant::fromValue(lambda));
 }
 
-HttpRequest &HttpRequest::onResponse(std::function<void (QVariantMap)> lambda)
+HttpRequest &HttpRequest::onFinished(std::function<void (QVariantMap)> lambda)
 {
-    return onResponse(QVariant::fromValue(lambda));
+    return onResponse(h_onFinished, QVariant::fromValue(lambda));
 }
 
-HttpRequest &HttpRequest::onResponse(std::function<void (QByteArray)> lambda)
+HttpRequest &HttpRequest::onFinished(std::function<void (QByteArray)> lambda)
 {
-    return onResponse(QVariant::fromValue(lambda));
+    return onResponse(h_onFinished, QVariant::fromValue(lambda));
 }
 
-HttpRequest &HttpRequest::onResponse(std::function<void (qint64, qint64)> lambda)
+HttpRequest &HttpRequest::onDownloadProgress(const QObject *receiver, const char *slot)
 {
-    return onResponse(QVariant::fromValue(lambda));
+    m_handleMap.insert(h_onDownloadProgress, {slot, QVariant::fromValue((QObject *)receiver)});
+    return *this;
+}
+
+HttpRequest &HttpRequest::onDownloadProgress(std::function<void (qint64, qint64)> lambda)
+{
+    return onResponse(h_onDownloadProgress, QVariant::fromValue(lambda));
 }
 
 HttpRequest &HttpRequest::onError(const QObject *receiver, const char *slot)
 {
-    return onResponse(receiver, slot, HttpResponse::AutoInfer);
+    m_handleMap.insert(h_onError, {slot, QVariant::fromValue((QObject *)receiver)});
+    return *this;
 }
 
 HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply::NetworkError)> lambda)
 {
-    return onResponse(QVariant::fromValue(lambda));
+    return onResponse(h_onError, QVariant::fromValue(lambda));
 }
 
 HttpRequest &HttpRequest::onError(std::function<void (QString)> lambda)
 {
-    return onResponse(QVariant::fromValue(lambda));
+    return onResponse(h_onError, QVariant::fromValue(lambda));
 }
 
-HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply::NetworkError, QNetworkReply *)> lambda)
+HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply *)> lambda)
 {
-    return onResponse(QVariant::fromValue(lambda));
+    return onResponse(h_onError, QVariant::fromValue(lambda));
 }
 
-HttpRequest &HttpRequest::onError(std::function<void (QString, QNetworkReply *)> lambda)
+HttpRequest &HttpRequest::onSuccess(const QObject *receiver, const char *slot)
 {
-    return onResponse(QVariant::fromValue(lambda));
+    return onFinished(receiver, slot);
+}
+
+HttpRequest &HttpRequest::onSuccess(std::function<void (QNetworkReply *)> lambda)
+{
+    return onFinished(lambda);
+}
+
+HttpRequest &HttpRequest::onSuccess(std::function<void (QVariantMap)> lambda)
+{
+    return onFinished(lambda);
+}
+
+HttpRequest &HttpRequest::onSuccess(std::function<void (QByteArray)> lambda)
+{
+    return onFinished(lambda);
+}
+
+HttpRequest &HttpRequest::onFailed(const QObject *receiver, const char *slot)
+{
+    return onError(receiver, slot);
+}
+
+HttpRequest &HttpRequest::onFailed(std::function<void (QNetworkReply::NetworkError)> lambda)
+{
+    return onError(lambda);
+}
+
+HttpRequest &HttpRequest::onFailed(std::function<void (QString)> lambda)
+{
+    return onError(lambda);
+}
+
+HttpRequest &HttpRequest::onFailed(std::function<void (QNetworkReply *)> lambda)
+{
+    return onError(lambda);
 }
 
 HttpRequest &HttpRequest::timeout(const int &msec)
@@ -692,9 +415,9 @@ HttpRequest &HttpRequest::block()
     return *this;
 }
 
-HttpRequest &HttpRequest::onResponse(QVariant lambda)
+HttpRequest &HttpRequest::onResponse(HandleType type, QVariant lambda)
 {
-    m_slotsMap.insert(HttpResponse::AutoInfer, {lambda.typeName(), lambda});
+    m_handleMap.insert(type, {lambda.typeName(), lambda});
 
     return *this;
 }
@@ -740,7 +463,7 @@ HttpResponse *HttpRequest::exec()
         sendBuffer->setParent(reply);
     }
 
-    return new HttpResponse(reply, m_slotsMap, m_timeout, m_isBlock);
+    return new HttpResponse(reply, m_handleMap, m_timeout, m_isBlock);
 }
 
 HttpRequest &HttpRequest::queryParam(const QString &key, const QVariant &value)
@@ -803,16 +526,193 @@ HttpRequest HttpClient::send(const QString &url, QNetworkAccessManager::Operatio
     return HttpRequest(op, this).url(url);
 }
 
+HttpResponse::HttpResponse(QNetworkReply *reply,
+                           const QMap<HandleType, QPair<QString, QVariant> > &m_handleMap,
+                           const int &timeout,
+                           bool isBlock) : QObject(reply)
+{
+    new HttpResponseTimeout(reply, timeout);
+
+    connect(reply, SIGNAL(finished()), this, SLOT(onFinished()));
+    connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
+    connect(reply, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(onDownloadProgress(qint64, qint64)));
+
+    for (auto each : m_handleMap.toStdMap()) {
+        HandleType key                 = each.first;
+        QPair<QString, QVariant> value = each.second;
+
+        QString lambdaString = value.first;
+        QVariant lambda      = value.second;
+        const QObject *receiver = lambda.value<QObject *>();
+        char method[512] = {0};
+        strncpy(method, lambdaString.toStdString().data(), 512);
+
+        if (key == h_onFinished) {
+
+            if (lambdaString == T2S(std::function<void (QNetworkReply*)>)) {
+                connect(this,
+                        QOverload<QNetworkReply *>::of(&HttpResponse::finished),
+                        lambda.value<std::function<void (QNetworkReply*)>>());
+            }
+            else if (lambdaString == T2S(std::function<void (QByteArray)>)) {
+                connect(this,
+                        QOverload<QByteArray>::of(&HttpResponse::finished),
+                        lambda.value<std::function<void (QByteArray)>>());
+            }
+            else {
+                QList<const char *> signalsList = {
+                    SIGNAL(finished(QNetworkReply *)),
+                    SIGNAL(finished(QByteArray)),
+                    SIGNAL(finished(QString)),
+                    SIGNAL(finished(QVariantMap))};
+
+                bool isConnected = false;
+                for (auto signal : signalsList) {
+                    if (QMetaObject::checkConnectArgs(signal, method)) {
+                        isConnected = true;
+
+                        connect(this, signal, receiver, method);
+                    }
+
+                }
+
+                if (!isConnected) {
+                    qDebug() << lambdaString.remove(0, 1) << "failed!";
+                }
+            }
+        }
+        else if (key == h_onDownloadProgress) {
+            if (lambdaString == T2S(std::function<void (qint64, qint64)>)) {
+                connect(this,
+                        QOverload<qint64, qint64>::of(&HttpResponse::downloadProgress),
+                        lambda.value<std::function<void (qint64, qint64)>>());
+            }
+            else {
+                // fixme
+                QList<const char *> signalsList = {
+                    SIGNAL(downloadProgress(qint64, qint64))
+                };
+
+                bool isConnected = false;
+                for (auto signal : signalsList) {
+                    if (QMetaObject::checkConnectArgs(signal, method)) {
+                        isConnected = true;
+
+                        connect(this, signal, receiver, method);
+                    }
+
+                }
+
+                if (!isConnected) {
+                    qDebug() << lambdaString.remove(0, 1) << "failed!";
+                }
+            }
+
+        }
+        else if (key == h_onError) {
+            if (lambdaString == T2S(std::function<void (QNetworkReply*)>)) {
+                connect(this,
+                        QOverload<QNetworkReply *>::of(&HttpResponse::error),
+                        lambda.value<std::function<void (QNetworkReply*)>>());
+            }
+            else if (lambdaString == T2S(std::function<void (QString)>)) {
+                connect(this,
+                        QOverload<QString>::of(&HttpResponse::error),
+                        lambda.value<std::function<void (QString)>>());
+            }
+            else if (lambdaString == T2S(std::function<void (QNetworkReply::NetworkError)>)) {
+                connect(this,
+                        QOverload<QNetworkReply::NetworkError>::of(&HttpResponse::error),
+                        lambda.value<std::function<void (QNetworkReply::NetworkError)>>());
+            }
+            else {
+                // fixme
+                QList<const char *> signalsList = {
+                    SIGNAL(error(QNetworkReply *)),
+                    SIGNAL(error(QString)),
+                    SIGNAL(error(QByteArray)),
+                    SIGNAL(error(QNetworkReply::NetworkError))};
+
+                bool isConnected = false;
+                for (auto signal : signalsList) {
+                    if (QMetaObject::checkConnectArgs(signal, method)) {
+                        isConnected = true;
+
+                        connect(this, signal, receiver, method);
+                    }
+                    else {
+                        // do nothing
+                    }
+                }
+
+                if (!isConnected) {
+                    qDebug() << lambdaString.remove(0, 1) << "failed!";
+                }
+            }
+        }
+    }
+
+    if (isBlock) {
+        QEventLoop loop;
+        QObject::connect(this, SIGNAL(finished()), &loop, SLOT(quit()));
+        loop.exec();
+    }
 }
 
-Q_DECLARE_METATYPE(std::function<void (QNetworkReply*)>)
+void HttpResponse::onFinished()
+{
+    QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+    if (reply->error() != QNetworkReply::NoError)
+        return;
+
+    if (this->receivers(SIGNAL(finished(QNetworkReply*))) > 0) {
+        emit finished(reply);
+        return;
+    }
+
+    QByteArray result = reply->readAll();
+    emit finished(result);
+
+    emit finished(QString(result));
+
+    QVariantMap resultMap = QJsonDocument::fromJson(result).object().toVariantMap();
+    emit finished(resultMap);
+
+    reply->deleteLater();
+}
+
+void HttpResponse::onError(QNetworkReply::NetworkError error)
+{
+    QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+
+    const QMetaObject & metaObject = QNetworkReply::staticMetaObject;
+    QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
+    QString errorString = reply->errorString().isEmpty() ? metaEnum.valueToKey(error) : reply->errorString();
+
+    if (this->receivers(SIGNAL(error(QNetworkReply*))) > 0) {
+        emit this->error(reply);
+        return;
+    }
+
+    emit this->error(errorString);
+    emit this->error(error);
+    emit this->error(errorString.toLocal8Bit());
+
+    reply->deleteLater();
+}
+
+void HttpResponse::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
+{
+    emit this->downloadProgress(bytesReceived, bytesTotal);
+}
+
+}
+
 Q_DECLARE_METATYPE(std::function<void (QByteArray)>)
-Q_DECLARE_METATYPE(std::function<void (QVariantMap)>)
-
 Q_DECLARE_METATYPE(std::function<void (QString)>)
+Q_DECLARE_METATYPE(std::function<void (QVariantMap)>)
+Q_DECLARE_METATYPE(std::function<void (QNetworkReply*)>)
 Q_DECLARE_METATYPE(std::function<void (QNetworkReply::NetworkError)>)
-Q_DECLARE_METATYPE(std::function<void (QNetworkReply::NetworkError, QNetworkReply *)>)
-Q_DECLARE_METATYPE(std::function<void (QString, QNetworkReply *)>)
-
 Q_DECLARE_METATYPE(std::function<void (qint64, qint64)>)
+
 #endif // HTTPCLIENT_HPP
