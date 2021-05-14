@@ -8,6 +8,7 @@ LISCENSE: MIT
 **********************************************************/
 #include "HttpClient.hpp"
 #include <QCoreApplication>
+#include <QDebug>
 
 using namespace AeaQt;
 
@@ -15,11 +16,10 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-//    ApiTest *apiTest = new ApiTest();
-//    apiTest->downloadOneMusic("稻香");
-//    apiTest->exec();
-    HttpClient c;
-    c.get("https://qthub.com")
-     .exec();
+    HttpClient client;
+    client.get("https://qthub.com")
+          .onResponse([](QByteArray data){ qDebug() << data.left(100); })
+          .onError([](QString error){ qDebug() << error; })
+          .exec();
     return a.exec();
 }
