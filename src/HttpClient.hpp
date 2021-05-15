@@ -124,6 +124,12 @@ public:
     inline HttpRequest &onTimeout(std::function<void (QNetworkReply*)> lambda);
     inline HttpRequest &onTimeout(std::function<void ()> lambda);
 
+    // do nothing. todo
+    inline HttpRequest &retry(int count);
+
+    // do nothing. todo
+    inline HttpRequest &repeat(int count);
+
     /**
      * @brief Block current thread, entering an event loop.
      */
@@ -132,7 +138,7 @@ public:
     inline HttpResponse *exec();
 
 private:
-    inline HttpRequest();
+    inline HttpRequest() = delete;
     inline HttpRequest &onResponse(HandleType type, const QObject *receiver, const char *method);
     inline HttpRequest &onResponse(HandleType type, QVariant lambda);
 
@@ -140,9 +146,10 @@ private:
     QNetworkRequest                  m_networkRequest;
     QByteArray                       m_body;
     QNetworkAccessManager::Operation m_op;
-    HttpClient                      *m_httpService;
+    HttpClient                      *m_httpClient;
     int                              m_timeout;
     bool                             m_isBlock;
+    int                              m_retry;
     QMap<HandleType, QPair<QString, QVariant> > m_handleMap;
 };
 
@@ -153,7 +160,8 @@ public:
     inline explicit HttpResponse(QNetworkReply *reply,
                           const QMap<HandleType, QPair<QString, QVariant> > &m_handleMap,
                           const int &timeout,
-                          bool isBlock);
+                          bool isBlock,
+                          int retryCount);
 
     inline virtual ~HttpResponse() { qDebug() << "destory: " << __FUNCTION__; }
 
@@ -207,11 +215,6 @@ public:
                            << "function: " << __func__ << "; " \
                            << "line: " << __LINE__ << "; "
 
-HttpRequest::HttpRequest()
-{
-    m_isBlock = false;
-}
-
 HttpRequest::~HttpRequest()
 {
 }
@@ -219,8 +222,9 @@ HttpRequest::~HttpRequest()
 HttpRequest::HttpRequest(QNetworkAccessManager::Operation op, HttpClient *jsonHttpClient) :
     m_body(QByteArray()),
     m_op(op),
-    m_httpService(jsonHttpClient),
+    m_httpClient(jsonHttpClient),
     m_isBlock(false),
+    m_retry(0),
     m_timeout(-1)
 {
 }
@@ -426,6 +430,12 @@ HttpRequest &HttpRequest::onTimeout(std::function<void ()> lambda)
     return onResponse(h_onTimeout, QVariant::fromValue(lambda));
 }
 
+HttpRequest &HttpRequest::retry(int count)
+{
+    m_retry = count;
+    return *this;
+}
+
 HttpRequest &HttpRequest::block()
 {
     m_isBlock = true;
@@ -475,7 +485,7 @@ HttpResponse *HttpRequest::exec()
     _debugger << "Header: " << headers;
     _debugger << "Send buffer(Body):\r\n" << m_body;
 
-    reply = m_httpService->createRequest(m_op, m_networkRequest, sendBuffer);
+    reply = m_httpClient->createRequest(m_op, m_networkRequest, sendBuffer);
 
     if (reply == NULL) {
         sendBuffer->deleteLater();
@@ -485,7 +495,7 @@ HttpResponse *HttpRequest::exec()
         sendBuffer->setParent(reply);
     }
 
-    return new HttpResponse(reply, m_handleMap, m_timeout, m_isBlock);
+    return new HttpResponse(reply, m_handleMap, m_timeout, m_isBlock, m_retry);
 }
 
 HttpRequest &HttpRequest::queryParam(const QString &key, const QVariant &value)
@@ -551,7 +561,9 @@ HttpRequest HttpClient::send(const QString &url, QNetworkAccessManager::Operatio
 HttpResponse::HttpResponse(QNetworkReply *reply,
                            const QMap<HandleType, QPair<QString, QVariant> > &m_handleMap,
                            const int &timeout,
-                           bool isBlock) : QObject(reply)
+                           bool isBlock,
+                           int retryCount)
+    : QObject(reply)
 {
     new HttpResponseTimeout(this, timeout);
 
