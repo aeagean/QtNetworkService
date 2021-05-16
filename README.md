@@ -1,5 +1,53 @@
-# 示例
-(1) 简单示例
+﻿# 示例
+1. 使用信号槽的方式实现成功与失败的事件处理
+```cpp
+static HttpClient client;
+client.get("https://qthub.com")
+      .onSuccess(this, SLOT(onSuccess(QString)))
+      .onFailed(this, SLOT(onFailed(QString)))
+      .exec(); // 执行Http操作
+```
+
+2. 使用匿名函数的方式实现成功与失败的事件处理
+```cpp
+client.get("https://qthub.com")
+      .onSuccess([](QString result) { qDebug()<<"result:"<<result.left(100); })
+      .onFailed([](QString error) { qDebug()<<"error:"<<error; })
+      .exec();
+```
+
+3. 以信号槽的方式获取下载进度
+```cpp
+client.get("https://qthub.com")
+      .onSuccess(this, SLOT(onSuccess(QString)))
+      .onDownloadProgress(this, SLOT(onDownloadProgress(qint64, qint64)))
+      .onFailed(this, SLOT(onFailed(QString)))
+      .exec();
+```
+
+4. 以匿名函数的方式获取下载进度
+```cpp
+client.get("https://qthub.com")
+      .onSuccess([](QString result) { qDebug()<<"result: " << result.left(10); })
+      .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
+          qDebug() << "lambda bytes received: " << bytesReceived
+                   << "bytes total: " << bytesTotal;
+       })
+      .onFailed([](QString error) { qDebug()<<"error: " << error; })
+      .exec();
+```
+
+5. 自定义超时时间和超时处理
+* timeout(ms)是设置超时时间，单位为毫秒(ms)。
+* onTimeout为超时回调，当超时事件触发，自动调用onTimeout回调。
+```cpp
+client.get("https://qthub.com")
+      .onSuccess([](QString result) { qDebug()<<"result:"<<result.left(100); })
+      .onFailed([](QString error) { qDebug()<<"error:"<<error; })
+      .onTimeout([](QNetworkReply *) { qDebug()<<"timeout"; })
+      .timeout(1000) // 1s超时
+      .exec();
+```
 * 使用lambda特性
 ```cpp
 static HttpClient http;
