@@ -19,6 +19,7 @@
 #include <QMetaEnum>
 #include <QUrlQuery>
 #include <QFile>
+#include <QIODevice>
 #include <QFileInfo>
 
 #include <QTimer>
@@ -36,6 +37,7 @@ enum HandleType {
     h_onFinished = 0,
     h_onError,
     h_onDownloadProgress,
+    h_onUploadProgress,
     h_onTimeout
 };
 
@@ -89,12 +91,15 @@ public:
     inline HttpRequest &body(const QVariantMap &formUrlencodedMap);
     inline HttpRequest &bodyWithFormUrlencoded(const QVariantMap &keyValueMap);
 
-    // todo test address: https://httpbin.org/post
+    // test address: https://httpbin.org/post
     inline HttpRequest &body(QHttpMultiPart *multiPart);
     inline HttpRequest &bodyWithMultiPart(QHttpMultiPart *multiPart);
 
+    // multi-paramws
     inline HttpRequest &bodyWithFile(const QString &key, const QString &file);
-    inline HttpRequest &bodyWithFile(const QMap<QString, QString> &fileMap); // => QMap<name, file>; like: { "car": "/home/example/car.jpeg" }
+    // todo
+    inline HttpRequest &bodyWithFile(const QString &key, const QIODevice *file);
+    inline HttpRequest &bodyWithFile(const QMap<QString/*key*/, QString/*file*/> &fileMap); // => QMap<name, file>; like: { "car": "/home/example/car.jpeg" }
 
     // onFinished == onSuccess
     inline HttpRequest &onFinished(const QObject *receiver, const char *methoc);
@@ -104,6 +109,10 @@ public:
 
     inline HttpRequest &onDownloadProgress(const QObject *receiver, const char *method);
     inline HttpRequest &onDownloadProgress(std::function<void (qint64, qint64)> lambda);
+
+    // todo
+    inline HttpRequest &onUploadProgress(const QObject *receiver, const char *method);
+    inline HttpRequest &onUploadProgress(std::function<void (qint64, qint64)> lambda);
 
     // onError == onFailed
     inline HttpRequest &onError(const QObject *receiver, const char *method);
@@ -151,6 +160,7 @@ public:
             Raw,
             Raw_Json, // application/json
             X_Www_Form_Urlencoded, // x-www-form-urlencoded
+            FileMap,
             MultiPart
         };
 
@@ -181,6 +191,7 @@ private:
 
 private:
     Params m_params;
+    QMap<QString, QString> m_fileMap;
 };
 
 class HttpResponse : public QObject
@@ -199,6 +210,7 @@ signals:
     void finished(QVariantMap resultMap);
 
     void downloadProgress(qint64, qint64);
+    void uploadProgress(qint64, qint64);
 
     void error(QByteArray error);
     void error(QString errorString);
@@ -212,6 +224,7 @@ private slots:
     inline void onFinished();
     inline void onError(QNetworkReply::NetworkError error);
     inline void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
+    inline void onUploadProgress(qint64 bytesSent, qint64 bytesTotal);
     inline void onTimeout();
 };
 
@@ -325,8 +338,6 @@ HttpRequest &HttpRequest::bodyWithRaw(const QByteArray &raw)
 
 HttpRequest &HttpRequest::body(QHttpMultiPart *multiPart)
 {
-    QString contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
-    m_params.request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
     m_params.body = qMakePair(Params::MultiPart, QVariant::fromValue(multiPart));
     return *this;
 }
@@ -338,30 +349,22 @@ HttpRequest &HttpRequest::bodyWithMultiPart(QHttpMultiPart *multiPart)
 
 HttpRequest &HttpRequest::bodyWithFile(const QString &key, const QString &filePath)
 {
-    QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+    QMap<QString, QString> map;
+    map[key] = filePath;
 
-    QFile *file = new QFile(filePath);
-    file->open(QIODevice::ReadOnly);
-    file->setParent(multiPart);
-
-    // todo
-    // part.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("text/plain"));
-
-    // note: "form-data; name=\"%1\";filename=\"%2\"" != "form-data; name=\"%1\";filename=\"%2\";"
-    QString dispositionHeader = QString("form-data; name=\"%1\";filename=\"%2\"")
-                                       .arg(key)
-                                       .arg(QFileInfo(filePath).fileName());
-    QHttpPart part;
-    part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
-    part.setBodyDevice(file);
-
-    multiPart->append(part);
-
-    return body(multiPart);
+    return bodyWithFile(map);
 }
 
 HttpRequest &HttpRequest::bodyWithFile(const QMap<QString, QString> &fileMap)
 {
+    auto &body = m_params.body;
+    auto map = body.second.value<QMap<QString, QString>>();
+    for (auto each : fileMap.toStdMap()) {
+        map[each.first] = each.second;
+    }
+
+    body.first = Params::BodyType::FileMap;
+    body.second = QVariant::fromValue(map);
     return *this;
 }
 
@@ -393,6 +396,16 @@ HttpRequest &HttpRequest::onDownloadProgress(const QObject *receiver, const char
 HttpRequest &HttpRequest::onDownloadProgress(std::function<void (qint64, qint64)> lambda)
 {
     return onResponse(h_onDownloadProgress, QVariant::fromValue(lambda));
+}
+
+HttpRequest &HttpRequest::onUploadProgress(const QObject *receiver, const char *method)
+{
+    return onResponse(h_onUploadProgress, receiver, method);
+}
+
+HttpRequest &HttpRequest::onUploadProgress(std::function<void (qint64, qint64)> lambda)
+{
+    return onResponse(h_onUploadProgress, QVariant::fromValue(lambda));
 }
 
 HttpRequest &HttpRequest::onError(const QObject *receiver, const char *method)
@@ -559,19 +572,62 @@ HttpResponse *HttpRequest::exec()
         return NULL;
     }
 
-    using BodyType = HttpRequest::Params;
-    if (m_params.body.first == BodyType::MultiPart) {
-        QHttpMultiPart *multiPart = (QHttpMultiPart *)(m_params.body.second.value<QHttpMultiPart*>());
-        m_params.reply = m_params.httpClient->sendCustomRequest(m_params.request,
-                                                                verbMap.value(m_params.op),
-                                                                multiPart);
+    using BodyType = HttpRequest::Params::BodyType;
+    BodyType bodyType = m_params.body.first;
+    QVariant    &body = m_params.body.second;
+    QNetworkRequest &request = m_params.request;
+    HttpClient   *httpClient = m_params.httpClient;
+
+    if (bodyType == BodyType::MultiPart) {
+        QHttpMultiPart *multiPart = (QHttpMultiPart *)(body.value<QHttpMultiPart*>());
+        QString contentType       = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
+
+        request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
+
+        m_params.reply = m_params.httpClient->sendCustomRequest(request,
+                                                       verbMap.value(m_params.op),
+                                                       multiPart);
         multiPart->setParent(m_params.reply);
 
     }
+    else if (bodyType == BodyType::FileMap) {
+
+        QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+        QString contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
+        request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
+
+        const auto &fileMap = body.value<QMap<QString, QString>>();
+        for (const auto &each : fileMap.toStdMap()) {
+            const QString &key      = each.first;
+            const QString &filePath = each.second;
+
+            QFile *file = new QFile(filePath);
+            file->open(QIODevice::ReadOnly);
+            file->setParent(multiPart);
+
+            // todo
+            // part.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("text/plain"));
+
+            // note: "form-data; name=\"%1\";filename=\"%2\"" != "form-data; name=\"%1\";filename=\"%2\";"
+            QString dispositionHeader = QString("form-data; name=\"%1\";filename=\"%2\"")
+                    .arg(key)
+                    .arg(QFileInfo(filePath).fileName());
+            QHttpPart part;
+            part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
+            part.setBodyDevice(file);
+
+            multiPart->append(part);
+        }
+
+        m_params.reply = httpClient->sendCustomRequest(request,
+                                              verbMap.value(m_params.op),
+                                              multiPart);
+        multiPart->setParent(m_params.reply); // fixme if m_params.reply == NULL => multiPart memory leak
+    }
     else {
-        m_params.reply = m_params.httpClient->sendCustomRequest(m_params.request,
+        m_params.reply = m_params.httpClient->sendCustomRequest(request,
                                                                 verbMap.value(m_params.op),
-                                                                m_params.body.second.toByteArray());
+                                                                body.toByteArray());
     }
 
     if (m_params.reply == NULL) {
@@ -653,6 +709,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params) : QObject(params.reply)
     connect(reply, SIGNAL(finished()), this, SLOT(onFinished()));
     connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
     connect(reply, SIGNAL(downloadProgress(qint64, qint64)), this, SLOT(onDownloadProgress(qint64, qint64)));
+    connect(reply, SIGNAL(uploadProgress(qint64, qint64)), this, SLOT(onUploadProgress(qint64, qint64)));
 
     auto func = [&](const QStringList &signalsList,
                     const QObject *receiver,
@@ -717,6 +774,21 @@ HttpResponse::HttpResponse(HttpRequest::Params params) : QObject(params.reply)
             else {
                 QStringList signalsList = {
                     SIGNAL(downloadProgress(qint64, qint64))
+                };
+
+                func(signalsList, receiver, method);
+            }
+
+        }
+        else if (key == h_onUploadProgress) {
+            if (lambdaString == T2S(std::function<void (qint64, qint64)>)) {
+                connect(this,
+                        QOverload<qint64, qint64>::of(&HttpResponse::uploadProgress),
+                        lambda.value<std::function<void (qint64, qint64)>>());
+            }
+            else {
+                QStringList signalsList = {
+                    SIGNAL(uploadProgress(qint64, qint64))
                 };
 
                 func(signalsList, receiver, method);
@@ -831,6 +903,11 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
 void HttpResponse::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
 {
     emit this->downloadProgress(bytesReceived, bytesTotal);
+}
+
+void HttpResponse::onUploadProgress(qint64 bytesSent, qint64 bytesTotal)
+{
+    emit this->uploadProgress(bytesSent, bytesTotal);
 }
 
 void HttpResponse::onTimeout()

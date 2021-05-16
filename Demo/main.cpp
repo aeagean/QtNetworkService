@@ -78,6 +78,7 @@ public:
         // [6] post文件
         client.post("http://localhost:1234/post")
               .bodyWithFile("text_file", "helloworld.txt")
+              .bodyWithFile("image_file", "qt.jpg")
               .onSuccess(this, SLOT(onSuccess(QString)))
               .onFailed(this, SLOT(onFailed(QString)))
               .exec();
@@ -125,18 +126,21 @@ private:
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
-    Object object;
 
 #if 0
+    Object object;
+#else
+
     HttpClient client;
-    client.post("http://localhost:1234/post")
-//    client.post("http://httpbin.org/post")
+//    client.post("http://localhost:1234/post")
+    client.post("http://httpbin.org/post")
           .bodyWithFile("text_file", "helloworld.txt")
-          .onSuccess([](QString result) { qDebug()<<"result: " << result.toLatin1(); })
-          .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
-              qDebug() << "lambda bytes received: " << bytesReceived
+          .bodyWithFile("image_file", "qt.jpg")
+          .onUploadProgress([](qint64 bytesSent, qint64 bytesTotal) {
+              qDebug() << "lambda bytes sent: " << bytesSent
                        << "bytes total: " << bytesTotal;
            })
+          .onSuccess([](QString result) { qDebug()<<"result: " << result.left(100); })
           .onFailed([](QString error) { qDebug()<<"error: " << error; })
           .exec();
 #endif
