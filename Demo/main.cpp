@@ -67,29 +67,21 @@ public:
 
         // [5] 使用body
         QVariantMap map;
-//        map["&^="] = "1234";
-        client.get("https://baidu.com")
-              .bodyWithFormUrlencoded(map)
+        map["&^="] = "1234";
+        client.post("http://localhost:1234/post")
+              .body(map)
               .onSuccess(this, SLOT(onSuccess(QString)))
               .onFailed(this, SLOT(onFailed(QString)))
               .exec();
         // [5]
 
-        // [x] test
-        client.get("https://qthub.com")
-              .onSuccess([](QString result) { qDebug()<<"result: " << result.left(10); })
-              .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
-                  qDebug() << "lambda bytes received: " << bytesReceived
-                           << "bytes total: " << bytesTotal;
-               })
-              .onFailed([](QString error) { qDebug()<<"error: " << error; })
-              .onTimeout([](QNetworkReply *reply) { qDebug()<<"timeout"; reply->deleteLater();})
-              .onTimeout([]() { qDebug()<<"timeout"; })
-              .onTimeout(this, SLOT(onTimeout()))
-              .onTimeout(this, SLOT(onTimeout(QNetworkReply *)))
-              .timeout(100) // 1s超时
+        // [6] post文件
+        client.post("http://localhost:1234/post")
+              .bodyWithFile("text_file", "helloworld.txt")
+              .onSuccess(this, SLOT(onSuccess(QString)))
+              .onFailed(this, SLOT(onFailed(QString)))
               .exec();
-        // [x]
+        // [6]
     }
 
 
@@ -134,6 +126,20 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
     Object object;
+
+#if 0
+    HttpClient client;
+    client.post("http://localhost:1234/post")
+//    client.post("http://httpbin.org/post")
+          .bodyWithFile("text_file", "helloworld.txt")
+          .onSuccess([](QString result) { qDebug()<<"result: " << result.toLatin1(); })
+          .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
+              qDebug() << "lambda bytes received: " << bytesReceived
+                       << "bytes total: " << bytesTotal;
+           })
+          .onFailed([](QString error) { qDebug()<<"error: " << error; })
+          .exec();
+#endif
 
     return a.exec();
 }

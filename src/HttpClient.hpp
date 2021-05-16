@@ -18,7 +18,8 @@
 
 #include <QMetaEnum>
 #include <QUrlQuery>
-#include <QBuffer>
+#include <QFile>
+#include <QFileInfo>
 
 #include <QTimer>
 #include <QRegExp>
@@ -88,10 +89,11 @@ public:
     inline HttpRequest &body(const QVariantMap &formUrlencodedMap);
     inline HttpRequest &bodyWithFormUrlencoded(const QVariantMap &keyValueMap);
 
-    // todo
+    // todo test address: https://httpbin.org/post
     inline HttpRequest &body(QHttpMultiPart *multiPart);
-    inline HttpRequest &bodyWithFile(const QString &file);
-    inline HttpRequest &bodyWithFile(const QStringList &files);
+    inline HttpRequest &bodyWithMultiPart(QHttpMultiPart *multiPart);
+
+    inline HttpRequest &bodyWithFile(const QString &key, const QString &file);
     inline HttpRequest &bodyWithFile(const QMap<QString, QString> &fileMap); // => QMap<name, file>; like: { "car": "/home/example/car.jpeg" }
 
     // onFinished == onSuccess
@@ -323,7 +325,43 @@ HttpRequest &HttpRequest::bodyWithRaw(const QByteArray &raw)
 
 HttpRequest &HttpRequest::body(QHttpMultiPart *multiPart)
 {
+    QString contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
+    m_params.request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
     m_params.body = qMakePair(Params::MultiPart, QVariant::fromValue(multiPart));
+    return *this;
+}
+
+HttpRequest &HttpRequest::bodyWithMultiPart(QHttpMultiPart *multiPart)
+{
+    return body(multiPart);
+}
+
+HttpRequest &HttpRequest::bodyWithFile(const QString &key, const QString &filePath)
+{
+    QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+
+    QFile *file = new QFile(filePath);
+    file->open(QIODevice::ReadOnly);
+    file->setParent(multiPart);
+
+    // todo
+    // part.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("text/plain"));
+
+    // note: "form-data; name=\"%1\";filename=\"%2\"" != "form-data; name=\"%1\";filename=\"%2\";"
+    QString dispositionHeader = QString("form-data; name=\"%1\";filename=\"%2\"")
+                                       .arg(key)
+                                       .arg(QFileInfo(filePath).fileName());
+    QHttpPart part;
+    part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
+    part.setBodyDevice(file);
+
+    multiPart->append(part);
+
+    return body(multiPart);
+}
+
+HttpRequest &HttpRequest::bodyWithFile(const QMap<QString, QString> &fileMap)
+{
     return *this;
 }
 
