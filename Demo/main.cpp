@@ -65,6 +65,16 @@ public:
               .exec();
         // [4]
 
+        // [5] 使用body
+        QVariantMap map;
+//        map["&^="] = "1234";
+        client.get("https://baidu.com")
+              .bodyWithFormUrlencoded(map)
+              .onSuccess(this, SLOT(onSuccess(QString)))
+              .onFailed(this, SLOT(onFailed(QString)))
+              .exec();
+        // [5]
+
         // [x] test
         client.get("https://qthub.com")
               .onSuccess([](QString result) { qDebug()<<"result: " << result.left(10); })

@@ -11,6 +11,7 @@
 
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QHttpMultiPart>
 
 #include <QJsonObject>
 #include <QJsonDocument>
@@ -65,12 +66,6 @@ public:
 class HttpRequest
 {
 public:
-    enum BodyType {
-        None = 0, // This request does not have a body.
-        X_Www_Form_Urlencoded, // x-www-form-urlencoded
-        Raw_Text_Json, // application/json
-    };
-
     inline explicit HttpRequest(QNetworkAccessManager::Operation op, HttpClient *jsonHttpClient);
     inline virtual ~HttpRequest();
 
@@ -84,9 +79,20 @@ public:
     /* Mainly used for identification */
     inline HttpRequest &userAttribute(const QVariant &value);
 
-    inline HttpRequest &body(const QVariantMap &content);
-    inline HttpRequest &body(const QJsonObject &content);
-    inline HttpRequest &body(const QByteArray &content);
+    inline HttpRequest &body(const QByteArray &raw);
+    inline HttpRequest &bodyWithRaw(const QByteArray &raw);
+
+    inline HttpRequest &body(const QJsonObject &json);
+    inline HttpRequest &bodyWithJson(const QJsonObject &json);
+
+    inline HttpRequest &body(const QVariantMap &formUrlencodedMap);
+    inline HttpRequest &bodyWithFormUrlencoded(const QVariantMap &keyValueMap);
+
+    // todo
+    inline HttpRequest &body(QHttpMultiPart *multiPart);
+    inline HttpRequest &bodyWithFile(const QString &file);
+    inline HttpRequest &bodyWithFile(const QStringList &files);
+    inline HttpRequest &bodyWithFile(const QMap<QString, QString> &fileMap); // => QMap<name, file>; like: { "car": "/home/example/car.jpeg" }
 
     // onFinished == onSuccess
     inline HttpRequest &onFinished(const QObject *receiver, const char *methoc);
@@ -137,33 +143,50 @@ public:
 
     inline HttpResponse *exec();
 
+    struct Params {
+        enum BodyType {
+            None = 0, // This request does not have a body.
+            Raw,
+            Raw_Json, // application/json
+            X_Www_Form_Urlencoded, // x-www-form-urlencoded
+            MultiPart
+        };
+
+        QNetworkAccessManager::Operation op;
+        QNetworkRequest                  request;
+        QNetworkReply                   *reply;
+        HttpClient                      *httpClient;
+        QPair<BodyType, QVariant>        body;
+        int                              timeout; // ms
+        bool                             isBlock;
+        int                              retry;
+        QMap<HandleType, QPair<QString, QVariant> > handleMap;
+
+        Params()
+        {
+            reply = NULL;
+            httpClient = NULL;
+            isBlock = (false);
+            retry = (0);
+            timeout = (-1);
+        }
+    };
+
 private:
     inline HttpRequest() = delete;
     inline HttpRequest &onResponse(HandleType type, const QObject *receiver, const char *method);
     inline HttpRequest &onResponse(HandleType type, QVariant lambda);
 
 private:
-    QNetworkRequest                  m_networkRequest;
-    QByteArray                       m_body;
-    QNetworkAccessManager::Operation m_op;
-    HttpClient                      *m_httpClient;
-    int                              m_timeout;
-    bool                             m_isBlock;
-    int                              m_retry;
-    QMap<HandleType, QPair<QString, QVariant> > m_handleMap;
+    Params m_params;
 };
 
 class HttpResponse : public QObject
 {
     Q_OBJECT
 public:
-    inline explicit HttpResponse(QNetworkReply *reply,
-                          const QMap<HandleType, QPair<QString, QVariant> > &m_handleMap,
-                          const int &timeout,
-                          bool isBlock,
-                          int retryCount);
-
-    inline virtual ~HttpResponse() { qDebug() << "destory: " << __FUNCTION__; }
+    inline explicit HttpResponse(HttpRequest::Params params);
+    inline virtual ~HttpResponse();
 
     QNetworkReply *reply() { return static_cast<QNetworkReply*>(this->parent()); }
 
@@ -219,26 +242,21 @@ HttpRequest::~HttpRequest()
 {
 }
 
-HttpRequest::HttpRequest(QNetworkAccessManager::Operation op, HttpClient *jsonHttpClient) :
-    m_body(QByteArray()),
-    m_op(op),
-    m_httpClient(jsonHttpClient),
-    m_isBlock(false),
-    m_retry(0),
-    m_timeout(-1)
+HttpRequest::HttpRequest(QNetworkAccessManager::Operation op, HttpClient *httpClient)
 {
+    m_params.op = op;
+    m_params.httpClient = httpClient;
 }
 
 HttpRequest &HttpRequest::url(const QString &url)
 {
-    m_networkRequest.setUrl(QUrl(url));
+    m_params.request.setUrl(QUrl(url));
     return *this;
 }
 
 HttpRequest &HttpRequest::header(const QString &key, const QVariant &value)
 {
-    m_networkRequest.setRawHeader(QByteArray(key.toStdString().data()), QByteArray(value.toString().toStdString().data()));
-
+    m_params.request.setRawHeader(QByteArray(key.toStdString().data()), QByteArray(value.toString().toStdString().data()));
     return *this;
 }
 
@@ -255,69 +273,59 @@ HttpRequest &HttpRequest::headers(const QMap<QString, QVariant> &headers)
 
 HttpRequest &HttpRequest::body(const QVariantMap &content)
 {
-    m_body = QJsonDocument(QJsonObject::fromVariantMap(content)).toJson();
+    QMapIterator<QString, QVariant> i(content);
+
+    QUrl url;
+    QUrlQuery urlQuery(url);
+    while (i.hasNext()) {
+        i.next();
+        urlQuery.addQueryItem(i.key(), i.value().toString());
+    }
+
+    url.setQuery(urlQuery);
+    const QString &value = url.toString(QUrl::FullyEncoded).toUtf8().remove(0, 1);
+
+    m_params.body = qMakePair(Params::X_Www_Form_Urlencoded, value);
+    m_params.request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+
     return *this;
+}
+
+HttpRequest &HttpRequest::bodyWithFormUrlencoded(const QVariantMap &keyValueMap)
+{
+    return body(keyValueMap);
 }
 
 HttpRequest &HttpRequest::body(const QJsonObject &content)
 {
-    m_body = QJsonDocument(QJsonObject::fromVariantMap(content.toVariantMap())).toJson();
+    const QByteArray &value = QJsonDocument(content).toJson();
+    m_params.body = qMakePair(Params::Raw_Json, value);
+    m_params.request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
     return *this;
+}
+
+HttpRequest &HttpRequest::bodyWithJson(const QJsonObject &json)
+{
+    return body(json);
 }
 
 HttpRequest &HttpRequest::body(const QByteArray &content)
 {
-    m_body = content;
+    m_params.body = qMakePair(Params::Raw, content);
     return *this;
 }
 
-#if 0
-HttpRequest &HttpRequest::body(const QVariant &body)
+HttpRequest &HttpRequest::bodyWithRaw(const QByteArray &raw)
 {
-    /// clear m_jsonBody
-    m_jsonBody = QJsonObject();
+    return body(raw);
+}
 
-    if (type == X_Www_Form_Urlencoded) {
-        QUrl url;
-        QUrlQuery urlQuery(url);
-
-        if (body.type() == QVariant::Map
-            || body.typeName() ==  QMetaType::typeName(QMetaType::QJsonObject)) {
-
-            QMapIterator<QString, QVariant> i(body.toMap());
-            while (i.hasNext()) {
-                i.next();
-                urlQuery.addQueryItem(i.key(), i.value().toString());
-            }
-
-            url.setQuery(urlQuery);
-            m_body = url.toString(QUrl::FullyEncoded).toUtf8().remove(0, 1);
-        }
-        else {
-            m_body = body.toByteArray();
-        }
-    }
-    else if (type == Raw_Text_Json) {
-        if (body.type() == QVariant::Map
-            || body.typeName() ==  QMetaType::typeName(QMetaType::QJsonObject)) {
-
-            m_body = QJsonDocument(QJsonObject::fromVariantMap(body.toMap())).toJson();
-        }
-        else {
-            _warning << "This is not data in JSON format(QVariantMap or QJsonObject).";
-            m_body = QByteArray();
-            // warning output
-        }
-    }
-    else {
-        m_body = QByteArray();
-        _warning << "Disable body.";
-    }
-
-    _debugger << "Body Content:" << m_body;
+HttpRequest &HttpRequest::body(QHttpMultiPart *multiPart)
+{
+    m_params.body = qMakePair(Params::MultiPart, QVariant::fromValue(multiPart));
     return *this;
 }
-#endif
 
 HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char *method)
 {
@@ -411,7 +419,7 @@ HttpRequest &HttpRequest::onFailed(std::function<void (QNetworkReply *)> lambda)
 
 HttpRequest &HttpRequest::timeout(const int &msec)
 {
-    m_timeout = msec;
+    m_params.timeout = msec;
     return *this;
 }
 
@@ -432,81 +440,119 @@ HttpRequest &HttpRequest::onTimeout(std::function<void ()> lambda)
 
 HttpRequest &HttpRequest::retry(int count)
 {
-    m_retry = count;
+    m_params.retry = count;
     return *this;
 }
 
 HttpRequest &HttpRequest::block()
 {
-    m_isBlock = true;
+    m_params.isBlock = true;
     return *this;
 }
 
 HttpRequest &HttpRequest::onResponse(HandleType type, QVariant lambda)
 {
-    m_handleMap.insert(type, {lambda.typeName(), lambda});
+    m_params.handleMap.insert(type, {lambda.typeName(), lambda});
     return *this;
 }
 
 HttpRequest &HttpRequest::onResponse(HandleType type, const QObject *receiver, const char *method)
 {
-    m_handleMap.insert(type, {QMetaObject::normalizedSignature(method), QVariant::fromValue((QObject *)receiver)});
+    m_params.handleMap.insert(type, {QMetaObject::normalizedSignature(method), QVariant::fromValue((QObject *)receiver)});
     return *this;
+}
+
+inline QDebug operator<<(QDebug &debug, const QNetworkAccessManager::Operation &op)
+{
+    switch (op) {
+    case QNetworkAccessManager::UnknownOperation:
+        debug  << "UnknownOperation";
+        break;
+    case QNetworkAccessManager::HeadOperation:
+        debug  << "HeadOperation";
+        break;
+    case QNetworkAccessManager::GetOperation:
+        debug  << "GetOperation";
+        break;
+    case QNetworkAccessManager::PostOperation:
+        debug  << "PostOperation";
+        break;
+    case QNetworkAccessManager::PutOperation:
+        debug  << "PutOperation";
+        break;
+    case QNetworkAccessManager::DeleteOperation:
+        debug  << "DeleteOperation";
+        break;
+    case QNetworkAccessManager::CustomOperation:
+        debug  << "CustomOperation";
+        break;
+    default:
+        break;
+    }
+
+    return debug;
 }
 
 HttpResponse *HttpRequest::exec()
 {
-    static const char *s_httpOperation[] = {
-        "UnknownOperation",
-        "HeadOperation",
-        "GetOperation",
-        "PutOperation",
-        "PostOperation",
-        "DeleteOperation",
-        "CustomOperation"
-    };
-
-    QNetworkReply* reply = NULL;
-    QBuffer* sendBuffer = new QBuffer();
-    if (! m_body.isEmpty()) {
-        sendBuffer->setData(m_body);
-    }
-
+#ifdef QT_APP_DEBUG
     _debugger << "Http Client info: ";
-    _debugger << "Type: " << s_httpOperation[m_op];
-    _debugger << "Url: " << m_networkRequest.url().toString();
+    _debugger << "Url: " << m_params.request.url().toString();
+    _debugger << "Type: " << m_params.op;
     QString headers;
-    for (int i = 0; i < m_networkRequest.rawHeaderList().count(); i++) {
-        QString each = m_networkRequest.rawHeaderList().at(i);
-        QString header = m_networkRequest.rawHeader(each.toUtf8());
+    for (int i = 0; i < m_params.request.rawHeaderList().count(); i++) {
+        QString each = m_params.request.rawHeaderList().at(i);
+        QString header = m_params.request.rawHeader(each.toUtf8());
         headers += QString("%1: %2;").arg(each)
                                      .arg(header);
     }
+
     _debugger << "Header: " << headers;
-    _debugger << "Send buffer(Body):\r\n" << m_body;
+    _debugger << "Body:\r\n" << m_params.body;
+#endif
 
-    reply = m_httpClient->createRequest(m_op, m_networkRequest, sendBuffer);
+    static QMap<QNetworkAccessManager::Operation, QByteArray> verbMap = {
+        {QNetworkAccessManager::GetOperation, "GET"},
+        {QNetworkAccessManager::PostOperation, "POST"},
+    };
 
-    if (reply == NULL) {
-        sendBuffer->deleteLater();
+    if (!verbMap.contains(m_params.op)) {
+        qWarning() << "Url: [" << m_params.request.url().toString() << "]" << m_params.op << "not support!";
         return NULL;
     }
+
+    using BodyType = HttpRequest::Params;
+    if (m_params.body.first == BodyType::MultiPart) {
+        QHttpMultiPart *multiPart = (QHttpMultiPart *)(m_params.body.second.value<QHttpMultiPart*>());
+        m_params.reply = m_params.httpClient->sendCustomRequest(m_params.request,
+                                                                verbMap.value(m_params.op),
+                                                                multiPart);
+        multiPart->setParent(m_params.reply);
+
+    }
     else {
-        sendBuffer->setParent(reply);
+        m_params.reply = m_params.httpClient->sendCustomRequest(m_params.request,
+                                                                verbMap.value(m_params.op),
+                                                                m_params.body.second.toByteArray());
     }
 
-    return new HttpResponse(reply, m_handleMap, m_timeout, m_isBlock, m_retry);
+    if (m_params.reply == NULL) {
+        qWarning() << "http reply invalid";
+        return NULL;
+    }
+
+    return new HttpResponse(m_params);
 }
 
 HttpRequest &HttpRequest::queryParam(const QString &key, const QVariant &value)
 {
-    QUrl url(m_networkRequest.url());
+    QUrl url(m_params.request.url());
     QUrlQuery urlQuery(url);
 
     urlQuery.addQueryItem(key, value.toString());
     url.setQuery(urlQuery);
 
-    m_networkRequest.setUrl(url);
+    m_params.request.setUrl(url);
 
     return *this;
 }
@@ -524,11 +570,9 @@ HttpRequest &HttpRequest::queryParams(const QMap<QString, QVariant> &params)
 
 HttpRequest &HttpRequest::userAttribute(const QVariant &value)
 {
-    m_networkRequest.setAttribute(QNetworkRequest::User, value);
+    m_params.request.setAttribute(QNetworkRequest::User, value);
     return *this;
 }
-
-
 
 HttpClient::HttpClient()
 {
@@ -558,13 +602,14 @@ HttpRequest HttpClient::send(const QString &url, QNetworkAccessManager::Operatio
     return HttpRequest(op, this).url(url);
 }
 
-HttpResponse::HttpResponse(QNetworkReply *reply,
-                           const QMap<HandleType, QPair<QString, QVariant> > &m_handleMap,
-                           const int &timeout,
-                           bool isBlock,
-                           int retryCount)
-    : QObject(reply)
+HttpResponse::HttpResponse(HttpRequest::Params params) : QObject(params.reply)
 {
+    int timeout = params.timeout;
+    QNetworkReply *reply = params.reply;
+    auto handleMap = params.handleMap;
+    int retryCount = params.retry;
+    int isBlock = params.isBlock;
+
     new HttpResponseTimeout(this, timeout);
 
     connect(reply, SIGNAL(finished()), this, SLOT(onFinished()));
@@ -593,7 +638,7 @@ HttpResponse::HttpResponse(QNetworkReply *reply,
         }
     };
 
-    for (auto each : m_handleMap.toStdMap()) {
+    for (auto each : handleMap.toStdMap()) {
         HandleType key                 = each.first;
         QPair<QString, QVariant> value = each.second;
 
@@ -696,6 +741,11 @@ HttpResponse::HttpResponse(QNetworkReply *reply,
         QObject::connect(this, SIGNAL(finished()), &loop, SLOT(quit()));
         loop.exec();
     }
+}
+
+HttpResponse::~HttpResponse()
+{
+    _debugger << "destory: " << __FUNCTION__;
 }
 
 void HttpResponse::onFinished()
