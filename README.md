@@ -48,6 +48,29 @@ client.get("https://qthub.com")
       .timeout(1000) // 1s超时
       .exec();
 ```
+
+6. post上传文件并获取上传进度
+```cpp
+client.post("http://httpbin.org/post")
+      .bodyWithFile("text_file", "helloworld.txt")
+      .onUploadProgress([](qint64 bytesSent, qint64 bytesTotal) {
+          qDebug() << "lambda bytes sent: " << bytesSent
+                   << "bytes total: " << bytesTotal;
+       })
+      .onSuccess([](QString result) { qDebug()<<"result: " << result.left(100); })
+      .onFailed([](QString error) { qDebug()<<"error: " << error; })
+      .exec();
+```
+
+7. 由于Http是异步实现，我们需要同步时可以这样做
+```cpp
+client.get("https://qthub.com")
+      .onSuccess(this, SLOT(onSuccess(QString)))
+      .onFailed(this, SLOT(onFailed(QString)))
+      .block() // 阻塞同步操作
+      .exec(); // 执行Http操作
+```
+
 * 使用lambda特性
 ```cpp
 static HttpClient http;
