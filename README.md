@@ -1,5 +1,36 @@
-﻿# 示例
-1. 使用信号槽的方式实现成功与失败的事件处理
+﻿一个简单的使用例子
+```cpp
+HttpClient client;
+client.get("https://qthub.com")
+      .onSuccess([](QString result) { qDebug()<<"result:"<<result; })
+      .onFailed([](QString err) { qDebug()<<"error:"<<err; })
+      .exec();
+```
+
+# 1. 如何使用？
+* 采用head-only的方式实现。只需在你的工程中包含 src 目录的 HttpClient.hpp 文件即可。
+
+# 2. 使用文档
+
+## 2.1 使用信号槽的方式实现成功与失败的事件处理
+### 接口:
+* Http请求返回成功的信号槽绑定
+```cpp
+HttpRequest &onSuccess(const QObject *receiver, const char *method);
+HttpRequest &onSuccess(std::function<void (QNetworkReply*)> lambda);
+HttpRequest &onSuccess(std::function<void (QVariantMap)> lambda);
+HttpRequest &onSuccess(std::function<void (QByteArray)> lambda);
+```
+
+* Http请求返回失败的信号槽绑定
+```cpp
+HttpRequest &onFailed(const QObject *receiver, const char *method);
+HttpRequest &onFailed(std::function<void (QString)> lambda);
+HttpRequest &onFailed(std::function<void (QNetworkReply::NetworkError)> lambda);
+HttpRequest &onFailed(std::function<void (QNetworkReply*)> lambda);
+```
+
+### 例子:
 ```cpp
 static HttpClient client;
 client.get("https://qthub.com")
@@ -8,7 +39,23 @@ client.get("https://qthub.com")
       .exec(); // 执行Http操作
 ```
 
-2. 使用匿名函数的方式实现成功与失败的事件处理
+## 2.2 使用匿名函数的方式实现成功与失败的事件处理
+### 接口:
+* Http请求返回成功的回调事件
+```cpp
+HttpRequest &onSuccess(std::function<void (QNetworkReply*)> lambda);
+HttpRequest &onSuccess(std::function<void (QVariantMap)> lambda);
+HttpRequest &onSuccess(std::function<void (QByteArray)> lambda);
+```
+
+* Http请求返回失败的回调事件
+```cpp
+HttpRequest &onFailed(std::function<void (QString)> lambda);
+HttpRequest &onFailed(std::function<void (QNetworkReply::NetworkError)> lambda);
+HttpRequest &onFailed(std::function<void (QNetworkReply*)> lambda);
+```
+
+### 例子：
 ```cpp
 client.get("https://qthub.com")
       .onSuccess([](QString result) { qDebug()<<"result:"<<result.left(100); })
@@ -16,7 +63,13 @@ client.get("https://qthub.com")
       .exec();
 ```
 
-3. 以信号槽的方式获取下载进度
+## 2.3 以信号槽的方式获取下载进度
+### 接口:
+```cpp
+HttpRequest &onDownloadProgress(const QObject *receiver, const char *method);
+```
+
+### 例子:
 ```cpp
 client.get("https://qthub.com")
       .onSuccess(this, SLOT(onSuccess(QString)))
@@ -25,7 +78,14 @@ client.get("https://qthub.com")
       .exec();
 ```
 
-4. 以匿名函数的方式获取下载进度
+## 2.4 以匿名函数的方式获取下载进度
+
+### 接口:
+```cpp
+HttpRequest &onDownloadProgress(std::function<void (qint64, qint64)> lambda);
+```
+
+### 例子:
 ```cpp
 client.get("https://qthub.com")
       .onSuccess([](QString result) { qDebug()<<"result: " << result.left(10); })
@@ -37,19 +97,15 @@ client.get("https://qthub.com")
       .exec();
 ```
 
-5. 自定义超时时间和超时处理
-* timeout(ms)是设置超时时间，单位为毫秒(ms)。
-* onTimeout为超时回调，当超时事件触发，自动调用onTimeout回调。
+## 2.5 post 上传文件并获取上传进度
+
+### 接口:
 ```cpp
-client.get("https://qthub.com")
-      .onSuccess([](QString result) { qDebug()<<"result:"<<result.left(100); })
-      .onFailed([](QString error) { qDebug()<<"error:"<<error; })
-      .onTimeout([](QNetworkReply *) { qDebug()<<"timeout"; })
-      .timeout(1000) // 1s超时
-      .exec();
+HttpRequest &onUploadProgress(const QObject *receiver, const char *method);
+HttpRequest &onUploadProgress(std::function<void (qint64, qint64)> lambda);
 ```
 
-6. post上传文件并获取上传进度
+### 例子:
 ```cpp
 client.post("http://httpbin.org/post")
       .bodyWithFile("text_file", "helloworld.txt")
@@ -62,7 +118,43 @@ client.post("http://httpbin.org/post")
       .exec();
 ```
 
-7. 由于Http是异步实现，我们需要同步时可以这样做
+## 2.6 自定义超时时间和超时处理
+
+- timeout(ms)是设置超时时间，单位为毫秒(ms)。
+- onTimeout 为超时回调，当超时事件触发，自动调用 onTimeout 回调。
+
+### 接口:
+* 设置超时时间
+```cpp
+HttpRequest &timeout(const int &msec = -1);
+```
+
+* 设置超时的回调函数
+```cpp
+HttpRequest &onTimeout(const QObject *receiver, const char *method);
+HttpRequest &onTimeout(std::function<void (QNetworkReply*)> lambda);
+HttpRequest &onTimeout(std::function<void ()> lambda);
+```
+
+### 例子:
+```cpp
+client.get("https://qthub.com")
+      .onSuccess([](QString result) { qDebug()<<"result:"<<result.left(100); })
+      .onFailed([](QString error) { qDebug()<<"error:"<<error; })
+      .onTimeout([](QNetworkReply *) { qDebug()<<"timeout"; }) // 超时处理
+      .timeout(1000) // 1s超时
+      .exec();
+```
+
+
+## 2.7 由于 HttpClient 是异步实现，我们需要同步时可以这样做
+
+### 接口:
+```cpp
+HttpRequest &block();
+```
+
+### 例子:
 ```cpp
 client.get("https://qthub.com")
       .onSuccess(this, SLOT(onSuccess(QString)))
@@ -71,83 +163,210 @@ client.get("https://qthub.com")
       .exec(); // 执行Http操作
 ```
 
-* 使用lambda特性
+## 2.8 添加 header
+
+### 接口:
+
 ```cpp
-static HttpClient http;
-http.post("https://example.com")
-    .header("content-type", "application/json")
-    .queryParam("key", "Hello world!")
-    .body(R"({"user": "test"})")
-    .onResponse([](QByteArray result) { /* 接收数据 */
-        qDebug() << "Result: " << result;
-     })
-    .onResponse([](qint64 recv, qint64 total) { /* 接收进度 */
-        qDebug() << "Total: " << total << "; Received: " << recv;
-     })
-    .onError([](QString errorStr) { /* 错误处理 */
-        qDebug()<<"Error: "<<errorStr;
-     })
-    .timeout(30 * 1000) /* 超时操作(30s) */
-    .block() /* 阻塞操作 */
-    .exec();
+HttpRequest &header(const QString &key, const QVariant &value);
+HttpRequest &headers(const QMap<QString, QVariant> &headers);
 ```
 
-* 使用Qt信号与槽特性
+### 例子:
+
 ```cpp
-http.post("https://example.com")
-    .header("content-type", "application/json")
-    .queryParam("key", "Hello world!")
-    .body(R"({"user": "test"})")
-    .onResponse(this, SLOT(finish(QByteArray)))
-    .onResponse(this, SLOT(downloadProgress(qint64, qint64)))
-    .onError(this, SLOT(error(QString)))
-    .timeout(30 * 1000) /* 超时操作(30s) */
-    .block() /* 阻塞操作 */
-    .exec();
+client.post("https://example.com")
+      .header("content-type", "application/json")
+      .queryParam("key", "Hello world!")
+      .body(R"({"user": "test"})")
+      .onSuccess([](QString result){})
+      .onFailed([](QString error){})
+      .exec();
 ```
 
-(2) 复杂示例
+## 添加 params
+
+### 接口:
+
 ```cpp
-/* 获取音乐url功能，请求嵌套请求 */
-static HttpService http;
-http.get("http://mobilecdn.kugou.com/api/v3/search/song")
-    .queryParam("format", "json")
-    .queryParam("keyword", "稻香")
-    .queryParam("page", 1)
-    .queryParam("pagesize", 3)
-    .queryParam("showtype", 1)
-    .onResopnse([](QVariantMap result){
-        QVariantMap data;
-        QList<QVariant> infos;
-        if (!result.isEmpty())
-            data = result.value("data").toMap();
-
-        if (!data.isEmpty())
-            infos = data.value("info").toList();
-
-        static HttpService http;
-        foreach (QVariant each, infos) {
-            http.get("http://m.kugou.com/app/i/getSongInfo.php")
-                .queryParam("cmd", "playInfo")
-                .queryParam("hash", each.toMap()["hash"])
-                .onResopnse([](QVariantMap result){
-                    qDebug()<<"mp3: "<<result["url"].toString();
-                 })
-                .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
-                .exec();
-        }
-    })
-    .onError([](QString errorStr){ qDebug()<<"Error: "<<errorStr; })
-    .exec();
+HttpRequest &queryParam(const QString &key, const QVariant &value);
+HttpRequest &queryParams(const QMap<QString, QVariant> &params);
 ```
-## 1.如何使用？
-* 在其工程包含src目录的HttpClient.hpp文件即可;
 
-## 2.如何启用demo测试？
-* 在QtNetworkService.pro文件中将"#DEFINES += QT_APP_MODE"这一行的#去除即可转为可执行文件形式，在Demo目录的main.cpp为主执行文件，如需要测试接口编辑便可。
+### 例子:
 
-## 3.扫码关注，第一时间获取推送
+```cpp
+client.get("https://example.com")
+      .queryParam("key1", "value1")
+      .queryParam("key2", "value2")
+      .queryParam("key3", "value3")
+      .onSuccess([](QString result){})
+      .onFailed([](QString error){})
+      .exec();
+```
+
+上面代码等同于:
+
+```cpp
+client.get("https://example.com?key1=value1&key2=value2&key3=value3")
+      .onSuccess([](QString result){})
+      .onFailed([](QString error){})
+```
+
+## 2.9 添加 body
+
+### 接口:
+
+- 原始数据
+
+```cpp
+HttpRequest &body(const QByteArray &raw);
+HttpRequest &bodyWithRaw(const QByteArray &raw);
+```
+
+- json 数据
+
+```cpp
+HttpRequest &body(const QJsonObject &json);
+HttpRequest &bodyWithJson(const QJsonObject &json);
+```
+
+- 表单数据
+
+```cpp
+HttpRequest &body(const QVariantMap &formUrlencodedMap);
+HttpRequest &bodyWithFormUrlencoded(const QVariantMap &keyValueMap);
+```
+
+- 混合消息
+
+```cpp
+HttpRequest &body(QHttpMultiPart *multiPart);
+HttpRequest &bodyWithMultiPart(QHttpMultiPart *multiPart);
+```
+
+- 文件消息
+
+```cpp
+HttpRequest &body(const QString &key, const QString &file);
+HttpRequest &bodyWithFile(const QString &key, const QString &file);
+HttpRequest &bodyWithFile(const QMap<QString/*key*/, QString/*file*/> &fileMap);
+```
+
+### 例子:
+
+#### 发送原始数据
+
+```cpp
+client.post("http://httpbin.org/post")
+      .body("hello world")
+      .onSuccess([](QString result){qDebug()<<result;})
+      .onFailed([](QString error){qDebug()<<error;})
+      .exec();
+```
+
+#### 发送 json 数据
+
+```cpp
+QJsonObject json
+{
+    {"property1", 1},
+    {"property2", 2}
+};
+
+client.post("http://httpbin.org/post")
+      .body(json)
+      .onSuccess([](QString result){qDebug()<<result;})
+      .onFailed([](QString error){qDebug()<<error;})
+      .exec();
+```
+
+#### 发送表单数据
+
+```cpp
+QVariantMap map
+{
+    {"property1", 1},
+    {"property2", 2}
+};
+
+client.post("http://httpbin.org/post")
+      .body(map)
+      .onSuccess([](QString result){qDebug()<<result;})
+      .onFailed([](QString error){qDebug()<<error;})
+      .exec();
+```
+
+#### 发送混合消息
+
+```cpp
+    QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+
+    QFile *file = new QFile("demo.txt");
+    file->open(QIODevice::ReadOnly);
+    file->setParent(multiPart);
+
+    QString dispositionHeader = QString("form-data; name=\"%1\";filename=\"%2\"")
+            .arg("text_file")
+            .arg(file->fileName());
+
+    QHttpPart part;
+    part.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("text/plain"));
+    part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
+    part.setBodyDevice(file);
+
+    multiPart->append(part);
+
+    QString contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
+
+HttpClient client;
+client.post("http://httpbin.org/post")
+      .header("content-type", contentType)
+      .body(multiPart)
+      .onSuccess([](QString result){ qDebug()<<result.left(1000); })
+      .onFailed([](QString error){ qDebug()<<error; })
+      .exec();
+```
+
+#### 发送文件
+
+```cpp
+HttpClient client;
+client.post("http://httpbin.org/post")
+      .body("text_file", "demo.txt")
+      .body("image_file", "demo.jpg")
+      .onSuccess([](QString result){ qDebug()<<result.left(1000); })
+      .onFailed([](QString error){ qDebug()<<error; })
+      .exec();
+```
+
+## 2.10 携带特定的用户数据到响应回调函数
+
+### 接口:
+
+```cpp
+HttpRequest &userAttribute(const QVariant &value);
+```
+
+### 例子:
+
+```cpp
+client.get("http://httpbin.org/get")
+      .userAttribute("Hello world!")
+      .onSuccess([](QNetworkReply *reply) {
+            QVariant value = reply->request().attribute(QNetworkRequest::User);
+            qDebug()<< value.toString();
+       })
+      .onFailed([](QString error){ qDebug()<<error; })
+      .exec();
+```
+
+# 3. 扫码关注微信公众号:Qt 君，第一时间获取推送。
+
 <p align="center">
   <img src="http://www.qtbig.com/about/index/my_qrcode.jpg" alt="微信公众号:Qt君">
   <p align="center"><em>Qt君</em></p>
 </p>
+
+# 源码地址
+https://github.com/aeagean/QtNetworkService
