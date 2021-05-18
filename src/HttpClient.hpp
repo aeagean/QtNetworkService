@@ -168,13 +168,10 @@ public:
     inline HttpRequest &onReadyRead(const QObject *receiver, const char *method);
     inline HttpRequest &onReadyRead(std::function<void (QNetworkReply*)> lambda);
 
-    // [0]todo do notthing
-
-    // do nothing. todo
+    // [0] do nothing. todo
     inline HttpRequest &retry(int count);
-
-    // do nothing. todo
     inline HttpRequest &repeat(int count);
+    // [0] do nothing. todo
 
     /**
      * @brief Block current thread, entering an event loop.
@@ -263,7 +260,7 @@ signals:
     void downloadFinished(QString file);
 
     void downloadError();
-    void downloadError(QString file);
+    void downloadError(QString errorString);
 
 private slots:
     inline void onFinished();
@@ -1121,16 +1118,16 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
 {
     QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
 
-    if (m_downloadFile.isOpen()) {
-        emit downloadError();
-        emit downloadError(m_downloadFile.fileName());
-
-        m_downloadFile.close();
-    }
-
     const QMetaObject & metaObject = QNetworkReply::staticMetaObject;
     QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
     QString errorString = reply->errorString().isEmpty() ? metaEnum.valueToKey(error) : reply->errorString();
+
+    if (m_downloadFile.isOpen()) {
+        emit downloadError();
+        emit downloadError(errorString + " file: " + m_downloadFile.fileName());
+
+        m_downloadFile.close();
+    }
 
     if (this->receivers(SIGNAL(error(QNetworkReply*))) > 0) {
         emit this->error(reply);
@@ -1179,8 +1176,11 @@ void HttpResponse::onReadyRead()
         if (m_downloadFile.isOpen()){
             int size = m_downloadFile.write(reply->readAll());
             if (size == -1) {
+                QString error = QString("Url: %1 %2 Non-Writable")
+                                .arg(m_params.request.url().toString())
+                                .arg(m_downloadFile.fileName());
                 emit downloadError();
-                emit downloadError(m_downloadFile.fileName());
+                emit downloadError(error);
             }
         }
         else {
@@ -1222,10 +1222,11 @@ void HttpResponse::onReadOnceReplyHeader()
     m_downloadFile.setFileName(fileName);
 
     if (!m_downloadFile.open(QIODevice::WriteOnly)) {
-        _debugger << "Url: " << m_params.request.url().toString()
-                  <<  fileName << "Non-Writable";
+        QString error = QString("Url: %1 %2 Non-Writable")
+                .arg(m_params.request.url().toString())
+                .arg(m_downloadFile.fileName());
         emit downloadError();
-        emit downloadError(fileName);
+        emit downloadError(error);
     }
     else {
         // todo startDownload

@@ -198,6 +198,7 @@ int main(int argc, char *argv[])
     HttpClient client;
     client.post("http://httpbin.org/post")
           .body("hello world")
+          .download()
           .onSuccess([](QString result){qDebug()<<result;})
           .onFailed([](QString error){qDebug()<<error;})
           .exec();
