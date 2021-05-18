@@ -76,6 +76,11 @@ public:
     inline virtual ~HttpRequest();
 
     inline HttpRequest &url(const QString &url);
+
+    // todo
+    inline HttpRequest &header(QNetworkRequest::KnownHeaders header, const QVariant &value);
+    inline HttpRequest &headers(const QMap<QNetworkRequest::KnownHeaders, QVariant> &headers);
+    // todo
     inline HttpRequest &header(const QString &key, const QVariant &value);
     inline HttpRequest &headers(const QMap<QString, QVariant> &headers);
 
@@ -105,15 +110,26 @@ public:
     inline HttpRequest &bodyWithFile(const QMap<QString/*key*/, QString/*file*/> &fileMap); // => QMap<key, file>; like: { "key": "/home/example/car.jpeg" }
 
     // onFinished == onSuccess
-    inline HttpRequest &onFinished(const QObject *receiver, const char *methoc);
+    inline HttpRequest &onSuccess(const QObject *receiver, const char *method);
+    inline HttpRequest &onSuccess(std::function<void (QNetworkReply*)> lambda);
+    inline HttpRequest &onSuccess(std::function<void (QVariantMap)> lambda);
+    inline HttpRequest &onSuccess(std::function<void (QByteArray)> lambda);
+
+    // onFinished == onSuccess
+    inline HttpRequest &onFinished(const QObject *receiver, const char *method);
     inline HttpRequest &onFinished(std::function<void (QNetworkReply*)> lambda);
     inline HttpRequest &onFinished(std::function<void (QVariantMap)> lambda);
     inline HttpRequest &onFinished(std::function<void (QByteArray)> lambda);
 
+    // onResponse == onSuccess
+    inline HttpRequest &onResponse(const QObject *receiver, const char *method);
+    inline HttpRequest &onResponse(std::function<void (QNetworkReply*)> lambda);
+    inline HttpRequest &onResponse(std::function<void (QVariantMap)> lambda);
+    inline HttpRequest &onResponse(std::function<void (QByteArray)> lambda);
+
     inline HttpRequest &onDownloadProgress(const QObject *receiver, const char *method);
     inline HttpRequest &onDownloadProgress(std::function<void (qint64, qint64)> lambda);
 
-    // todo
     inline HttpRequest &onUploadProgress(const QObject *receiver, const char *method);
     inline HttpRequest &onUploadProgress(std::function<void (qint64, qint64)> lambda);
 
@@ -122,12 +138,6 @@ public:
     inline HttpRequest &onError(std::function<void (QString)> lambda);
     inline HttpRequest &onError(std::function<void (QNetworkReply::NetworkError)> lambda);
     inline HttpRequest &onError(std::function<void (QNetworkReply*)> lambda);
-
-    // onFinished == onSuccess
-    inline HttpRequest &onSuccess(const QObject *receiver, const char *method);
-    inline HttpRequest &onSuccess(std::function<void (QNetworkReply*)> lambda);
-    inline HttpRequest &onSuccess(std::function<void (QVariantMap)> lambda);
-    inline HttpRequest &onSuccess(std::function<void (QByteArray)> lambda);
 
     // onError == onFailed
     inline HttpRequest &onFailed(const QObject *receiver, const char *method);
@@ -140,6 +150,7 @@ public:
      *        msec >  0, enable timeout
      */
     inline HttpRequest &timeout(const int &msec = -1);
+
     inline HttpRequest &onTimeout(const QObject *receiver, const char *method);
     inline HttpRequest &onTimeout(std::function<void (QNetworkReply*)> lambda);
     inline HttpRequest &onTimeout(std::function<void ()> lambda);
@@ -147,6 +158,7 @@ public:
     // [0]todo do notthing
     inline HttpRequest &download();
     inline HttpRequest &download(const QString &file);
+
     inline HttpRequest &onDownloadSuccess(const QObject *receiver, const char *method);
     inline HttpRequest &onDownloadSuccess(std::function<void ()> lambda);
     inline HttpRequest &onDownloadSuccess(std::function<void (QString)> lambda);
@@ -207,7 +219,7 @@ public:
             retry = (0);
             timeout = (-1);
             body = qMakePair(BodyType::None, QByteArray());
-            downloadFile = qMakePair(DownloadEnabled::Enabled, QString(""));
+            downloadFile = qMakePair(DownloadEnabled::Disabled, QString(""));
         }
     };
 
@@ -262,6 +274,7 @@ private slots:
     inline void onUploadProgress(qint64 bytesSent, qint64 bytesTotal);
     inline void onTimeout();
     inline void onReadyRead();
+    inline void onReadOnceReplyHeader();
 
 private:
     HttpRequest::Params m_params;
@@ -394,8 +407,40 @@ HttpRequest &HttpRequest::download()
 
 HttpRequest &HttpRequest::download(const QString &file)
 {
+    this->attribute(QNetworkRequest::FollowRedirectsAttribute, true);
+
     m_params.downloadFile = qMakePair(Params::DownloadEnabled::Enabled, file);
     return *this;
+}
+
+HttpRequest &HttpRequest::onDownloadSuccess(const QObject *receiver, const char *method)
+{
+    return onResponse(h_onDownloadSuccess, receiver, method);
+}
+
+HttpRequest &HttpRequest::onDownloadSuccess(std::function<void ()> lambda)
+{
+    return onResponse(h_onDownloadSuccess, QVariant::fromValue(lambda));
+}
+
+HttpRequest &HttpRequest::onDownloadSuccess(std::function<void (QString)> lambda)
+{
+    return onResponse(h_onDownloadSuccess, QVariant::fromValue(lambda));
+}
+
+HttpRequest &HttpRequest::onDownloadFailed(const QObject *receiver, const char *method)
+{
+    return onResponse(h_onDownloadFailed, receiver, method);
+}
+
+HttpRequest &HttpRequest::onDownloadFailed(std::function<void ()> lambda)
+{
+    return onResponse(h_onDownloadFailed, QVariant::fromValue(lambda));
+}
+
+HttpRequest &HttpRequest::onDownloadFailed(std::function<void (QString)> lambda)
+{
+    return onResponse(h_onDownloadFailed, QVariant::fromValue(lambda));
 }
 
 HttpRequest &HttpRequest::onReadyRead(const QObject *receiver, const char *method)
@@ -567,6 +612,26 @@ HttpRequest &HttpRequest::block()
     return *this;
 }
 
+HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *method)
+{
+    return onResponse(h_onFinished, receiver, method);
+}
+
+HttpRequest &HttpRequest::onResponse(std::function<void (QNetworkReply*)> lambda)
+{
+    return onResponse(h_onFinished, QVariant::fromValue(lambda));
+}
+
+HttpRequest &HttpRequest::onResponse(std::function<void (QVariantMap)> lambda)
+{
+    return onResponse(h_onFinished, QVariant::fromValue(lambda));
+}
+
+HttpRequest &HttpRequest::onResponse(std::function<void (QByteArray)> lambda)
+{
+    return onResponse(h_onFinished, QVariant::fromValue(lambda));
+}
+
 HttpRequest &HttpRequest::onResponse(HandleType type, QVariant lambda)
 {
     m_params.handleMap.insert(type, {lambda.typeName(), lambda});
@@ -629,8 +694,9 @@ HttpResponse *HttpRequest::exec()
 #endif
 
     static QMap<QNetworkAccessManager::Operation, QByteArray> verbMap = {
-        {QNetworkAccessManager::GetOperation, "GET"},
+        {QNetworkAccessManager::GetOperation,  "GET"},
         {QNetworkAccessManager::PostOperation, "POST"},
+        {QNetworkAccessManager::PutOperation,  "PUT"},
     };
 
     if (!verbMap.contains(m_params.op)) {
@@ -784,6 +850,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params)
     connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
     connect(reply, SIGNAL(downloadProgress(qint64, qint64)),   this, SLOT(onDownloadProgress(qint64, qint64)));
     connect(reply, SIGNAL(uploadProgress(qint64, qint64)),     this, SLOT(onUploadProgress(qint64, qint64)));
+    connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadOnceReplyHeader()));
     connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadyRead()));
 
     auto func = [&](const QStringList &signalsList,
@@ -994,21 +1061,6 @@ HttpResponse::HttpResponse(HttpRequest::Params params)
         }
     }
 
-    if (m_params.downloadFile.first == HttpRequest::Params::Enabled) {
-        QString fileName = m_params.downloadFile.second;
-        if (fileName.isEmpty()) {
-            fileName = m_params.request.url().fileName();
-        }
-
-        m_downloadFile.setFileName(fileName);
-        if (m_downloadFile.open(QIODevice::WriteOnly)) {
-            _debugger << "Url: " << m_params.request.url().toString()
-                      <<  fileName << "Non-Writable";
-            emit downloadError();
-            emit downloadError(fileName);
-        }
-    }
-
     if (isBlock) {
         QEventLoop loop;
         QObject::connect(this, SIGNAL(finished()), &loop, SLOT(quit()));
@@ -1027,11 +1079,12 @@ void HttpResponse::onFinished()
     if (reply->error() != QNetworkReply::NoError)
         return;
 
-    // todo
-//    if ()
-//    emit downloadFinished();
+    if (m_downloadFile.isOpen()) {
+        emit downloadFinished();
+        emit downloadFinished(m_downloadFile.fileName());
 
-//    emit downloadFinished(reply);
+        m_downloadFile.close();
+    }
 
     if (this->receivers(SIGNAL(finished(QNetworkReply*))) > 0) {
         emit finished(reply);
@@ -1052,6 +1105,13 @@ void HttpResponse::onFinished()
 void HttpResponse::onError(QNetworkReply::NetworkError error)
 {
     QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+
+    if (m_downloadFile.isOpen()) {
+        emit downloadError();
+        emit downloadError(m_downloadFile.fileName());
+
+        m_downloadFile.close();
+    }
 
     const QMetaObject & metaObject = QNetworkReply::staticMetaObject;
     QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
@@ -1099,7 +1159,62 @@ void HttpResponse::onTimeout()
 void HttpResponse::onReadyRead()
 {
     QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+
+    if (m_params.downloadFile.first == HttpRequest::Params::Enabled) {
+        if (m_downloadFile.isOpen()){
+            int size = m_downloadFile.write(reply->readAll());
+            if (size == -1) {
+                emit downloadError();
+                emit downloadError(m_downloadFile.fileName());
+            }
+        }
+        else {
+            // do nothing
+        }
+    }
+    else {
+        // do nothing
+    }
+
     emit readyRead(reply);
+}
+
+void HttpResponse::onReadOnceReplyHeader()
+{
+    if (m_params.downloadFile.first != HttpRequest::Params::DownloadEnabled::Enabled)
+        return;
+
+    QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+    disconnect(reply, SIGNAL(readyRead()), this, SLOT(onReadOnceReplyHeader()));
+
+    QString fileName = m_params.downloadFile.second;
+    if (fileName.isEmpty()) {
+        // fixme utf8
+        QString dispositionHeader = QString::fromUtf8(reply->header(QNetworkRequest::ContentDispositionHeader).toByteArray());
+
+        // fixme rx
+        QRegExp rx("attachment;\\sfilename=([\\S]+)");
+        if (rx.exactMatch(dispositionHeader)) {
+            fileName = rx.cap(1);
+        }
+        else {
+            fileName = m_params.request.url().fileName();
+        }
+
+        _debugger << "start downloading: url:" << reply->url().toString() << "fileName: " << fileName;
+    }
+
+    m_downloadFile.setFileName(fileName);
+
+    if (!m_downloadFile.open(QIODevice::WriteOnly)) {
+        _debugger << "Url: " << m_params.request.url().toString()
+                  <<  fileName << "Non-Writable";
+        emit downloadError();
+        emit downloadError(fileName);
+    }
+    else {
+        // todo startDownload
+    }
 }
 
 }
