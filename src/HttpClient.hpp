@@ -262,6 +262,10 @@ private slots:
     inline void onUploadProgress(qint64 bytesSent, qint64 bytesTotal);
     inline void onTimeout();
     inline void onReadyRead();
+
+private:
+    HttpRequest::Params m_params;
+    QFile               m_downloadFile;
 };
 
 class HttpResponseTimeout : public QObject {
@@ -764,7 +768,9 @@ HttpRequest HttpClient::send(const QString &url, QNetworkAccessManager::Operatio
     return HttpRequest(op, this).url(url);
 }
 
-HttpResponse::HttpResponse(HttpRequest::Params params) : QObject(params.reply)
+HttpResponse::HttpResponse(HttpRequest::Params params)
+    : QObject(params.reply),
+      m_params(params)
 {
     int timeout = params.timeout;
     QNetworkReply *reply = params.reply;
@@ -988,6 +994,21 @@ HttpResponse::HttpResponse(HttpRequest::Params params) : QObject(params.reply)
         }
     }
 
+    if (m_params.downloadFile.first == HttpRequest::Params::Enabled) {
+        QString fileName = m_params.downloadFile.second;
+        if (fileName.isEmpty()) {
+            fileName = m_params.request.url().fileName();
+        }
+
+        m_downloadFile.setFileName(fileName);
+        if (m_downloadFile.open(QIODevice::WriteOnly)) {
+            _debugger << "Url: " << m_params.request.url().toString()
+                      <<  fileName << "Non-Writable";
+            emit downloadError();
+            emit downloadError(fileName);
+        }
+    }
+
     if (isBlock) {
         QEventLoop loop;
         QObject::connect(this, SIGNAL(finished()), &loop, SLOT(quit()));
@@ -1005,6 +1026,12 @@ void HttpResponse::onFinished()
     QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
     if (reply->error() != QNetworkReply::NoError)
         return;
+
+    // todo
+//    if ()
+//    emit downloadFinished();
+
+//    emit downloadFinished(reply);
 
     if (this->receivers(SIGNAL(finished(QNetworkReply*))) > 0) {
         emit finished(reply);
