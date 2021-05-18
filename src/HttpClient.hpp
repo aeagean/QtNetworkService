@@ -77,12 +77,10 @@ public:
 
     inline HttpRequest &url(const QString &url);
 
-    // todo
-    inline HttpRequest &header(QNetworkRequest::KnownHeaders header, const QVariant &value);
-    inline HttpRequest &headers(const QMap<QNetworkRequest::KnownHeaders, QVariant> &headers);
-    // todo
     inline HttpRequest &header(const QString &key, const QVariant &value);
+    inline HttpRequest &header(QNetworkRequest::KnownHeaders header, const QVariant &value);
     inline HttpRequest &headers(const QMap<QString, QVariant> &headers);
+    inline HttpRequest &headers(const QMap<QNetworkRequest::KnownHeaders, QVariant> &headers);
 
     inline HttpRequest &queryParam(const QString &key, const QVariant &value);
     inline HttpRequest &queryParams(const QMap<QString, QVariant> &params);
@@ -320,6 +318,23 @@ HttpRequest &HttpRequest::url(const QString &url)
 {
     m_params.request.setUrl(QUrl(url));
     return *this;
+}
+
+HttpRequest &HttpRequest::header(QNetworkRequest::KnownHeaders header, const QVariant &value)
+{
+    m_params.request.setHeader(header, value);
+    return *this;
+}
+
+HttpRequest &HttpRequest::headers(const QMap<QNetworkRequest::KnownHeaders, QVariant> &headers)
+{
+   QMapIterator<QNetworkRequest::KnownHeaders, QVariant> iter(headers);
+   while (iter.hasNext()) {
+       iter.next();
+       header(iter.key(), iter.value());
+   }
+
+   return *this;
 }
 
 HttpRequest &HttpRequest::header(const QString &key, const QVariant &value)
