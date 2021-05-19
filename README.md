@@ -361,6 +361,42 @@ client.get("http://httpbin.org/get")
       .exec();
 ```
 
+## 2.11 下载文件
+### 接口:
+* 设置下载操作
+```cpp
+/* 保存为默认的文件名，会从请求头去拿文件名字，如果请求头没有则为链接最后的文本内容。*/
+HttpRequest &download();
+
+/* 指定保存的文件名字,可包含路径。*/
+HttpRequest &download(const QString &file);
+```
+
+* 响应回调/信号槽
+```cpp
+HttpRequest &onDownloadSuccess(const QObject *receiver, const char *method);
+HttpRequest &onDownloadSuccess(std::function<void ()> lambda);
+HttpRequest &onDownloadSuccess(std::function<void (QString)> lambda);
+
+HttpRequest &onDownloadFailed(const QObject *receiver, const char *method);
+HttpRequest &onDownloadFailed(std::function<void ()> lambda);
+HttpRequest &onDownloadFailed(std::function<void (QString)> lambda);
+```
+
+### 例子:
+```cpp
+client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
+      .download() // 启用默认文件名字下载
+      .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
+          // 下载进度
+          qDebug() << "bytes received: " << bytesReceived
+                   << "bytes total: " << bytesTotal;
+       })
+      .onDownloadSuccess([](QString fileName) { qDebug()<<"download success: "<<fileName; })
+      .onDownloadFailed([](QString error) { qDebug()<<"download failed: "<<error; })
+      .exec();
+```
+
 # 3. 扫码关注微信公众号:Qt 君，第一时间获取推送。
 
 <p align="center">

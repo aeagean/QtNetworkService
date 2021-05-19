@@ -11,13 +11,13 @@ QT -= gui
 
 CONFIG += c++11
 
-#DEFINES += QT_APP_DEBUG
+DEFINES += QT_APP_DEBUG
 DEFINES += QT_APP_MODE
 
 contains(DEFINES, QT_APP_MODE) {
     SOURCES += demo/main.cpp
 
-    message(" ================ QtNetworkService APPLICATION ================ ")
+    message(" ================ QtNetworkService Application ================ ")
 }
 else {
     CONFIG += staticlib

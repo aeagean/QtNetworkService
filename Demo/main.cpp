@@ -76,16 +76,16 @@ public:
         // [5]
 
         // [6] post文件
-    client.post("http://httpbin.org/post")
-          .bodyWithFile("text_file", "helloworld.txt")
-          .bodyWithFile("image_file", "qt.jpg")
-          .onUploadProgress([](qint64 bytesSent, qint64 bytesTotal) {
-              qDebug() << "lambda bytes sent: " << bytesSent
-                       << "bytes total: " << bytesTotal;
-           })
-          .onSuccess([](QString result) { qDebug()<<"result: " << result.left(100); })
-          .onFailed([](QString error) { qDebug()<<"error: " << error; })
-          .exec();
+        client.post("http://httpbin.org/post")
+              .bodyWithFile("text_file", "helloworld.txt")
+              .bodyWithFile("image_file", "qt.jpg")
+              .onUploadProgress([](qint64 bytesSent, qint64 bytesTotal) {
+                  qDebug() << "lambda bytes sent: " << bytesSent
+                           << "bytes total: " << bytesTotal;
+               })
+              .onSuccess([](QString result) { qDebug()<<"result: " << result.left(100); })
+              .onFailed([](QString error) { qDebug()<<"error: " << error; })
+              .exec();
         // [6]
 
         // [7] readyRead测试
@@ -96,21 +96,7 @@ public:
               .exec();
         // [7]
 
-        // [8] 下载文件
-        // client.get("https://down.sandai.net/thunder11/XunLeiWebSetup11.1.12.1692gw.exe")
-        client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
-              .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
-                  qDebug() << "lambda bytes received: " << bytesReceived
-                           << "bytes total: " << bytesTotal;
-               })
-              .download()
-              .onDownloadSuccess([](QString fileName) { qDebug()<<"download success: "<<fileName; })
-              .onDownloadFailed([](QString fileName) { qDebug()<<"download failed: "<<fileName; })
-              .onFailed([](QString error) { qDebug()<<"error:"<<error; })
-              .exec();
-        // [8]
-
-        // [9] 上传文件
+        // [8] 上传文件
         QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
         QString contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
 
@@ -135,9 +121,9 @@ public:
               .onSuccess([](QString result){})
               .onFailed([](QString error){})
               .exec();
-        // [9]
+        // [8]
 
-        // [10] 携带特定的用户数据到响应回调函数
+        // [9] 携带特定的用户数据到响应回调函数
         client.get("http://httpbin.org/get")
               .userAttribute("Hello world!")
               .onSuccess([](QNetworkReply *reply) {
@@ -147,6 +133,18 @@ public:
               .onFailed([](QString error){ qDebug()<<error; })
               .exec();
 
+        // [9]
+
+        // [10] 下载文件
+        client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
+              .download()
+              .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
+                  qDebug() << "bytes received: " << bytesReceived
+                           << "bytes total: " << bytesTotal;
+               })
+              .onDownloadSuccess([](QString fileName) { qDebug()<<"download success: "<<fileName; })
+              .onDownloadFailed([](QString error) { qDebug()<<"download failed: "<<error; })
+              .exec();
         // [10]
     }
 
@@ -196,12 +194,15 @@ int main(int argc, char *argv[])
     Object object;
 #else
     HttpClient client;
-    client.post("http://httpbin.org/post")
-          .body("hello world")
-          .download()
-          .onSuccess([](QString result){qDebug()<<result;})
-          .onFailed([](QString error){qDebug()<<error;})
-          .exec();
+        client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
+              .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
+                  qDebug() << "bytes received: " << bytesReceived
+                           << "bytes total: " << bytesTotal;
+               })
+              .download()
+              .onDownloadSuccess([](QString fileName) { qDebug()<<"download success: "<<fileName; })
+              .onDownloadFailed([](QString error) { qDebug()<<"download failed: "<<error; })
+              .exec();
 
 #endif
 

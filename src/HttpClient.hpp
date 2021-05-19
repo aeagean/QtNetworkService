@@ -98,7 +98,6 @@ public:
     inline HttpRequest &body(const QVariantMap &formUrlencodedMap);
     inline HttpRequest &bodyWithFormUrlencoded(const QVariantMap &keyValueMap);
 
-    // test address: https://httpbin.org/post
     inline HttpRequest &body(QHttpMultiPart *multiPart);
     inline HttpRequest &bodyWithMultiPart(QHttpMultiPart *multiPart);
 
@@ -119,7 +118,7 @@ public:
     inline HttpRequest &onFinished(std::function<void (QVariantMap)> lambda);
     inline HttpRequest &onFinished(std::function<void (QByteArray)> lambda);
 
-    // onResponse == onSuccess
+    // onResponse == onSuccess. note: DEPRECATED
     inline HttpRequest &onResponse(const QObject *receiver, const char *method);
     inline HttpRequest &onResponse(std::function<void (QNetworkReply*)> lambda);
     inline HttpRequest &onResponse(std::function<void (QVariantMap)> lambda);
@@ -153,7 +152,6 @@ public:
     inline HttpRequest &onTimeout(std::function<void (QNetworkReply*)> lambda);
     inline HttpRequest &onTimeout(std::function<void ()> lambda);
 
-    // [0]todo do notthing
     inline HttpRequest &download();
     inline HttpRequest &download(const QString &file);
 
@@ -1122,9 +1120,14 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
     QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
     QString errorString = reply->errorString().isEmpty() ? metaEnum.valueToKey(error) : reply->errorString();
 
-    if (m_downloadFile.isOpen()) {
+    if (m_params.downloadFile.first == HttpRequest::Params::DownloadEnabled::Enabled) {
+        QString error = QString("Url: %1 file: %2 error: %3")
+                .arg(m_params.request.url().toString()) // fixme
+                .arg(m_downloadFile.fileName())
+                .arg(errorString);
+
         emit downloadError();
-        emit downloadError(errorString + " file: " + m_downloadFile.fileName());
+        emit downloadError(error);
 
         m_downloadFile.close();
     }
@@ -1176,7 +1179,7 @@ void HttpResponse::onReadyRead()
         if (m_downloadFile.isOpen()){
             int size = m_downloadFile.write(reply->readAll());
             if (size == -1) {
-                QString error = QString("Url: %1 %2 Non-Writable")
+                QString error = QString("Url: %1 %2 Write failed!")
                                 .arg(m_params.request.url().toString())
                                 .arg(m_downloadFile.fileName());
                 emit downloadError();
