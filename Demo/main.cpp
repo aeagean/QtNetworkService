@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
     Object object;
 #else
     HttpClient client;
-        client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip1")
+        client.get("2https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
               .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
                   qDebug() << "bytes received: " << bytesReceived
                            << "bytes total: " << bytesTotal;
@@ -202,6 +202,8 @@ int main(int argc, char *argv[])
               .download()
               .retry(2)
               .onRetried([](){qDebug()<<"retried!";})
+              .repeat(3)
+              .onRepeated([](){qDebug()<<"repeated!";})
               .onDownloadSuccess([](QString fileName) { qDebug()<<"download success: "<<fileName; })
               .onDownloadFailed([](QString error) { qDebug()<<"download failed: "<<error; })
               .exec();

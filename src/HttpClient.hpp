@@ -48,7 +48,8 @@ enum HandleType {
     h_onRedirectAllowed,
     h_onRedirected,
     h_onSslErrors,
-    h_onRetried
+    h_onRetried,
+    h_onRepeated
 };
 
 class HttpClient;
@@ -181,12 +182,14 @@ public:
     inline HttpRequest &onReadyRead(const QObject *receiver, const char *method);
     inline HttpRequest &onReadyRead(std::function<void (QNetworkReply*)> lambda);
 
-    // [0] do nothing. todo
     inline HttpRequest &retry(int count);
     inline HttpRequest &onRetried(const QObject *receiver, const char *method);
     inline HttpRequest &onRetried(std::function<void ()> lambda);
 
+    // [0] do nothing. todo
     inline HttpRequest &repeat(int count);
+    inline HttpRequest &onRepeated(const QObject *receiver, const char *method);
+    inline HttpRequest &onRepeated(std::function<void ()> lambda);
     // [0] do nothing. todo
 
     /**
@@ -222,6 +225,8 @@ public:
         bool                             isBlock;
         int                              retryCount;
         bool                             enabledRetry;
+        int                              repeatCount;
+
         QPair<DownloadEnabled, QString>  downloadFile;
         QMap<HandleType, QPair<QString, QVariant> > handleMap;
         QList<QSslError>  ignoreSslErrors;
@@ -233,6 +238,7 @@ public:
             httpClient = NULL;
             isBlock = (false);
             retryCount = (0);
+            repeatCount = 1;
             enabledRetry = false;
             timeout = (-1);
             body = qMakePair(BodyType::None, QByteArray());
@@ -299,6 +305,7 @@ signals:
     void sslErrors(QList<QSslError> errors);
 
     void retried();
+    void repeated();
 
 private slots:
     inline void onFinished();
@@ -321,6 +328,7 @@ private:
     HttpRequest         m_httpRequest;
     QFile               m_downloadFile;
     int                 m_retriesRemaining = 0;
+    int                 m_repeated = 1;
 };
 
 class HttpResponseTimeout : public QObject {
@@ -709,6 +717,22 @@ HttpRequest &HttpRequest::onRetried(const QObject *receiver, const char *method)
 HttpRequest &HttpRequest::onRetried(std::function<void ()> lambda)
 {
     return onResponse(h_onRetried, QVariant::fromValue(lambda));
+}
+
+HttpRequest &HttpRequest::repeat(int count)
+{
+    m_params.repeatCount = count;
+    return *this;
+}
+
+HttpRequest &HttpRequest::onRepeated(const QObject *receiver, const char *method)
+{
+    return onResponse(h_onRepeated, receiver, method);
+}
+
+HttpRequest &HttpRequest::onRepeated(std::function<void ()> lambda)
+{
+    return onResponse(h_onRepeated, QVariant::fromValue(lambda));
 }
 
 HttpRequest &HttpRequest::block()
@@ -1282,6 +1306,20 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
                 func(signalsList, receiver, method);
             }
         }
+        else if (key == h_onRepeated) {
+            if (lambdaString == T2S(std::function<void ()>)) {
+                connect(this,
+                        QOverload<void>::of(&HttpResponse::repeated),
+                        lambda.value<std::function<void ()>>());
+            }
+            else {
+                QStringList signalsList = {
+                    SIGNAL(repeated()),
+                };
+
+                func(signalsList, receiver, method);
+            }
+        }
         else {
             // do nothing
         }
@@ -1330,6 +1368,15 @@ void HttpResponse::onFinished()
     emit finished(resultMap);
 
     reply->deleteLater();
+
+    if (--m_params.repeatCount > 0) {
+        HttpRequest httpRequest = m_httpRequest;
+        httpRequest.repeat(m_params.repeatCount)
+                   .exec();
+    }
+    else {
+        emit repeated();
+    }
 }
 
 void HttpResponse::onError(QNetworkReply::NetworkError error)
@@ -1375,6 +1422,15 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
     emit this->error(errorString.toLocal8Bit());
 
     reply->deleteLater();
+
+    if (--m_params.repeatCount > 0) {
+        HttpRequest httpRequest = m_httpRequest;
+        httpRequest.repeat(m_params.repeatCount)
+                   .exec();
+    }
+    else {
+        emit repeated();
+    }
 }
 
 void HttpResponse::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
