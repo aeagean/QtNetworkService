@@ -48,6 +48,7 @@ enum HandleType {
     h_onRedirectAllowed,
     h_onRedirected,
     h_onSslErrors,
+    h_onRetried
 };
 
 class HttpClient;
@@ -182,6 +183,9 @@ public:
 
     // [0] do nothing. todo
     inline HttpRequest &retry(int count);
+    inline HttpRequest &onRetried(const QObject *receiver, const char *method);
+    inline HttpRequest &onRetried(std::function<void ()> lambda);
+
     inline HttpRequest &repeat(int count);
     // [0] do nothing. todo
 
@@ -210,13 +214,14 @@ public:
         };
 
         QNetworkAccessManager::Operation op;
-        QNetworkRequest                  request;
         QNetworkReply                   *reply;
+        QNetworkRequest                  request;
         HttpClient                      *httpClient;
         QPair<BodyType, QVariant>        body;
         int                              timeout; // ms
         bool                             isBlock;
-        int                              retry;
+        int                              retryCount;
+        bool                             enabledRetry;
         QPair<DownloadEnabled, QString>  downloadFile;
         QMap<HandleType, QPair<QString, QVariant> > handleMap;
         QList<QSslError>  ignoreSslErrors;
@@ -227,13 +232,19 @@ public:
             reply = NULL;
             httpClient = NULL;
             isBlock = (false);
-            retry = (0);
+            retryCount = (0);
+            enabledRetry = false;
             timeout = (-1);
             body = qMakePair(BodyType::None, QByteArray());
             downloadFile = qMakePair(DownloadEnabled::Disabled, QString(""));
             readBufferSize = 0;
         }
     };
+
+protected:
+    inline HttpRequest &enabledRetry(bool isEnabled);
+
+    friend class HttpResponse;
 
 private:
     inline HttpRequest() = delete;
@@ -249,7 +260,7 @@ class HttpResponse : public QObject
 {
     Q_OBJECT
 public:
-    inline explicit HttpResponse(HttpRequest::Params params);
+    inline explicit HttpResponse(HttpRequest::Params params, HttpRequest httpRequest);
     inline virtual ~HttpResponse();
 
     QNetworkReply *reply() { return static_cast<QNetworkReply*>(this->parent()); }
@@ -287,6 +298,8 @@ signals:
     void redirected(QUrl url);
     void sslErrors(QList<QSslError> errors);
 
+    void retried();
+
 private slots:
     inline void onFinished();
     inline void onError(QNetworkReply::NetworkError error);
@@ -305,7 +318,9 @@ private slots:
 
 private:
     HttpRequest::Params m_params;
+    HttpRequest         m_httpRequest;
     QFile               m_downloadFile;
+    int                 m_retriesRemaining = 0;
 };
 
 class HttpResponseTimeout : public QObject {
@@ -682,8 +697,18 @@ HttpRequest &HttpRequest::onTimeout(std::function<void ()> lambda)
 
 HttpRequest &HttpRequest::retry(int count)
 {
-    m_params.retry = count;
+    m_params.retryCount = count;
     return *this;
+}
+
+HttpRequest &HttpRequest::onRetried(const QObject *receiver, const char *method)
+{
+    return onResponse(h_onRetried, receiver, method);
+}
+
+HttpRequest &HttpRequest::onRetried(std::function<void ()> lambda)
+{
+    return onResponse(h_onRetried, QVariant::fromValue(lambda));
 }
 
 HttpRequest &HttpRequest::block()
@@ -856,7 +881,13 @@ HttpResponse *HttpRequest::exec()
     m_params.reply->ignoreSslErrors(m_params.ignoreSslErrors);
     m_params.reply->setReadBufferSize(m_params.readBufferSize);
 
-    return new HttpResponse(m_params);
+    return new HttpResponse(m_params, *this);
+}
+
+HttpRequest &HttpRequest::enabledRetry(bool isEnabled)
+{
+    m_params.enabledRetry = isEnabled;
+    return *this;
 }
 
 HttpRequest &HttpRequest::queryParam(const QString &key, const QVariant &value)
@@ -923,14 +954,15 @@ HttpRequest HttpClient::send(const QString &url, QNetworkAccessManager::Operatio
     return HttpRequest(op, this).url(url);
 }
 
-HttpResponse::HttpResponse(HttpRequest::Params params)
+HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
     : QObject(params.reply),
-      m_params(params)
+      m_params(params),
+      m_httpRequest(httpRequest),
+      m_retriesRemaining(params.retryCount)
 {
     int timeout = params.timeout;
     QNetworkReply *reply = params.reply;
     auto handleMap = params.handleMap;
-    int retryCount = params.retry;
     int isBlock = params.isBlock;
 
     new HttpResponseTimeout(this, timeout);
@@ -1236,6 +1268,20 @@ HttpResponse::HttpResponse(HttpRequest::Params params)
                 func(signalsList, receiver, method);
             }
         }
+        else if (key == h_onRetried) {
+            if (lambdaString == T2S(std::function<void ()>)) {
+                connect(this,
+                        QOverload<void>::of(&HttpResponse::retried),
+                        lambda.value<std::function<void ()>>());
+            }
+            else {
+                QStringList signalsList = {
+                    SIGNAL(retried()),
+                };
+
+                func(signalsList, receiver, method);
+            }
+        }
         else {
             // do nothing
         }
@@ -1258,6 +1304,10 @@ void HttpResponse::onFinished()
     QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
     if (reply->error() != QNetworkReply::NoError)
         return;
+
+    if (m_params.enabledRetry) {
+        emit retried();
+    }
 
     if (m_downloadFile.isOpen()) {
         emit downloadFinished();
@@ -1285,6 +1335,19 @@ void HttpResponse::onFinished()
 void HttpResponse::onError(QNetworkReply::NetworkError error)
 {
     QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+
+    if ( m_retriesRemaining-- > 0) {
+        HttpRequest httpRequest = m_httpRequest;
+        httpRequest.retry(m_retriesRemaining)
+                   .enabledRetry(true)
+                   .exec();
+        reply->deleteLater();
+        return;
+    }
+
+    if (m_params.enabledRetry) {
+        emit retried();
+    }
 
     const QMetaObject & metaObject = QNetworkReply::staticMetaObject;
     QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
@@ -1433,7 +1496,7 @@ void HttpResponse::onRedirected(const QUrl &url)
 
 void HttpResponse::onSslErrors(const QList<QSslError> &errors)
 {
-
+    emit sslErrors(errors);
 }
 
 }
