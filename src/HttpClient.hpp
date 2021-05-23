@@ -41,7 +41,13 @@ enum HandleType {
     h_onTimeout,
     h_onReadyRead,
     h_onDownloadSuccess,
-    h_onDownloadFailed
+    h_onDownloadFailed,
+    h_onEncrypted,
+    h_onMetaDataChanged,
+    h_onPreSharedKeyAuthenticationRequired,
+    h_onRedirectAllowed,
+    h_onRedirected,
+    h_onSslErrors,
 };
 
 class HttpClient;
@@ -105,6 +111,14 @@ public:
     inline HttpRequest &body(const QString &key, const QString &file);
     inline HttpRequest &bodyWithFile(const QString &key, const QString &file);
     inline HttpRequest &bodyWithFile(const QMap<QString/*key*/, QString/*file*/> &fileMap); // => QMap<key, file>; like: { "key": "/home/example/car.jpeg" }
+
+    inline HttpRequest &ignoreSslErrors(const QList<QSslError> &errors);
+    inline HttpRequest &sslConfiguration(const QSslConfiguration &config);
+
+    inline HttpRequest &Priority(QNetworkRequest::Priority priority);
+    inline HttpRequest &MaximumRedirectsAllowed(int maxRedirectsAllowed);
+    inline HttpRequest &originatingObject(QObject *object);
+    inline HttpRequest &readBufferSize(qint64 size);
 
     // onFinished == onSuccess
     inline HttpRequest &onSuccess(const QObject *receiver, const char *method);
@@ -175,6 +189,8 @@ public:
      * @brief Block current thread, entering an event loop.
      */
     inline HttpRequest &block();
+    // block => sync
+    inline HttpRequest &sync();
 
     inline HttpResponse *exec();
 
@@ -203,6 +219,8 @@ public:
         int                              retry;
         QPair<DownloadEnabled, QString>  downloadFile;
         QMap<HandleType, QPair<QString, QVariant> > handleMap;
+        QList<QSslError>  ignoreSslErrors;
+        qint64            readBufferSize;
 
         Params()
         {
@@ -213,6 +231,7 @@ public:
             timeout = (-1);
             body = qMakePair(BodyType::None, QByteArray());
             downloadFile = qMakePair(DownloadEnabled::Disabled, QString(""));
+            readBufferSize = 0;
         }
     };
 
@@ -260,6 +279,14 @@ signals:
     void downloadError();
     void downloadError(QString errorString);
 
+    void encrypted();
+    void metaDataChanged();
+
+    void preSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator *authenticator);
+    void redirectAllowed();
+    void redirected(QUrl url);
+    void sslErrors(QList<QSslError> errors);
+
 private slots:
     inline void onFinished();
     inline void onError(QNetworkReply::NetworkError error);
@@ -268,6 +295,13 @@ private slots:
     inline void onTimeout();
     inline void onReadyRead();
     inline void onReadOnceReplyHeader();
+
+    inline void onEncrypted();
+    inline void onMetaDataChanged();
+    inline void onPreSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator *authenticator);
+    inline void onRedirectAllowed();
+    inline void onRedirected(const QUrl &url);
+    inline void onSslErrors(const QList<QSslError> &errors);
 
 private:
     HttpRequest::Params m_params;
@@ -489,6 +523,42 @@ HttpRequest &HttpRequest::bodyWithFile(const QMap<QString, QString> &fileMap)
     return *this;
 }
 
+HttpRequest &HttpRequest::ignoreSslErrors(const QList<QSslError> &errors)
+{
+    m_params.ignoreSslErrors = errors;
+    return *this;
+}
+
+HttpRequest &HttpRequest::sslConfiguration(const QSslConfiguration &config)
+{
+    m_params.request.setSslConfiguration(config);
+    return *this;
+}
+
+HttpRequest &HttpRequest::Priority(QNetworkRequest::Priority priority)
+{
+    m_params.request.setPriority(priority);
+    return *this;
+}
+
+HttpRequest &HttpRequest::MaximumRedirectsAllowed(int maxRedirectsAllowed)
+{
+    m_params.request.setMaximumRedirectsAllowed(maxRedirectsAllowed);
+    return *this;
+}
+
+HttpRequest &HttpRequest::originatingObject(QObject *object)
+{
+    m_params.request.setOriginatingObject(object);
+    return *this;
+}
+
+HttpRequest &HttpRequest::readBufferSize(qint64 size)
+{
+    m_params.readBufferSize = size;
+    return *this;
+}
+
 HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char *method)
 {
     return onResponse(h_onFinished, receiver, method);
@@ -620,6 +690,11 @@ HttpRequest &HttpRequest::block()
 {
     m_params.isBlock = true;
     return *this;
+}
+
+HttpRequest &HttpRequest::sync()
+{
+    return block();
 }
 
 HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *method)
@@ -777,6 +852,10 @@ HttpResponse *HttpRequest::exec()
         return NULL;
     }
 
+    // fixme
+    m_params.reply->ignoreSslErrors(m_params.ignoreSslErrors);
+    m_params.reply->setReadBufferSize(m_params.readBufferSize);
+
     return new HttpResponse(m_params);
 }
 
@@ -862,6 +941,13 @@ HttpResponse::HttpResponse(HttpRequest::Params params)
     connect(reply, SIGNAL(uploadProgress(qint64, qint64)),     this, SLOT(onUploadProgress(qint64, qint64)));
     connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadOnceReplyHeader()));
     connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadyRead()));
+
+    connect(reply, SIGNAL(encrypted()),                 this, SLOT(onEncrypted()));
+    connect(reply, SIGNAL(metaDataChanged()),           this, SLOT(onMetaDataChanged()));
+    connect(reply, SIGNAL(preSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)), this, SLOT(onPreSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)));
+    connect(reply, SIGNAL(redirectAllowed()),           this, SLOT(onRedirectAllowed()));
+    connect(reply, SIGNAL(redirected(QUrl)),            this, SLOT(onRedirected(QUrl)));
+    connect(reply, SIGNAL(sslErrors(QList<QSslError>)), this, SLOT(onSslErrors(QList<QSslError>)));
 
     auto func = [&](const QStringList &signalsList,
                     const QObject *receiver,
@@ -1066,6 +1152,90 @@ HttpResponse::HttpResponse(HttpRequest::Params params)
             }
 
         }
+        else if (key == h_onEncrypted) {
+            if (lambdaString == T2S(std::function<void ()>)) {
+                connect(this,
+                        QOverload<void>::of(&HttpResponse::encrypted),
+                        lambda.value<std::function<void ()>>());
+            }
+            else {
+                QStringList signalsList = {
+                    SIGNAL(encrypted()),
+                };
+
+                func(signalsList, receiver, method);
+            }
+        }
+        else if (key == h_onMetaDataChanged) {
+            if (lambdaString == T2S(std::function<void ()>)) {
+                connect(this,
+                        QOverload<void>::of(&HttpResponse::metaDataChanged),
+                        lambda.value<std::function<void ()>>());
+            }
+            else {
+                QStringList signalsList = {
+                    SIGNAL(metaDataChanged()),
+                };
+
+                func(signalsList, receiver, method);
+            }
+        }
+        else if (key == h_onPreSharedKeyAuthenticationRequired) {
+            if (lambdaString == T2S(std::function<void ()>)) {
+                connect(this,
+                        QOverload<QSslPreSharedKeyAuthenticator*>::of(&HttpResponse::preSharedKeyAuthenticationRequired),
+                        lambda.value<std::function<void (QSslPreSharedKeyAuthenticator*)>>());
+            }
+            else {
+                QStringList signalsList = {
+                    SIGNAL(preSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator *)),
+                };
+
+                func(signalsList, receiver, method);
+            }
+        }
+        else if (key == h_onRedirectAllowed) {
+            if (lambdaString == T2S(std::function<void ()>)) {
+                connect(this,
+                        QOverload<void>::of(&HttpResponse::redirectAllowed),
+                        lambda.value<std::function<void ()>>());
+            }
+            else {
+                QStringList signalsList = {
+                    SIGNAL(redirectAllowed()),
+                };
+
+                func(signalsList, receiver, method);
+            }
+        }
+        else if (key == h_onRedirected) {
+            if (lambdaString == T2S(std::function<void (QUrl)>)) {
+                connect(this,
+                        QOverload<QUrl>::of(&HttpResponse::redirected),
+                        lambda.value<std::function<void (QUrl)>>());
+            }
+            else {
+                QStringList signalsList = {
+                    SIGNAL(redirected(QUrl)),
+                };
+
+                func(signalsList, receiver, method);
+            }
+        }
+        else if (key == h_onSslErrors) {
+            if (lambdaString == T2S(std::function<void (QList<QSslError>)>)) {
+                connect(this,
+                        QOverload<QList<QSslError>>::of(&HttpResponse::sslErrors),
+                        lambda.value<std::function<void (QList<QSslError>)>>());
+            }
+            else {
+                QStringList signalsList = {
+                    SIGNAL(sslErrors(QList<QSslError>)),
+                };
+
+                func(signalsList, receiver, method);
+            }
+        }
         else {
             // do nothing
         }
@@ -1236,6 +1406,36 @@ void HttpResponse::onReadOnceReplyHeader()
     }
 }
 
+void HttpResponse::onEncrypted()
+{
+    emit encrypted();
+}
+
+void HttpResponse::onMetaDataChanged()
+{
+    emit metaDataChanged();
+}
+
+void HttpResponse::onPreSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator *authenticator)
+{
+    emit preSharedKeyAuthenticationRequired(authenticator);
+}
+
+void HttpResponse::onRedirectAllowed()
+{
+    emit redirectAllowed();
+}
+
+void HttpResponse::onRedirected(const QUrl &url)
+{
+    emit redirected(url);
+}
+
+void HttpResponse::onSslErrors(const QList<QSslError> &errors)
+{
+
+}
+
 }
 
 Q_DECLARE_METATYPE(std::function<void ()>)
@@ -1245,5 +1445,8 @@ Q_DECLARE_METATYPE(std::function<void (QVariantMap)>)
 Q_DECLARE_METATYPE(std::function<void (QNetworkReply*)>)
 Q_DECLARE_METATYPE(std::function<void (QNetworkReply::NetworkError)>)
 Q_DECLARE_METATYPE(std::function<void (qint64, qint64)>)
+Q_DECLARE_METATYPE(std::function<void (QSslPreSharedKeyAuthenticator *)>)
+Q_DECLARE_METATYPE(std::function<void (QUrl)>)
+Q_DECLARE_METATYPE(std::function<void (QList<QSslError>)>)
 
 #endif // HTTPCLIENT_HPP
