@@ -1,10 +1,11 @@
 ﻿/**********************************************************
-Author: Qt君
-微信公众号: Qt君(文章首发)
-Website: qthub.com(后续更新)
-Email:  2088201923@qq.com
-QQ交流群: 732271126
-LISCENSE: MIT
+ * Author: Qt君
+ * 微信公众号: Qt君
+ * Website: qthub.com
+ * Email:  2088201923@qq.com
+ * QQ交流群: 732271126
+ * Source Code: https://github.com/aeagean/QtNetworkService
+ * LISCENSE: MIT
 **********************************************************/
 #include "HttpClient.hpp"
 #include <QCoreApplication>

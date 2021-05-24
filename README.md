@@ -404,7 +404,7 @@ client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/
 HttpRequest &retry(int count);
 ```
 
-&emsp;&emsp;重试次数执行完成后的回调/信号槽。
+&emsp;&emsp;重试次数执行完成后的信号槽/回调。
 ```cpp
 HttpRequest &onRetried(const QObject *receiver, const char *method);
 HttpRequest &onRetried(std::function<void ()> lambda);
@@ -427,7 +427,7 @@ client.get("xxx://httpbin.org/get")
 HttpRequest &repeat(int count);
 ```
 
-&emsp;&emsp;重复请求完成后的回调/信号槽
+&emsp;&emsp;重复请求完成后的信号槽/回调。
 ```cpp
 HttpRequest &onRepeated(const QObject *receiver, const char *method);
 HttpRequest &onRepeated(std::function<void ()> lambda);
