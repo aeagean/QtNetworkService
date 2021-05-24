@@ -397,6 +397,52 @@ client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/
       .exec();
 ```
 
+## 2.12 失败重试
+### 接口:
+&emsp;&emsp;设置失败请求后的重试次数，默认值为0。
+```cpp
+HttpRequest &retry(int count);
+```
+
+&emsp;&emsp;重试次数执行完成后的回调/信号槽。
+```cpp
+HttpRequest &onRetried(const QObject *receiver, const char *method);
+HttpRequest &onRetried(std::function<void ()> lambda);
+```
+
+### 例子:
+```cpp
+client.get("xxx://httpbin.org/get")
+      .retry(2) // 失败重试的次数
+      .onRetried([](){qDebug()<<"retried!";}) // 失败重试操作完成后的回调
+      .onSuccess([](QString result){qDebug()<<result;})
+      .onFailed([](QString err){qDebug()<<err;})
+      .exec();
+```
+
+## 2.13 重复请求
+### 接口:
+&emsp;&emsp;设置需要重复请求的次数，默认值为1。
+```cpp
+HttpRequest &repeat(int count);
+```
+
+&emsp;&emsp;重复请求完成后的回调/信号槽
+```cpp
+HttpRequest &onRepeated(const QObject *receiver, const char *method);
+HttpRequest &onRepeated(std::function<void ()> lambda);
+```
+
+### 例子:
+```cpp
+client.get("https://httpbin.org/get")
+      .repeat(3) // 总共重复请求的次数
+      .onRepeated([](){qDebug()<<"repeated!";}) // 重复请求操作完成后的回调
+      .onSuccess([](QString result){qDebug()<<result;})
+      .onFailed([](QString err){qDebug()<<err;})
+      .exec();
+```
+
 # 3. 扫码关注微信公众号:Qt 君，第一时间获取推送。
 
 <p align="center">

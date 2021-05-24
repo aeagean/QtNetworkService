@@ -186,11 +186,9 @@ public:
     inline HttpRequest &onRetried(const QObject *receiver, const char *method);
     inline HttpRequest &onRetried(std::function<void ()> lambda);
 
-    // [0] do nothing. todo
     inline HttpRequest &repeat(int count);
     inline HttpRequest &onRepeated(const QObject *receiver, const char *method);
     inline HttpRequest &onRepeated(std::function<void ()> lambda);
-    // [0] do nothing. todo
 
     /**
      * @brief Block current thread, entering an event loop.
