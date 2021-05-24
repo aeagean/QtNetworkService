@@ -146,6 +146,38 @@ public:
               .onDownloadFailed([](QString error) { qDebug()<<"download failed: "<<error; })
               .exec();
         // [10]
+
+        // [x] 失败重试
+        client.get("xxx://httpbin.org/get")
+              .retry(2) // 失败重试的次数
+              .onRetried([](){qDebug()<<"retried!";}) // 失败重试操作完成后的回调
+              .onSuccess([](QString result){qDebug()<<result;})
+              .onFailed([](QString err){qDebug()<<err;})
+              .exec();
+        // [x]
+
+        // [x] 重复请求
+        client.get("https://httpbin.org/get")
+              .repeat(3) // 总共重复请求的次数
+              .onRepeated([](){qDebug()<<"repeated!";}) // 重复请求操作完成后的回调
+              .onSuccess([](QString result){qDebug()<<result;})
+              .onFailed([](QString err){qDebug()<<err;})
+              .exec();
+        // [x]
+
+        // [x] 同步操作,适用于一些顺序队列的请求
+       client.get("https://httpbin.org/get")
+             .onSuccess([](QString result){qDebug()<<result;})
+             .onFailed([](QString err){qDebug()<<err;})
+             .sync() // 同步操作
+             .exec();
+        // 或
+       client.get("https://httpbin.org/get")
+             .onSuccess([](QString result){qDebug()<<result;})
+             .onFailed([](QString err){qDebug()<<err;})
+             .block() // 同步操作
+             .exec();
+        // [x]
     }
 
 
@@ -194,19 +226,11 @@ int main(int argc, char *argv[])
     Object object;
 #else
     HttpClient client;
-        client.get("2https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
-              .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
-                  qDebug() << "bytes received: " << bytesReceived
-                           << "bytes total: " << bytesTotal;
-               })
-              .download()
-              .retry(2)
-              .onRetried([](){qDebug()<<"retried!";})
-              .repeat(3)
-              .onRepeated([](){qDebug()<<"repeated!";})
-              .onDownloadSuccess([](QString fileName) { qDebug()<<"download success: "<<fileName; })
-              .onDownloadFailed([](QString error) { qDebug()<<"download failed: "<<error; })
-              .exec();
+    client.get("https://httpbin.org/get")
+          .onSuccess([](QString result){qDebug()<<result;})
+          .onFailed([](QString err){qDebug()<<err;})
+          .sync() // 同步操作
+          .exec();
 
 #endif
 

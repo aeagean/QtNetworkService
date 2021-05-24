@@ -1327,7 +1327,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
 
     if (isBlock) {
         QEventLoop loop;
-        QObject::connect(this, SIGNAL(finished()), &loop, SLOT(quit()));
+        QObject::connect(reply, SIGNAL(finished()), &loop, SLOT(quit()));
         loop.exec();
     }
 }
@@ -1339,7 +1339,18 @@ HttpResponse::~HttpResponse()
 
 void HttpResponse::onFinished()
 {
+    QStringList signalsList = {
+        SIGNAL(finished(QString)),
+        SIGNAL(finished(QByteArray)),
+        SIGNAL(finished(QVariantMap)),
+        SIGNAL(finished(QNetworkReply *)),
+    };
+
+
     QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+    for (auto signal : signalsList) {
+        qDebug() << receivers(qPrintable(signal)) << reply->error();
+    }
     if (reply->error() != QNetworkReply::NoError)
         return;
 
