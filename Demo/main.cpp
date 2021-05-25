@@ -19,6 +19,10 @@ class Object : public QObject
 public:
     Object()
     {
+    }
+
+    void exec()
+    {
         static HttpClient client;
         // [0] 使用信号槽方式实现简单的监听成功与失败事件处理
         client.get("https://qthub.com")
@@ -181,12 +185,16 @@ public:
         // [x]
     }
 
-
 public slots:
     // http成功返回
     void onSuccess(QString result)
     {
         qDebug() << "result: " << result.left(10);
+    }
+
+    void onSuccess(QNetworkReply *result)
+    {
+        qDebug() << "result: " << result->readAll();
     }
 
     // http失败返回
@@ -225,11 +233,16 @@ int main(int argc, char *argv[])
 
 #if 0
     Object object;
+    object.exec();
 #else
+    Object object;
     HttpClient client;
     client.get("https://httpbin.org/get")
           .onSuccess([](QString result){qDebug()<<result;})
+          .onSuccess(&object, SLOT(onSuccess(QString)))
           .onFailed([](QString err){qDebug()<<err;})
+//          .timeout(1)
+//            .onTimeout([](){qDebug()<<__LINE__;})
           .sync() // 同步操作
           .exec();
 

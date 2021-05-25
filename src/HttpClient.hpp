@@ -977,6 +977,47 @@ HttpRequest HttpClient::send(const QString &url, QNetworkAccessManager::Operatio
     return HttpRequest(op, this).url(url);
 }
 
+static int extractCode(const char *member)
+{
+    /* extract code, ensure QMETHOD_CODE <= code <= QSIGNAL_CODE */
+    return (((int)(*member) - '0') & 0x3);
+}
+
+template<typename ... Args>
+void httpResponseConnect(const HttpResponse *sender, QVariant senderSignal, const QString &lambdaString, const QVariant &lambda)
+{
+    if (lambdaString == QVariant::fromValue(std::function<void (Args ...)>()).typeName()) {
+        QObject::connect(sender,
+                         senderSignal.value<void (HttpResponse::*)(Args ...)>(),
+                         lambda.value<std::function<void (Args...)>>());
+    }
+    else if (extractCode(qPrintable(lambdaString)) >= QMETHOD_CODE &&
+             extractCode(qPrintable(lambdaString)) <= QSIGNAL_CODE) {
+        QString signal = QMetaMethod::fromSignal(senderSignal.value<void (HttpResponse::*)(Args ...)>()).methodSignature();
+        signal.insert(0, "2");
+        signal.replace("qlonglong", "qint64");
+
+        const QString &method = lambdaString;
+        const QObject *receiver = lambda.value<QObject*>();
+
+        if (QMetaObject::checkConnectArgs(qPrintable(signal), qPrintable(method))) {
+            QObject::connect(sender, qPrintable(signal), receiver, qPrintable(method));
+        }
+        else {
+            qWarning() << "method["<< method << "] is invalid!" << "signal: " << signal;
+        }
+    }
+    else {
+        // do nothing
+    }
+}
+
+#define HTTP_RESPONSE_CONNECT_X(sender, senderSignal, lambdaString, lambda, ...) \
+    httpResponseConnect<__VA_ARGS__>(sender, \
+                                     QVariant::fromValue(QOverload<__VA_ARGS__>::of(&HttpResponse::senderSignal)), \
+                                     lambdaString, \
+                                     lambda);
+
 HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
     : QObject(params.reply),
       m_params(params),
@@ -1004,28 +1045,6 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
     connect(reply, SIGNAL(redirected(QUrl)),            this, SLOT(onRedirected(QUrl)));
     connect(reply, SIGNAL(sslErrors(QList<QSslError>)), this, SLOT(onSslErrors(QList<QSslError>)));
 
-    auto func = [&](const QStringList &signalsList,
-                    const QObject *receiver,
-                    const QString &method)
-    {
-        bool isConnected = false;
-        for (QString signal : signalsList) {
-            signal = QMetaObject::normalizedSignature(qPrintable(signal));
-            if (QMetaObject::checkConnectArgs(qPrintable(signal), qPrintable(method))) {
-                isConnected = true;
-
-                connect(this, qPrintable(signal), receiver, qPrintable(method));
-            }
-            else {
-                // do nothing
-            }
-        }
-
-        if (!isConnected) {
-            _warning << QString(method).remove(0, 1) << "failed!";
-        }
-    };
-
     // fixme
     for (auto each : handleMap.toStdMap()) {
         HandleType key                 = each.first;
@@ -1034,290 +1053,65 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         QVariant lambda      = value.second;
         QString lambdaString = value.first;
 
-        const QObject *receiver = lambda.value<QObject *>();
-        QString method          = lambdaString;
+//        const QObject *receiver = lambda.value<QObject *>();
+//        QString method          = lambdaString;
 
         if (key == h_onFinished) {
-
-            if (lambdaString == T2S(std::function<void (QString)>)) {
-                connect(this,
-                        QOverload<QString>::of(&HttpResponse::finished),
-                        lambda.value<std::function<void (QString)>>());
-            }
-            else if (lambdaString == T2S(std::function<void (QByteArray)>)) {
-                connect(this,
-                        QOverload<QByteArray>::of(&HttpResponse::finished),
-                        lambda.value<std::function<void (QByteArray)>>());
-            }
-            else if (lambdaString == T2S(std::function<void (QVariantMap)>)) {
-                connect(this,
-                        QOverload<QVariantMap>::of(&HttpResponse::finished),
-                        lambda.value<std::function<void (QVariantMap)>>());
-            }
-            else if (lambdaString == T2S(std::function<void (QNetworkReply*)>)) {
-                connect(this,
-                        QOverload<QNetworkReply *>::of(&HttpResponse::finished),
-                        lambda.value<std::function<void (QNetworkReply*)>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(finished(QString)),
-                    SIGNAL(finished(QByteArray)),
-                    SIGNAL(finished(QVariantMap)),
-                    SIGNAL(finished(QNetworkReply *)),
-                };
-
-                func(signalsList, receiver, method);
-            }
+            HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QString);
+            HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QByteArray);
+            HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QVariantMap);
+            HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QNetworkReply*);
         }
         else if (key == h_onDownloadProgress) {
-            if (lambdaString == T2S(std::function<void (qint64, qint64)>)) {
-                connect(this,
-                        QOverload<qint64, qint64>::of(&HttpResponse::downloadProgress),
-                        lambda.value<std::function<void (qint64, qint64)>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(downloadProgress(qint64, qint64))
-                };
-
-                func(signalsList, receiver, method);
-            }
-
+            HTTP_RESPONSE_CONNECT_X(this, downloadProgress, lambdaString, lambda, qint64, qint64);
         }
         else if (key == h_onUploadProgress) {
-            if (lambdaString == T2S(std::function<void (qint64, qint64)>)) {
-                connect(this,
-                        QOverload<qint64, qint64>::of(&HttpResponse::uploadProgress),
-                        lambda.value<std::function<void (qint64, qint64)>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(uploadProgress(qint64, qint64))
-                };
-
-                func(signalsList, receiver, method);
-            }
-
+            HTTP_RESPONSE_CONNECT_X(this, uploadProgress, lambdaString, lambda, qint64, qint64);
         }
         else if (key == h_onError) {
-            if (lambdaString == T2S(std::function<void (QString)>)) {
-                connect(this,
-                        QOverload<QString>::of(&HttpResponse::error),
-                        lambda.value<std::function<void (QString)>>());
-            }
-            else if (lambdaString == T2S(std::function<void (QByteArray)>)) {
-                connect(this,
-                        QOverload<QByteArray>::of(&HttpResponse::error),
-                        lambda.value<std::function<void (QByteArray)>>());
-            }
-            else if (lambdaString == T2S(std::function<void (QNetworkReply*)>)) {
-                connect(this,
-                        QOverload<QNetworkReply *>::of(&HttpResponse::error),
-                        lambda.value<std::function<void (QNetworkReply*)>>());
-            }
-            else if (lambdaString == T2S(std::function<void (QNetworkReply::NetworkError)>)) {
-                connect(this,
-                        QOverload<QNetworkReply::NetworkError>::of(&HttpResponse::error),
-                        lambda.value<std::function<void (QNetworkReply::NetworkError)>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(error(QString)),
-                    SIGNAL(error(QByteArray)),
-                    SIGNAL(error(QNetworkReply *)),
-                    SIGNAL(error(QNetworkReply::NetworkError))};
-
-                func(signalsList, receiver, method);
-            }
+            HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QString);
+            HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QByteArray);
+            HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QNetworkReply*);
+            HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QNetworkReply::NetworkError);
         }
         else if (key == h_onTimeout) {
-            if (lambdaString == T2S(std::function<void (QNetworkReply*)>)) {
-                connect(this,
-                        QOverload<QNetworkReply *>::of(&HttpResponse::timeout),
-                        lambda.value<std::function<void (QNetworkReply*)>>());
-            }
-            else if (lambdaString == T2S(std::function<void ()>)) {
-                connect(this,
-                        QOverload<void>::of(&HttpResponse::timeout),
-                        lambda.value<std::function<void ()>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(error()),
-                    SIGNAL(error(QNetworkReply *))
-                };
-
-                func(signalsList, receiver, method);
-            }
+            HTTP_RESPONSE_CONNECT_X(this, timeout, lambdaString, lambda, QNetworkReply*);
+            HTTP_RESPONSE_CONNECT_X(this, timeout, lambdaString, lambda, void);
         }
         else if (key == h_onReadyRead) {
-            if (lambdaString == T2S(std::function<void (QNetworkReply*)>)) {
-                connect(this,
-                        QOverload<QNetworkReply *>::of(&HttpResponse::readyRead),
-                        lambda.value<std::function<void (QNetworkReply*)>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(readyRead(QNetworkReply *)),
-                };
-
-                func(signalsList, receiver, method);
-            }
+            HTTP_RESPONSE_CONNECT_X(this, readyRead, lambdaString, lambda, QNetworkReply*);
         }
         else if (key == h_onDownloadSuccess) {
-            if (lambdaString == T2S(std::function<void (QString)>)) {
-                connect(this,
-                        QOverload<QString>::of(&HttpResponse::downloadFinished),
-                        lambda.value<std::function<void (QString)>>());
-            }
-            else if (lambdaString == T2S(std::function<void ()>)) {
-                connect(this,
-                        QOverload<void>::of(&HttpResponse::downloadFinished),
-                        lambda.value<std::function<void ()>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(downloadFinished()),
-                    SIGNAL(downloadFinished(QString)),
-                };
-
-                func(signalsList, receiver, method);
-            }
-
+            HTTP_RESPONSE_CONNECT_X(this, downloadFinished, lambdaString, lambda, void);
+            HTTP_RESPONSE_CONNECT_X(this, downloadFinished, lambdaString, lambda, QString);
         }
         else if (key == h_onDownloadFailed) {
-            if (lambdaString == T2S(std::function<void (QString)>)) {
-                connect(this,
-                        QOverload<QString>::of(&HttpResponse::downloadError),
-                        lambda.value<std::function<void (QString)>>());
-            }
-            else if (lambdaString == T2S(std::function<void ()>)) {
-                connect(this,
-                        QOverload<void>::of(&HttpResponse::downloadError),
-                        lambda.value<std::function<void ()>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(downloadError()),
-                    SIGNAL(downloadError(QString)),
-                };
-
-                func(signalsList, receiver, method);
-            }
-
+            HTTP_RESPONSE_CONNECT_X(this, downloadError, lambdaString, lambda, void);
+            HTTP_RESPONSE_CONNECT_X(this, downloadError, lambdaString, lambda, QString);
         }
         else if (key == h_onEncrypted) {
-            if (lambdaString == T2S(std::function<void ()>)) {
-                connect(this,
-                        QOverload<void>::of(&HttpResponse::encrypted),
-                        lambda.value<std::function<void ()>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(encrypted()),
-                };
-
-                func(signalsList, receiver, method);
-            }
+            HTTP_RESPONSE_CONNECT_X(this, encrypted, lambdaString, lambda, void);
         }
         else if (key == h_onMetaDataChanged) {
-            if (lambdaString == T2S(std::function<void ()>)) {
-                connect(this,
-                        QOverload<void>::of(&HttpResponse::metaDataChanged),
-                        lambda.value<std::function<void ()>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(metaDataChanged()),
-                };
-
-                func(signalsList, receiver, method);
-            }
+            HTTP_RESPONSE_CONNECT_X(this, metaDataChanged, lambdaString, lambda, void);
         }
         else if (key == h_onPreSharedKeyAuthenticationRequired) {
-            if (lambdaString == T2S(std::function<void ()>)) {
-                connect(this,
-                        QOverload<QSslPreSharedKeyAuthenticator*>::of(&HttpResponse::preSharedKeyAuthenticationRequired),
-                        lambda.value<std::function<void (QSslPreSharedKeyAuthenticator*)>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(preSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator *)),
-                };
-
-                func(signalsList, receiver, method);
-            }
+            HTTP_RESPONSE_CONNECT_X(this, preSharedKeyAuthenticationRequired, lambdaString, lambda, QSslPreSharedKeyAuthenticator*);
         }
         else if (key == h_onRedirectAllowed) {
-            if (lambdaString == T2S(std::function<void ()>)) {
-                connect(this,
-                        QOverload<void>::of(&HttpResponse::redirectAllowed),
-                        lambda.value<std::function<void ()>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(redirectAllowed()),
-                };
-
-                func(signalsList, receiver, method);
-            }
+            HTTP_RESPONSE_CONNECT_X(this, redirectAllowed, lambdaString, lambda, void);
         }
         else if (key == h_onRedirected) {
-            if (lambdaString == T2S(std::function<void (QUrl)>)) {
-                connect(this,
-                        QOverload<QUrl>::of(&HttpResponse::redirected),
-                        lambda.value<std::function<void (QUrl)>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(redirected(QUrl)),
-                };
-
-                func(signalsList, receiver, method);
-            }
+            HTTP_RESPONSE_CONNECT_X(this, redirected, lambdaString, lambda, QUrl);
         }
         else if (key == h_onSslErrors) {
-            if (lambdaString == T2S(std::function<void (QList<QSslError>)>)) {
-                connect(this,
-                        QOverload<QList<QSslError>>::of(&HttpResponse::sslErrors),
-                        lambda.value<std::function<void (QList<QSslError>)>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(sslErrors(QList<QSslError>)),
-                };
-
-                func(signalsList, receiver, method);
-            }
+            HTTP_RESPONSE_CONNECT_X(this, sslErrors, lambdaString, lambda, QList<QSslError>);
         }
         else if (key == h_onRetried) {
-            if (lambdaString == T2S(std::function<void ()>)) {
-                connect(this,
-                        QOverload<void>::of(&HttpResponse::retried),
-                        lambda.value<std::function<void ()>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(retried()),
-                };
-
-                func(signalsList, receiver, method);
-            }
+            HTTP_RESPONSE_CONNECT_X(this, retried, lambdaString, lambda, void);
         }
         else if (key == h_onRepeated) {
-            if (lambdaString == T2S(std::function<void ()>)) {
-                connect(this,
-                        QOverload<void>::of(&HttpResponse::repeated),
-                        lambda.value<std::function<void ()>>());
-            }
-            else {
-                QStringList signalsList = {
-                    SIGNAL(repeated()),
-                };
-
-                func(signalsList, receiver, method);
-            }
+            HTTP_RESPONSE_CONNECT_X(this, repeated, lambdaString, lambda, void);
         }
         else {
             // do nothing
@@ -1554,17 +1348,22 @@ void HttpResponse::onSslErrors(const QList<QSslError> &errors)
     emit sslErrors(errors);
 }
 
-}
+#define HTTPRESPONSE_DECLARE_METATYPE(n, ...) \
+    typedef void (AeaQt::HttpResponse::*FUNC##n)(__VA_ARGS__); \
+    Q_DECLARE_METATYPE(FUNC##n) \
+    Q_DECLARE_METATYPE(std::function<void (__VA_ARGS__)>)
 
-Q_DECLARE_METATYPE(std::function<void ()>)
-Q_DECLARE_METATYPE(std::function<void (QByteArray)>)
-Q_DECLARE_METATYPE(std::function<void (QString)>)
-Q_DECLARE_METATYPE(std::function<void (QVariantMap)>)
-Q_DECLARE_METATYPE(std::function<void (QNetworkReply*)>)
-Q_DECLARE_METATYPE(std::function<void (QNetworkReply::NetworkError)>)
-Q_DECLARE_METATYPE(std::function<void (qint64, qint64)>)
-Q_DECLARE_METATYPE(std::function<void (QSslPreSharedKeyAuthenticator *)>)
-Q_DECLARE_METATYPE(std::function<void (QUrl)>)
-Q_DECLARE_METATYPE(std::function<void (QList<QSslError>)>)
+HTTPRESPONSE_DECLARE_METATYPE(0, void)
+HTTPRESPONSE_DECLARE_METATYPE(1, QByteArray)
+HTTPRESPONSE_DECLARE_METATYPE(2, QString)
+HTTPRESPONSE_DECLARE_METATYPE(3, QVariantMap)
+HTTPRESPONSE_DECLARE_METATYPE(4, QNetworkReply*)
+HTTPRESPONSE_DECLARE_METATYPE(5, qint64, qint64)
+HTTPRESPONSE_DECLARE_METATYPE(6, QNetworkReply::NetworkError)
+HTTPRESPONSE_DECLARE_METATYPE(7, QSslPreSharedKeyAuthenticator*)
+HTTPRESPONSE_DECLARE_METATYPE(8, QUrl)
+HTTPRESPONSE_DECLARE_METATYPE(9, QList<QSslError>)
+
+}
 
 #endif // HTTPCLIENT_HPP
