@@ -66,7 +66,7 @@ public:
                })
               .onFailed([](QString error) { qDebug()<<"error: " << error; })
               .onTimeout([](QNetworkReply *) { qDebug()<<"timeout"; })
-              .timeout(1000) // 1s超时
+              .timeout(1) // 1s超时, => timeoutMs(1000)
               .exec();
         // [4]
 
