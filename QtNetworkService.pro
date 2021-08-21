@@ -16,7 +16,7 @@ CONFIG += c++11
 DEFINES += QT_APP_MODE
 
 contains(DEFINES, QT_APP_MODE) {
-    SOURCES += demo/main.cpp
+    SOURCES += Demo/main.cpp
 
     message(" ================ QtNetworkService Application ================ ")
 }

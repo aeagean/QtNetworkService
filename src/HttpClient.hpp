@@ -76,6 +76,11 @@ public:
     inline HttpRequest put(const QString &url);
 
     inline HttpRequest send(const QString &url, Operation op = GetOperation);
+    
+private:
+    QNetworkReply *sendCustomRequest(const QNetworkRequest &request, 
+                                     const QByteArray &verb, 
+                                     QIODevice *data = Q_NULLPTR);
 };
 
 class HttpRequest
@@ -1041,23 +1046,23 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
 
             if (lambdaString == T2S(std::function<void (QString)>)) {
                 connect(this,
-                        QOverload<QString>::of(&HttpResponse::finished),
+                        static_cast<void (HttpResponse::*)(QString)>(&HttpResponse::finished),
                         lambda.value<std::function<void (QString)>>());
             }
             else if (lambdaString == T2S(std::function<void (QByteArray)>)) {
                 connect(this,
-                        QOverload<QByteArray>::of(&HttpResponse::finished),
+                        static_cast<void (HttpResponse::*)(QByteArray)>(&HttpResponse::finished),
                         lambda.value<std::function<void (QByteArray)>>());
             }
             else if (lambdaString == T2S(std::function<void (QVariantMap)>)) {
                 connect(this,
-                        QOverload<QVariantMap>::of(&HttpResponse::finished),
+                        static_cast<void (HttpResponse::*)(QVariantMap)>(&HttpResponse::finished),
                         lambda.value<std::function<void (QVariantMap)>>());
             }
             else if (lambdaString == T2S(std::function<void (QNetworkReply*)>)) {
                 connect(this,
-                        QOverload<QNetworkReply *>::of(&HttpResponse::finished),
-                        lambda.value<std::function<void (QNetworkReply*)>>());
+                        static_cast<void (HttpResponse::*)(QNetworkReply *)>(&HttpResponse::finished),
+                        lambda.value<std::function<void (QNetworkReply *)>>());
             }
             else {
                 QStringList signalsList = {
@@ -1073,7 +1078,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onDownloadProgress) {
             if (lambdaString == T2S(std::function<void (qint64, qint64)>)) {
                 connect(this,
-                        QOverload<qint64, qint64>::of(&HttpResponse::downloadProgress),
+                        static_cast<void (HttpResponse::*)(qint64, qint64)>(&HttpResponse::downloadProgress),
                         lambda.value<std::function<void (qint64, qint64)>>());
             }
             else {
@@ -1088,7 +1093,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onUploadProgress) {
             if (lambdaString == T2S(std::function<void (qint64, qint64)>)) {
                 connect(this,
-                        QOverload<qint64, qint64>::of(&HttpResponse::uploadProgress),
+                        static_cast<void (HttpResponse::*)(qint64, qint64)>(&HttpResponse::uploadProgress),
                         lambda.value<std::function<void (qint64, qint64)>>());
             }
             else {
@@ -1103,22 +1108,22 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onError) {
             if (lambdaString == T2S(std::function<void (QString)>)) {
                 connect(this,
-                        QOverload<QString>::of(&HttpResponse::error),
+                        static_cast<void (HttpResponse::*)(QString)>(&HttpResponse::error),
                         lambda.value<std::function<void (QString)>>());
             }
             else if (lambdaString == T2S(std::function<void (QByteArray)>)) {
                 connect(this,
-                        QOverload<QByteArray>::of(&HttpResponse::error),
+                        static_cast<void (HttpResponse::*)(QByteArray)>(&HttpResponse::error),
                         lambda.value<std::function<void (QByteArray)>>());
             }
             else if (lambdaString == T2S(std::function<void (QNetworkReply*)>)) {
                 connect(this,
-                        QOverload<QNetworkReply *>::of(&HttpResponse::error),
+                        static_cast<void (HttpResponse::*)(QNetworkReply*)>(&HttpResponse::error),
                         lambda.value<std::function<void (QNetworkReply*)>>());
             }
             else if (lambdaString == T2S(std::function<void (QNetworkReply::NetworkError)>)) {
                 connect(this,
-                        QOverload<QNetworkReply::NetworkError>::of(&HttpResponse::error),
+                        static_cast<void (HttpResponse::*)(QNetworkReply::NetworkError)>(&HttpResponse::error),
                         lambda.value<std::function<void (QNetworkReply::NetworkError)>>());
             }
             else {
@@ -1134,12 +1139,12 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onTimeout) {
             if (lambdaString == T2S(std::function<void (QNetworkReply*)>)) {
                 connect(this,
-                        QOverload<QNetworkReply *>::of(&HttpResponse::timeout),
+                        static_cast<void (HttpResponse::*)(QNetworkReply*)>(&HttpResponse::timeout),
                         lambda.value<std::function<void (QNetworkReply*)>>());
             }
             else if (lambdaString == T2S(std::function<void ()>)) {
                 connect(this,
-                        QOverload<void>::of(&HttpResponse::timeout),
+                        static_cast<void (HttpResponse::*)()>(&HttpResponse::timeout),
                         lambda.value<std::function<void ()>>());
             }
             else {
@@ -1154,7 +1159,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onReadyRead) {
             if (lambdaString == T2S(std::function<void (QNetworkReply*)>)) {
                 connect(this,
-                        QOverload<QNetworkReply *>::of(&HttpResponse::readyRead),
+                        static_cast<void (HttpResponse::*)(QNetworkReply*)>(&HttpResponse::readyRead),
                         lambda.value<std::function<void (QNetworkReply*)>>());
             }
             else {
@@ -1168,12 +1173,12 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onDownloadSuccess) {
             if (lambdaString == T2S(std::function<void (QString)>)) {
                 connect(this,
-                        QOverload<QString>::of(&HttpResponse::downloadFinished),
+                        static_cast<void (HttpResponse::*)(QString)>(&HttpResponse::downloadFinished),
                         lambda.value<std::function<void (QString)>>());
             }
             else if (lambdaString == T2S(std::function<void ()>)) {
                 connect(this,
-                        QOverload<void>::of(&HttpResponse::downloadFinished),
+                        static_cast<void (HttpResponse::*)()>(&HttpResponse::downloadFinished),
                         lambda.value<std::function<void ()>>());
             }
             else {
@@ -1189,12 +1194,12 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onDownloadFailed) {
             if (lambdaString == T2S(std::function<void (QString)>)) {
                 connect(this,
-                        QOverload<QString>::of(&HttpResponse::downloadError),
+                        static_cast<void (HttpResponse::*)(QString)>(&HttpResponse::downloadError),
                         lambda.value<std::function<void (QString)>>());
             }
             else if (lambdaString == T2S(std::function<void ()>)) {
                 connect(this,
-                        QOverload<void>::of(&HttpResponse::downloadError),
+                        static_cast<void (HttpResponse::*)()>(&HttpResponse::downloadError),
                         lambda.value<std::function<void ()>>());
             }
             else {
@@ -1210,7 +1215,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onEncrypted) {
             if (lambdaString == T2S(std::function<void ()>)) {
                 connect(this,
-                        QOverload<void>::of(&HttpResponse::encrypted),
+                        static_cast<void (HttpResponse::*)()>(&HttpResponse::encrypted),
                         lambda.value<std::function<void ()>>());
             }
             else {
@@ -1224,7 +1229,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onMetaDataChanged) {
             if (lambdaString == T2S(std::function<void ()>)) {
                 connect(this,
-                        QOverload<void>::of(&HttpResponse::metaDataChanged),
+                        static_cast<void (HttpResponse::*)()>(&HttpResponse::metaDataChanged),
                         lambda.value<std::function<void ()>>());
             }
             else {
@@ -1238,7 +1243,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onPreSharedKeyAuthenticationRequired) {
             if (lambdaString == T2S(std::function<void ()>)) {
                 connect(this,
-                        QOverload<QSslPreSharedKeyAuthenticator*>::of(&HttpResponse::preSharedKeyAuthenticationRequired),
+                        static_cast<void (HttpResponse::*)(QSslPreSharedKeyAuthenticator*)>(&HttpResponse::preSharedKeyAuthenticationRequired),
                         lambda.value<std::function<void (QSslPreSharedKeyAuthenticator*)>>());
             }
             else {
@@ -1252,7 +1257,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onRedirectAllowed) {
             if (lambdaString == T2S(std::function<void ()>)) {
                 connect(this,
-                        QOverload<void>::of(&HttpResponse::redirectAllowed),
+                        static_cast<void (HttpResponse::*)()>(&HttpResponse::redirectAllowed),
                         lambda.value<std::function<void ()>>());
             }
             else {
@@ -1266,7 +1271,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onRedirected) {
             if (lambdaString == T2S(std::function<void (QUrl)>)) {
                 connect(this,
-                        QOverload<QUrl>::of(&HttpResponse::redirected),
+                        static_cast<void (HttpResponse::*)(QUrl)>(&HttpResponse::redirected),
                         lambda.value<std::function<void (QUrl)>>());
             }
             else {
@@ -1280,7 +1285,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onSslErrors) {
             if (lambdaString == T2S(std::function<void (QList<QSslError>)>)) {
                 connect(this,
-                        QOverload<QList<QSslError>>::of(&HttpResponse::sslErrors),
+                        static_cast<void (HttpResponse::*)(QList<QSslError>)>(&HttpResponse::sslErrors),
                         lambda.value<std::function<void (QList<QSslError>)>>());
             }
             else {
@@ -1294,7 +1299,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onRetried) {
             if (lambdaString == T2S(std::function<void ()>)) {
                 connect(this,
-                        QOverload<void>::of(&HttpResponse::retried),
+                        static_cast<void (HttpResponse::*)()>(&HttpResponse::retried),
                         lambda.value<std::function<void ()>>());
             }
             else {
@@ -1308,7 +1313,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         else if (key == h_onRepeated) {
             if (lambdaString == T2S(std::function<void ()>)) {
                 connect(this,
-                        QOverload<void>::of(&HttpResponse::repeated),
+                        static_cast<void (HttpResponse::*)()>(&HttpResponse::repeated),
                         lambda.value<std::function<void ()>>());
             }
             else {
