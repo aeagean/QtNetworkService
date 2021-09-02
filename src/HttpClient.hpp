@@ -17,7 +17,9 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 
+#include <QBuffer>
 #include <QMetaEnum>
+#include <QMetaType>
 #include <QUrlQuery>
 #include <QFile>
 #include <QIODevice>
@@ -75,6 +77,12 @@ public:
     inline HttpRequest put(const QString &url);
 
     inline HttpRequest send(const QString &url, Operation op = GetOperation);
+    
+private:
+#if (QT_VERSION < QT_VERSION_CHECK(5, 8, 0))
+    inline QNetworkReply *sendCustomRequest(const QNetworkRequest &request, const QByteArray &verb, const QByteArray &data);
+    inline QNetworkReply *sendCustomRequest(const QNetworkRequest &request, const QByteArray &verb, QHttpMultiPart *multiPart);
+#endif
 };
 
 class HttpRequest
@@ -1103,9 +1111,37 @@ bool httpResponseConnect(const HttpResponse *sender, QVariant senderSignal, cons
 
 #define HTTP_RESPONSE_CONNECT_X(sender, senderSignal, lambdaString, lambda, ...) \
     httpResponseConnect<__VA_ARGS__>(sender, \
-                                     QVariant::fromValue(QOverload<__VA_ARGS__>::of(&HttpResponse::senderSignal)), \
+                                     QVariant::fromValue(static_cast<void (HttpResponse::*)(__VA_ARGS__)>(&HttpResponse::senderSignal)), \
                                      lambdaString, \
                                      lambda);
+
+#if (QT_VERSION < QT_VERSION_CHECK(5, 8, 0))
+QNetworkReply *HttpClient::sendCustomRequest(const QNetworkRequest &request, const QByteArray &verb, const QByteArray &data)
+{
+    QBuffer *buffer = new QBuffer;
+    buffer->setData(data);
+    buffer->open(QIODevice::ReadOnly);
+    QNetworkReply *reply = QNetworkAccessManager::sendCustomRequest(request, verb, buffer);
+    buffer->setParent(reply);
+
+    return reply;
+}
+
+QNetworkReply *HttpClient::sendCustomRequest(const QNetworkRequest &request, const QByteArray &verb, QHttpMultiPart *multiPart)
+{
+    if (verb == "PUT") {
+        return QNetworkAccessManager::put(request, multiPart);
+    }
+    else if (verb == "POST") {
+        return QNetworkAccessManager::post(request, multiPart);
+    }
+    else {
+        qDebug() << "not support " << verb << "multi part.";
+    }
+
+    return NULL;
+}
+#endif
 
 HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
     : QObject(params.reply),
@@ -1130,7 +1166,10 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
     connect(reply, SIGNAL(encrypted()),                 this, SLOT(onEncrypted()));
     connect(reply, SIGNAL(metaDataChanged()),           this, SLOT(onMetaDataChanged()));
     connect(reply, SIGNAL(preSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)), this, SLOT(onPreSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)));
+
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
     connect(reply, SIGNAL(redirectAllowed()),           this, SLOT(onRedirectAllowed()));
+#endif
     connect(reply, SIGNAL(redirected(QUrl)),            this, SLOT(onRedirected(QUrl)));
     connect(reply, SIGNAL(sslErrors(QList<QSslError>)), this, SLOT(onSslErrors(QList<QSslError>)));
 
