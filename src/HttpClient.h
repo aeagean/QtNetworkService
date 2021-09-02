@@ -118,7 +118,7 @@ public:
     inline HttpRequest &body(QHttpMultiPart *multiPart);
     inline HttpRequest &bodyWithMultiPart(QHttpMultiPart *multiPart);
 
-    // multi-paramws
+    // multi-params
     inline HttpRequest &body(const QString &key, const QString &file);
     inline HttpRequest &bodyWithFile(const QString &key, const QString &file);
     inline HttpRequest &bodyWithFile(const QMap<QString/*key*/, QString/*file*/> &fileMap); // => QMap<key, file>; like: { "key": "/home/example/car.jpeg" }

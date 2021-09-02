@@ -10,6 +10,6 @@
 INCLUDEPATH += $$PWD/
 
 HEADERS += \
-    $$PWD/HttpClient.hpp
+    $$PWD/HttpClient.h
 
 QT += network

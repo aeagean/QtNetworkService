@@ -7,7 +7,7 @@
  * Source Code: https://github.com/aeagean/QtNetworkService
  * LISCENSE: MIT
 **********************************************************/
-#include "HttpClient.hpp"
+#include "HttpClient.h"
 #include <QCoreApplication>
 #include <QDebug>
 
