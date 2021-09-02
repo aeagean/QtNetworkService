@@ -112,6 +112,7 @@ public:
     inline HttpRequest &bodyWithJson(const QJsonObject &json);
 
     inline HttpRequest &body(const QVariantMap &formUrlencodedMap);
+    inline HttpRequest &bodyWithFormUrlencoded(const QString &key, const QVariant &value);
     inline HttpRequest &bodyWithFormUrlencoded(const QVariantMap &keyValueMap);
 
     inline HttpRequest &body(QHttpMultiPart *multiPart);
@@ -267,7 +268,7 @@ private:
 
 private:
     Params m_params;
-    QMap<QString, QString> m_fileMap;
+    QVariantMap m_formDataMap;
 };
 
 class HttpResponse : public QObject
@@ -419,9 +420,22 @@ HttpRequest &HttpRequest::body(const QVariantMap &keyValueMap)
     return bodyWithFormUrlencoded(keyValueMap);
 }
 
+HttpRequest &HttpRequest::bodyWithFormUrlencoded(const QString &key, const QVariant &value)
+{
+    QVariantMap map;
+    map[key] = value;
+
+    return bodyWithFormUrlencoded(map);
+}
+
 HttpRequest &HttpRequest::bodyWithFormUrlencoded(const QVariantMap &keyValueMap)
 {
-    QMapIterator<QString, QVariant> i(keyValueMap);
+    // merge map
+    for (auto each : keyValueMap.toStdMap()) {
+        m_formDataMap[each.first] = each.second;
+    }
+
+    QMapIterator<QString, QVariant> i(m_formDataMap);
 
     QUrl url;
     QUrlQuery urlQuery(url);

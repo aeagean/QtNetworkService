@@ -231,7 +231,7 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-#if 0
+#if 1
     Object object;
     object.exec();
 #else
