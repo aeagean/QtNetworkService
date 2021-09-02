@@ -1076,17 +1076,17 @@ static bool isMethod(const char *member)
 }
 
 
-template<typename ... Args>
-bool httpResponseConnect(const HttpResponse *sender, QVariant senderSignal, const QString &lambdaString, const QVariant &lambda)
+template<typename M, typename T>
+bool httpResponseConnect(const HttpResponse *sender, T senderSignal, const QString &lambdaString, const QVariant &lambda)
 {
-    if (lambdaString == QVariant::fromValue(std::function<void (Args ...)>()).typeName()) {
+    if (lambdaString == QVariant::fromValue(M()).typeName()) {
         QObject::connect(sender,
-                         senderSignal.value<void (HttpResponse::*)(Args ...)>(),
-                         lambda.value<std::function<void (Args...)>>());
+                         senderSignal,
+                         lambda.value<M>());
         return true;
     }
     else if (isMethod(qPrintable(lambdaString))) {
-        QString signal = QMetaMethod::fromSignal(senderSignal.value<void (HttpResponse::*)(Args ...)>()).methodSignature();
+        QString signal = QMetaMethod::fromSignal(senderSignal).methodSignature();
         signal.insert(0, "2");
         signal.replace("qlonglong", "qint64");
 
@@ -1110,10 +1110,11 @@ bool httpResponseConnect(const HttpResponse *sender, QVariant senderSignal, cons
 }
 
 #define HTTP_RESPONSE_CONNECT_X(sender, senderSignal, lambdaString, lambda, ...) \
-    httpResponseConnect<__VA_ARGS__>(sender, \
-                                     QVariant::fromValue(static_cast<void (HttpResponse::*)(__VA_ARGS__)>(&HttpResponse::senderSignal)), \
-                                     lambdaString, \
-                                     lambda);
+    httpResponseConnect< std::function<void (__VA_ARGS__)> > ( \
+             sender, \
+             static_cast<void (HttpResponse::*)(__VA_ARGS__)>(&HttpResponse::senderSignal), \
+             lambdaString, \
+             lambda);
 
 #if (QT_VERSION < QT_VERSION_CHECK(5, 8, 0))
 QNetworkReply *HttpClient::sendCustomRequest(const QNetworkRequest &request, const QByteArray &verb, const QByteArray &data)
@@ -1502,22 +1503,20 @@ void HttpResponse::onSslErrors(const QList<QSslError> &errors)
     emit sslErrors(errors);
 }
 
-#define HTTPRESPONSE_DECLARE_METATYPE(n, ...) \
-    typedef void (AeaQt::HttpResponse::*FUNC##n)(__VA_ARGS__); \
-    Q_DECLARE_METATYPE(FUNC##n) \
+}
+
+#define HTTPRESPONSE_DECLARE_METATYPE(...) \
     Q_DECLARE_METATYPE(std::function<void (__VA_ARGS__)>)
 
-HTTPRESPONSE_DECLARE_METATYPE(0, void)
-HTTPRESPONSE_DECLARE_METATYPE(1, QByteArray)
-HTTPRESPONSE_DECLARE_METATYPE(2, QString)
-HTTPRESPONSE_DECLARE_METATYPE(3, QVariantMap)
-HTTPRESPONSE_DECLARE_METATYPE(4, QNetworkReply*)
-HTTPRESPONSE_DECLARE_METATYPE(5, qint64, qint64)
-HTTPRESPONSE_DECLARE_METATYPE(6, QNetworkReply::NetworkError)
-HTTPRESPONSE_DECLARE_METATYPE(7, QSslPreSharedKeyAuthenticator*)
-HTTPRESPONSE_DECLARE_METATYPE(8, QUrl)
-HTTPRESPONSE_DECLARE_METATYPE(9, QList<QSslError>)
-
-}
+HTTPRESPONSE_DECLARE_METATYPE(void)
+HTTPRESPONSE_DECLARE_METATYPE(QByteArray)
+HTTPRESPONSE_DECLARE_METATYPE(QString)
+HTTPRESPONSE_DECLARE_METATYPE(QVariantMap)
+HTTPRESPONSE_DECLARE_METATYPE(QNetworkReply*)
+HTTPRESPONSE_DECLARE_METATYPE(qint64, qint64)
+HTTPRESPONSE_DECLARE_METATYPE(QNetworkReply::NetworkError)
+HTTPRESPONSE_DECLARE_METATYPE(QSslPreSharedKeyAuthenticator*)
+HTTPRESPONSE_DECLARE_METATYPE(QUrl)
+HTTPRESPONSE_DECLARE_METATYPE(QList<QSslError>)
 
 #endif // QTHUB_COM_HTTPCLIENT_HPP
