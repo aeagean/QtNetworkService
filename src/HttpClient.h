@@ -585,13 +585,13 @@ HttpRequest &HttpRequest::sslConfiguration(const QSslConfiguration &config)
     return *this;
 }
 
-HttpRequest &HttpRequest::Priority(QNetworkRequest::Priority priority)
+HttpRequest &HttpRequest::priority(QNetworkRequest::Priority priority)
 {
     m_params.request.setPriority(priority);
     return *this;
 }
 
-HttpRequest &HttpRequest::MaximumRedirectsAllowed(int maxRedirectsAllowed)
+HttpRequest &HttpRequest::maximumRedirectsAllowed(int maxRedirectsAllowed)
 {
     m_params.request.setMaximumRedirectsAllowed(maxRedirectsAllowed);
     return *this;
