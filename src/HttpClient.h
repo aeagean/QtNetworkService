@@ -77,7 +77,7 @@ public:
     inline HttpRequest put(const QString &url);
 
     inline HttpRequest send(const QString &url, Operation op = GetOperation);
-    
+
 private:
 #if (QT_VERSION < QT_VERSION_CHECK(5, 8, 0))
     inline QNetworkReply *sendCustomRequest(const QNetworkRequest &request, const QByteArray &verb, const QByteArray &data);
@@ -114,6 +114,9 @@ public:
     inline HttpRequest &body(const QVariantMap &formUrlencodedMap);
     inline HttpRequest &bodyWithFormUrlencoded(const QString &key, const QVariant &value);
     inline HttpRequest &bodyWithFormUrlencoded(const QVariantMap &keyValueMap);
+
+    inline HttpRequest &bodyWithFormData(const QString &key, const QVariant &value);
+    inline HttpRequest &bodyWithFormData(const QVariantMap &keyValueMap);
 
     inline HttpRequest &body(QHttpMultiPart *multiPart);
     inline HttpRequest &bodyWithMultiPart(QHttpMultiPart *multiPart);
@@ -216,7 +219,8 @@ public:
             Raw_Json, // application/json
             X_Www_Form_Urlencoded, // x-www-form-urlencoded
             FileMap,
-            MultiPart
+            MultiPart,
+            FormData
         };
 
         enum DownloadEnabled {
@@ -268,6 +272,7 @@ private:
 
 private:
     Params m_params;
+    QVariantMap m_formUrlencodedMap;
     QVariantMap m_formDataMap;
 };
 
@@ -432,10 +437,10 @@ HttpRequest &HttpRequest::bodyWithFormUrlencoded(const QVariantMap &keyValueMap)
 {
     // merge map
     for (auto each : keyValueMap.toStdMap()) {
-        m_formDataMap[each.first] = each.second;
+        m_formUrlencodedMap[each.first] = each.second;
     }
 
-    QMapIterator<QString, QVariant> i(m_formDataMap);
+    QMapIterator<QString, QVariant> i(m_formUrlencodedMap);
 
     QUrl url;
     QUrlQuery urlQuery(url);
@@ -450,6 +455,26 @@ HttpRequest &HttpRequest::bodyWithFormUrlencoded(const QVariantMap &keyValueMap)
     m_params.body = qMakePair(Params::X_Www_Form_Urlencoded, value);
     m_params.request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
 
+    return *this;
+}
+
+HttpRequest &HttpRequest::bodyWithFormData(const QString &key, const QVariant &value)
+{
+    QVariantMap map;
+    map[key] = value;
+
+    return bodyWithFormData(map);
+}
+
+HttpRequest &HttpRequest::bodyWithFormData(const QVariantMap &keyValueMap)
+{
+    // merge map
+    for (auto each : keyValueMap.toStdMap()) {
+        m_formDataMap[each.first] = each.second;
+    }
+
+    m_params.body = qMakePair(Params::FormData, m_formDataMap);
+    m_params.request.setHeader(QNetworkRequest::ContentTypeHeader, "multipart/form-data");
     return *this;
 }
 
@@ -989,6 +1014,30 @@ HttpResponse *HttpRequest::exec()
                                               multiPart);
         multiPart->setParent(m_params.reply); // fixme if m_params.reply == NULL => multiPart memory leak
     }
+    else if (bodyType == BodyType::FormData) {
+        QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+        QString contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
+        request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
+
+        const auto &formDataMap = body.value<QMap<QString, QVariant>>();
+        for (const auto &each : formDataMap.toStdMap()) {
+            const QString &key      = each.first;
+            const QString &value    = each.second.toString();
+
+            QString dispositionHeader = QString("form-data; name=\"%1\"").arg(key);
+
+            QHttpPart part;
+            part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
+            part.setBody(value.toUtf8());
+
+            multiPart->append(part);
+        }
+
+        m_params.reply = httpClient->sendCustomRequest(request,
+                                              verbMap.value(m_params.op),
+                                              multiPart);
+        multiPart->setParent(m_params.reply); // fixme if m_params.reply == NULL => multiPart memory leak
+    }
     else {
         m_params.reply = m_params.httpClient->sendCustomRequest(request,
                                                                 verbMap.value(m_params.op),
@@ -996,6 +1045,7 @@ HttpResponse *HttpRequest::exec()
     }
 
     if (m_params.reply == NULL) {
+        // fixme: todo onError
         qWarning() << "http reply invalid";
         return NULL;
     }

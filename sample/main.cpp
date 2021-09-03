@@ -183,6 +183,15 @@ public:
              .block() // 同步操作
              .exec();
         // [x]
+
+        // [x] post form-data
+        client.post("https://httpbin.org/post")
+              .bodyWithFormData("key1", "value1")
+              .bodyWithFormData("key2", "value2")
+              .onSuccess([](QString result){qDebug().noquote() << "post form-data: " << result;})
+              .onFailed([](QString err){qDebug()<< "post form-data: " << err;})
+              .exec();
+        // [x]
     }
 
 public slots:
@@ -231,20 +240,17 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-#if 1
+#if 0
     Object object;
     object.exec();
 #else
-    Object object;
     HttpClient client;
-    client.get("https://httpbin.org/get")
-          .onSuccess([](QString result){qDebug()<<result;})
-          .onSuccess(&object, SLOT(onSuccess(QString)))
-          .onFailed([](QString err){qDebug()<<err;})
-//          .timeout(1)
-//            .onTimeout([](){qDebug()<<__LINE__;})
-          .sync() // 同步操作
-          .exec();
+    client.post("https://httpbin.org/post")
+            .bodyWithFormData("1", "2")
+            .bodyWithFormData("3", "4")
+            .onSuccess([](QString result){qDebug().noquote() << "post form-data: " << result;})
+            .onFailed([](QString err){qDebug()<< "post form-data: " << err;})
+            .exec();
 
 #endif
 
