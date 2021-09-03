@@ -6,6 +6,14 @@
  * QQ交流群: 732271126
  * Source Code: https://github.com/aeagean/QtNetworkService
  * LISCENSE: MIT
+ * Demo:
+ ==========================================================
+   static AeaQt::HttpClient client;
+   client.get("https://qthub.com")
+         .onSuccess([](QString result) { qDebug()<<"success!"; })
+         .onFailed([](QString error) { qDebug()<<"failed!"; })
+         .exec();
+ ==========================================================
 **********************************************************/
 #ifndef QTHUB_COM_HTTPCLIENT_HPP
 #define QTHUB_COM_HTTPCLIENT_HPP
