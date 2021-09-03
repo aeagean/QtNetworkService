@@ -35,25 +35,6 @@
 
 namespace AeaQt {
 
-enum HandleType {
-    h_onFinished = 0,
-    h_onError,
-    h_onDownloadProgress,
-    h_onUploadProgress,
-    h_onTimeout,
-    h_onReadyRead,
-    h_onDownloadSuccess,
-    h_onDownloadFailed,
-    h_onEncrypted,
-    h_onMetaDataChanged,
-    h_onPreSharedKeyAuthenticationRequired,
-    h_onRedirectAllowed,
-    h_onRedirected,
-    h_onSslErrors,
-    h_onRetried,
-    h_onRepeated
-};
-
 class HttpClient;
 class HttpRequest;
 class HttpResponse;
@@ -62,15 +43,7 @@ class HttpClient : public QNetworkAccessManager
 {
     Q_OBJECT
 public:
-    friend class HttpRequest;
-
     inline HttpClient();
-    inline ~HttpClient();
-
-    HttpClient &instance() {
-        static HttpClient client;
-        return client;
-    }
 
     inline HttpRequest get(const QString &url);
     inline HttpRequest post(const QString &url);
@@ -83,6 +56,7 @@ private:
     inline QNetworkReply *sendCustomRequest(const QNetworkRequest &request, const QByteArray &verb, const QByteArray &data);
     inline QNetworkReply *sendCustomRequest(const QNetworkRequest &request, const QByteArray &verb, QHttpMultiPart *multiPart);
 #endif
+    friend class HttpRequest;
 };
 
 class HttpRequest
@@ -211,6 +185,25 @@ public:
     inline HttpRequest &sync();
 
     inline HttpResponse *exec();
+
+    enum HandleType {
+        h_onFinished = 0,
+        h_onError,
+        h_onDownloadProgress,
+        h_onUploadProgress,
+        h_onTimeout,
+        h_onReadyRead,
+        h_onDownloadSuccess,
+        h_onDownloadFailed,
+        h_onEncrypted,
+        h_onMetaDataChanged,
+        h_onPreSharedKeyAuthenticationRequired,
+        h_onRedirectAllowed,
+        h_onRedirected,
+        h_onSslErrors,
+        h_onRetried,
+        h_onRepeated
+    };
 
     struct Params {
         enum BodyType {
@@ -874,55 +867,55 @@ inline QDebug &operator<<(QDebug &debug, const QNetworkAccessManager::Operation 
 }
 
 template<typename T>
-inline T &operator<<(T &debug, const HandleType &handleType)
+inline T &operator<<(T &debug, const HttpRequest::HandleType &handleType)
 {
     switch (handleType) {
-        case h_onFinished:
+        case HttpRequest::h_onFinished:
             debug << "onFinished";
             break;
-        case h_onError:
+        case HttpRequest::h_onError:
             debug << "onError";
             break;
-        case h_onDownloadProgress:
+        case HttpRequest::h_onDownloadProgress:
             debug << "onDownloadProgress";
             break;
-        case h_onUploadProgress:
+        case HttpRequest::h_onUploadProgress:
             debug << "onUploadProgress";
             break;
-        case h_onTimeout:
+        case HttpRequest::h_onTimeout:
             debug << "onTimeout";
             break;
-        case h_onReadyRead:
+        case HttpRequest::h_onReadyRead:
             debug << "onReadyRead";
             break;
-        case h_onDownloadSuccess:
+        case HttpRequest::h_onDownloadSuccess:
             debug << "onDownloadSuccess";
             break;
-        case h_onDownloadFailed:
+        case HttpRequest::h_onDownloadFailed:
             debug << "onDownloadFailed";
             break;
-        case h_onEncrypted:
+        case HttpRequest::h_onEncrypted:
             debug << "onEncrypted";
             break;
-        case h_onMetaDataChanged:
+        case HttpRequest::h_onMetaDataChanged:
             debug << "onMetaChanged";
             break;
-        case h_onPreSharedKeyAuthenticationRequired:
+        case HttpRequest::h_onPreSharedKeyAuthenticationRequired:
             debug << "onPreSharedKeyAuthenticationRequired";
             break;
-        case h_onRedirectAllowed:
+        case HttpRequest::h_onRedirectAllowed:
             debug << "onRedirectAllowed";
             break;
-        case h_onRedirected:
+        case HttpRequest::h_onRedirected:
             debug << "onRedirected";
             break;
-        case h_onSslErrors:
+        case HttpRequest::h_onSslErrors:
             debug << "onSslErrors";
             break;
-        case h_onRetried:
+        case HttpRequest::h_onRetried:
             debug << "onRetried";
             break;
-        case h_onRepeated:
+        case HttpRequest::h_onRepeated:
             debug << "onRepeated";
             break;
         default:
@@ -1103,10 +1096,6 @@ HttpClient::HttpClient()
 {
 }
 
-HttpClient::~HttpClient()
-{
-}
-
 HttpRequest HttpClient::get(const QString &url)
 {
     return HttpRequest(QNetworkAccessManager::GetOperation, this).url(url);
@@ -1240,7 +1229,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
 
     // fixme
     for (auto each : handleMap.toStdMap()) {
-        const HandleType &key                 = each.first;
+        const HttpRequest::HandleType &key           = each.first;
         const QList<QPair<QString, QVariant>> &value = each.second;
 
         for (auto iter : value) {
@@ -1248,61 +1237,61 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
             const QString &lambdaString = iter.first;
             int ret = 0;
 
-            if (key == h_onFinished) {
+            if (key == HttpRequest::h_onFinished) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QString);
                 ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QByteArray);
                 ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QVariantMap);
                 ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QNetworkReply*);
             }
-            else if (key == h_onDownloadProgress) {
+            else if (key == HttpRequest::h_onDownloadProgress) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, downloadProgress, lambdaString, lambda, qint64, qint64);
             }
-            else if (key == h_onUploadProgress) {
+            else if (key == HttpRequest::h_onUploadProgress) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, uploadProgress, lambdaString, lambda, qint64, qint64);
             }
-            else if (key == h_onError) {
+            else if (key == HttpRequest::h_onError) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QString);
                 ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QByteArray);
                 ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QNetworkReply*);
                 ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QNetworkReply::NetworkError);
             }
-            else if (key == h_onTimeout) {
+            else if (key == HttpRequest::h_onTimeout) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, timeout, lambdaString, lambda, QNetworkReply*);
                 ret += HTTP_RESPONSE_CONNECT_X(this, timeout, lambdaString, lambda, void);
             }
-            else if (key == h_onReadyRead) {
+            else if (key == HttpRequest::h_onReadyRead) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, readyRead, lambdaString, lambda, QNetworkReply*);
             }
-            else if (key == h_onDownloadSuccess) {
+            else if (key == HttpRequest::h_onDownloadSuccess) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, downloadFinished, lambdaString, lambda, void);
                 ret += HTTP_RESPONSE_CONNECT_X(this, downloadFinished, lambdaString, lambda, QString);
             }
-            else if (key == h_onDownloadFailed) {
+            else if (key == HttpRequest::h_onDownloadFailed) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, downloadError, lambdaString, lambda, void);
                 ret += HTTP_RESPONSE_CONNECT_X(this, downloadError, lambdaString, lambda, QString);
             }
-            else if (key == h_onEncrypted) {
+            else if (key == HttpRequest::h_onEncrypted) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, encrypted, lambdaString, lambda, void);
             }
-            else if (key == h_onMetaDataChanged) {
+            else if (key == HttpRequest::h_onMetaDataChanged) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, metaDataChanged, lambdaString, lambda, void);
             }
-            else if (key == h_onPreSharedKeyAuthenticationRequired) {
+            else if (key == HttpRequest::h_onPreSharedKeyAuthenticationRequired) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, preSharedKeyAuthenticationRequired, lambdaString, lambda, QSslPreSharedKeyAuthenticator*);
             }
-            else if (key == h_onRedirectAllowed) {
+            else if (key == HttpRequest::h_onRedirectAllowed) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, redirectAllowed, lambdaString, lambda, void);
             }
-            else if (key == h_onRedirected) {
+            else if (key == HttpRequest::h_onRedirected) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, redirected, lambdaString, lambda, QUrl);
             }
-            else if (key == h_onSslErrors) {
+            else if (key == HttpRequest::h_onSslErrors) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, sslErrors, lambdaString, lambda, QList<QSslError>);
             }
-            else if (key == h_onRetried) {
+            else if (key == HttpRequest::h_onRetried) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, retried, lambdaString, lambda, void);
             }
-            else if (key == h_onRepeated) {
+            else if (key == HttpRequest::h_onRepeated) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, repeated, lambdaString, lambda, void);
             }
             else {

@@ -251,7 +251,6 @@ int main(int argc, char *argv[])
             .onSuccess([](QString result){qDebug().noquote() << "post form-data: " << result;})
             .onFailed([](QString err){qDebug()<< "post form-data: " << err;})
             .exec();
-
 #endif
 
     return a.exec();
