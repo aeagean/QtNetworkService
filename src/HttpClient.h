@@ -97,8 +97,8 @@ public:
     inline HttpRequest &ignoreSslErrors(const QList<QSslError> &errors);
     inline HttpRequest &sslConfiguration(const QSslConfiguration &config);
 
-    inline HttpRequest &Priority(QNetworkRequest::Priority priority);
-    inline HttpRequest &MaximumRedirectsAllowed(int maxRedirectsAllowed);
+    inline HttpRequest &priority(QNetworkRequest::Priority priority);
+    inline HttpRequest &maximumRedirectsAllowed(int maxRedirectsAllowed);
     inline HttpRequest &originatingObject(QObject *object);
     inline HttpRequest &readBufferSize(qint64 size);
 
