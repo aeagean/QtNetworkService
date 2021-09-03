@@ -56,7 +56,7 @@ private:
 class HttpRequest
 {
 public:
-    inline explicit HttpRequest(QNetworkAccessManager::Operation op, HttpClient *jsonHttpClient);
+    inline explicit HttpRequest(QNetworkAccessManager::Operation op, HttpClient *httpClient);
     inline virtual ~HttpRequest();
 
     inline HttpRequest &url(const QString &url);
@@ -937,18 +937,18 @@ HttpResponse *HttpRequest::exec()
 
     if (!verbMap.contains(m_params.op)) {
         qWarning() << "Url: [" << m_params.request.url().toString() << "]" << m_params.op << "not support!";
-        return NULL;
+        return nullptr;
     }
 
     using BodyType = HttpRequest::Params::BodyType;
-    BodyType bodyType = m_params.body.first;
-    QVariant    &body = m_params.body.second;
+    BodyType        bodyType = m_params.body.first;
+    QVariant           &body = m_params.body.second;
     QNetworkRequest &request = m_params.request;
     HttpClient   *httpClient = m_params.httpClient;
 
     if (bodyType == BodyType::MultiPart) {
-        QHttpMultiPart *multiPart = (QHttpMultiPart *)(body.value<QHttpMultiPart*>());
-        QString contentType       = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
+        QHttpMultiPart *multiPart = body.value<QHttpMultiPart*>();
+        QString       contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
 
         request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
 
@@ -959,7 +959,6 @@ HttpResponse *HttpRequest::exec()
 
     }
     else if (bodyType == BodyType::FileMap) {
-
         QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
         QString contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
         request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
@@ -990,11 +989,15 @@ HttpResponse *HttpRequest::exec()
         m_params.reply = httpClient->sendCustomRequest(request,
                                               verbMap.value(m_params.op),
                                               multiPart);
-        multiPart->setParent(m_params.reply); // fixme if m_params.reply == NULL => multiPart memory leak
+        if (m_params.reply)
+            multiPart->setParent(m_params.reply);
+        else
+            delete multiPart;
+
     }
     else if (bodyType == BodyType::FormData) {
         QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
-        QString contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
+        QString       contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
         request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
 
         const auto &formDataMap = body.value<QMap<QString, QVariant>>();
@@ -1014,7 +1017,11 @@ HttpResponse *HttpRequest::exec()
         m_params.reply = httpClient->sendCustomRequest(request,
                                               verbMap.value(m_params.op),
                                               multiPart);
-        multiPart->setParent(m_params.reply); // fixme if m_params.reply == NULL => multiPart memory leak
+
+        if (m_params.reply)
+            multiPart->setParent(m_params.reply);
+        else
+            delete multiPart;
     }
     else {
         m_params.reply = m_params.httpClient->sendCustomRequest(request,
@@ -1022,10 +1029,10 @@ HttpResponse *HttpRequest::exec()
                                                                 body.toByteArray());
     }
 
-    if (m_params.reply == NULL) {
+    if (m_params.reply == nullptr) {
         // fixme: todo onError
         qWarning() << "http reply invalid";
-        return NULL;
+        return nullptr;
     }
 
     // fixme
@@ -1118,10 +1125,7 @@ template<typename M, typename T>
 bool httpResponseConnect(const HttpResponse *sender, T senderSignal, const QString &lambdaString, const QVariant &lambda)
 {
     if (lambdaString == QVariant::fromValue(M()).typeName()) {
-        QObject::connect(sender,
-                         senderSignal,
-                         lambda.value<M>());
-        return true;
+        return QObject::connect(sender, senderSignal, lambda.value<M>());
     }
     else if (isMethod(qPrintable(lambdaString))) {
         QString signal = QMetaMethod::fromSignal(senderSignal).methodSignature();
@@ -1129,12 +1133,10 @@ bool httpResponseConnect(const HttpResponse *sender, T senderSignal, const QStri
         signal.replace("qlonglong", "qint64");
 
         const QObject *receiver = lambda.value<QObject*>();
-        QString method = lambdaString;
-        method = QMetaObject::normalizedSignature(qPrintable(method)); // remove 'const', like: const QString => QString
+        QString          method = QMetaObject::normalizedSignature(qPrintable(lambdaString)); // remove 'const', like: const QString => QString
 
         if (QMetaObject::checkConnectArgs(qPrintable(signal), qPrintable(method))) {
-            QObject::connect(sender, qPrintable(signal), receiver, qPrintable(method));
-            return true;
+            return QObject::connect(sender, qPrintable(signal), receiver, qPrintable(method));
         }
         else {
             return false;
@@ -1174,9 +1176,8 @@ QNetworkReply *HttpClient::sendCustomRequest(const QNetworkRequest &request, con
     }
     else {
         qDebug() << "not support " << verb << "multi part.";
+        return nullptr;
     }
-
-    return NULL;
 }
 #endif
 
