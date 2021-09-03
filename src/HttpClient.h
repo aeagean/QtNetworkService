@@ -10,27 +10,21 @@
 #ifndef QTHUB_COM_HTTPCLIENT_HPP
 #define QTHUB_COM_HTTPCLIENT_HPP
 
-#include <QtNetwork/QNetworkRequest>
-#include <QtNetwork/QNetworkReply>
-#include <QtNetwork/QHttpMultiPart>
+#include <QNetworkReply>
+#include <QHttpMultiPart>
 
 #include <QJsonObject>
 #include <QJsonDocument>
 
 #include <QBuffer>
 #include <QMetaEnum>
-#include <QMetaType>
 #include <QUrlQuery>
-#include <QFile>
-#include <QIODevice>
 #include <QFileInfo>
 
 #include <QTimer>
-#include <QRegExp>
 #include <QEventLoop>
 #include <QDebug>
 
-#include <utility>
 #include <functional>
 
 namespace AeaQt {
@@ -178,10 +172,9 @@ public:
     inline HttpRequest &onRepeated(std::function<void ()> lambda);
 
     /**
-     * @brief Block current thread, entering an event loop.
+     * @brief Block(or sync) current thread, entering an event loop.
      */
-    inline HttpRequest &block();
-    // block => sync
+    inline HttpRequest &block(); 
     inline HttpRequest &sync();
 
     inline HttpResponse *exec();
@@ -207,13 +200,13 @@ public:
 
     struct Params {
         enum BodyType {
-            None = 0, // This request does not have a body.
+            None = 0,              // This request does not have a body.
             Raw,
-            Raw_Json, // application/json
+            Raw_Json,              // application/json
             X_Www_Form_Urlencoded, // x-www-form-urlencoded
-            FileMap,
-            MultiPart,
-            FormData
+            FileMap,               // multipart/form-data
+            MultiPart,             // multipart/form-data
+            FormData               // multipart/form-data
         };
 
         enum DownloadEnabled {
@@ -222,9 +215,10 @@ public:
         };
 
         QNetworkAccessManager::Operation op;
+        HttpClient                      *httpClient;
         QNetworkReply                   *reply;
         QNetworkRequest                  request;
-        HttpClient                      *httpClient;
+
         QPair<BodyType, QVariant>        body;
         int                              timeoutMs; // ms
         bool                             isBlock;
@@ -232,22 +226,22 @@ public:
         bool                             enabledRetry;
         int                              repeatCount;
 
-        QPair<DownloadEnabled, QString>  downloadFile;
+        qint64                                              readBufferSize;
+        QList<QSslError>                                    ignoreSslErrors;
+        QPair<DownloadEnabled, QString>                     downloadFile;
         QMap<HandleType, QList<QPair<QString, QVariant> > > handleMap;
-        QList<QSslError>  ignoreSslErrors;
-        qint64            readBufferSize;
 
         Params()
         {
-            reply = NULL;
-            httpClient = NULL;
-            isBlock = (false);
-            retryCount = (0);
-            repeatCount = 1;
-            enabledRetry = false;
-            timeoutMs = (-1);
-            body = qMakePair(BodyType::None, QByteArray());
-            downloadFile = qMakePair(DownloadEnabled::Disabled, QString(""));
+            reply          = nullptr;
+            httpClient     = nullptr;
+            isBlock        = false;
+            retryCount     = 0;
+            repeatCount    = 1;
+            enabledRetry   = false;
+            timeoutMs      = -1;
+            body           = qMakePair(BodyType::None, QByteArray());
+            downloadFile   = qMakePair(DownloadEnabled::Disabled, QString(""));
             readBufferSize = 0;
         }
     };
@@ -347,8 +341,6 @@ public:
     }
 };
 
-#define T2S(t) (QString(#t).remove(QRegExp("\\s"))) //type to string
-
 #ifdef QT_APP_DEBUG
 #define _debugger qDebug().noquote().nospace() \
                           << "[AeaQt::Network] Debug: -> " \
@@ -357,11 +349,6 @@ public:
 #else
 #define _debugger QNoDebug()
 #endif
-
-#define _warning qWarning().noquote().nospace() \
-                           << "[AeaQt::Network] Warning: -> " \
-                           << "function: " << __func__ << "; " \
-                           << "line: " << __LINE__ << "; "
 
 HttpRequest::~HttpRequest()
 {
@@ -838,29 +825,27 @@ HttpRequest &HttpRequest::onResponse(HandleType type, QVariant lambda)
 inline QDebug &operator<<(QDebug &debug, const QNetworkAccessManager::Operation &op)
 {
     switch (op) {
-    case QNetworkAccessManager::UnknownOperation:
-        debug  << "UnknownOperation";
-        break;
-    case QNetworkAccessManager::HeadOperation:
-        debug  << "HeadOperation";
-        break;
-    case QNetworkAccessManager::GetOperation:
-        debug  << "GetOperation";
-        break;
-    case QNetworkAccessManager::PostOperation:
-        debug  << "PostOperation";
-        break;
-    case QNetworkAccessManager::PutOperation:
-        debug  << "PutOperation";
-        break;
-    case QNetworkAccessManager::DeleteOperation:
-        debug  << "DeleteOperation";
-        break;
-    case QNetworkAccessManager::CustomOperation:
-        debug  << "CustomOperation";
-        break;
-    default:
-        break;
+        case QNetworkAccessManager::HeadOperation:
+            debug  << "HeadOperation";
+            break;
+        case QNetworkAccessManager::GetOperation:
+            debug  << "GetOperation";
+            break;
+        case QNetworkAccessManager::PostOperation:
+            debug  << "PostOperation";
+            break;
+        case QNetworkAccessManager::PutOperation:
+            debug  << "PutOperation";
+            break;
+        case QNetworkAccessManager::DeleteOperation:
+            debug  << "DeleteOperation";
+            break;
+        case QNetworkAccessManager::CustomOperation:
+            debug  << "CustomOperation";
+            break;
+        default:
+            debug  << "UnknownOperation";
+            break;
     }
 
     return debug;
@@ -1158,8 +1143,6 @@ bool httpResponseConnect(const HttpResponse *sender, T senderSignal, const QStri
     else {
         return false;
     }
-
-    return false;
 }
 
 #define HTTP_RESPONSE_CONNECT_X(sender, senderSignal, lambdaString, lambda, ...) \
@@ -1203,33 +1186,37 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
       m_httpRequest(httpRequest),
       m_retriesRemaining(params.retryCount)
 {
-    int timeout = params.timeoutMs;
+    int timeout          = params.timeoutMs;
+    int isBlock          = params.isBlock;
+    auto handleMap       = params.handleMap;
     QNetworkReply *reply = params.reply;
-    auto handleMap = params.handleMap;
-    int isBlock = params.isBlock;
 
     new HttpResponseTimeout(this, timeout);
 
     connect(reply, SIGNAL(finished()),                         this, SLOT(onFinished()));
     connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
+
     connect(reply, SIGNAL(downloadProgress(qint64, qint64)),   this, SLOT(onDownloadProgress(qint64, qint64)));
     connect(reply, SIGNAL(uploadProgress(qint64, qint64)),     this, SLOT(onUploadProgress(qint64, qint64)));
+
     connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadOnceReplyHeader()));
     connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadyRead()));
 
-    connect(reply, SIGNAL(encrypted()),                 this, SLOT(onEncrypted()));
-    connect(reply, SIGNAL(metaDataChanged()),           this, SLOT(onMetaDataChanged()));
-    connect(reply, SIGNAL(preSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)), this, SLOT(onPreSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)));
+    connect(reply, SIGNAL(encrypted()),                        this, SLOT(onEncrypted()));
+    connect(reply, SIGNAL(metaDataChanged()),                  this, SLOT(onMetaDataChanged()));
+
+    connect(reply, SIGNAL(redirected(QUrl)),                   this, SLOT(onRedirected(QUrl)));
+    connect(reply, SIGNAL(sslErrors(QList<QSslError>)),        this, SLOT(onSslErrors(QList<QSslError>)));
 
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
-    connect(reply, SIGNAL(redirectAllowed()),           this, SLOT(onRedirectAllowed()));
+    connect(reply, SIGNAL(redirectAllowed()),                  this, SLOT(onRedirectAllowed()));
 #endif
-    connect(reply, SIGNAL(redirected(QUrl)),            this, SLOT(onRedirected(QUrl)));
-    connect(reply, SIGNAL(sslErrors(QList<QSslError>)), this, SLOT(onSslErrors(QList<QSslError>)));
 
-    // fixme
+    connect(reply, SIGNAL(preSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)), this, SLOT(onPreSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)));
+
+    // fixme: Too cumbersome
     for (auto each : handleMap.toStdMap()) {
-        const HttpRequest::HandleType &key           = each.first;
+        const HttpRequest::HandleType         &key   = each.first;
         const QList<QPair<QString, QVariant>> &value = each.second;
 
         for (auto iter : value) {
