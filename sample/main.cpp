@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-#if 1
+#if 0
     Object object;
     object.exec();
 #else
@@ -250,7 +250,9 @@ int main(int argc, char *argv[])
             .bodyWithFormData("3", "4")
             .onSuccess([](QString result){qDebug().noquote() << "post form-data: " << result;})
             .onFailed([](QString err){qDebug()<< "post form-data: " << err;})
+            .block()
             .exec();
+    qDebug() << ">>>>";
 #endif
 
     return a.exec();

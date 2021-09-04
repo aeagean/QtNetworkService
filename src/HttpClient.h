@@ -526,46 +526,6 @@ HttpRequest &HttpRequest::download(const QString &file)
     return *this;
 }
 
-HttpRequest &HttpRequest::onDownloadSuccess(const QObject *receiver, const char *method)
-{
-    return onResponse(h_onDownloadSuccess, receiver, method);
-}
-
-HttpRequest &HttpRequest::onDownloadSuccess(std::function<void ()> lambda)
-{
-    return onResponse(h_onDownloadSuccess, QVariant::fromValue(lambda));
-}
-
-HttpRequest &HttpRequest::onDownloadSuccess(std::function<void (QString)> lambda)
-{
-    return onResponse(h_onDownloadSuccess, QVariant::fromValue(lambda));
-}
-
-HttpRequest &HttpRequest::onDownloadFailed(const QObject *receiver, const char *method)
-{
-    return onResponse(h_onDownloadFailed, receiver, method);
-}
-
-HttpRequest &HttpRequest::onDownloadFailed(std::function<void ()> lambda)
-{
-    return onResponse(h_onDownloadFailed, QVariant::fromValue(lambda));
-}
-
-HttpRequest &HttpRequest::onDownloadFailed(std::function<void (QString)> lambda)
-{
-    return onResponse(h_onDownloadFailed, QVariant::fromValue(lambda));
-}
-
-HttpRequest &HttpRequest::onReadyRead(const QObject *receiver, const char *method)
-{
-    return onResponse(h_onReadyRead, receiver, method);
-}
-
-HttpRequest &HttpRequest::onReadyRead(std::function<void (QNetworkReply *)> lambda)
-{
-    return onResponse(h_onReadyRead, QVariant::fromValue(lambda));
-}
-
 HttpRequest &HttpRequest::body(const QString &key, const QString &file)
 {
     return bodyWithFile(key, file);
@@ -628,195 +588,70 @@ HttpRequest &HttpRequest::readBufferSize(qint64 size)
     return *this;
 }
 
-HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char *method)
-{
-    return onResponse(h_onFinished, receiver, method);
-}
+// event [0]
+HttpRequest &HttpRequest::timeout(const int &second) { return timeoutMs(second * 1000); }
+HttpRequest &HttpRequest::timeoutMs(const int &msec) { m_params.timeoutMs = msec; return *this; }
 
-HttpRequest &HttpRequest::onFinished(std::function<void (QNetworkReply *)> lambda)
-{
-    return onResponse(h_onFinished, QVariant::fromValue(lambda));
-}
+HttpRequest &HttpRequest::retry(int count) { m_params.retryCount = count; return *this; }
 
-HttpRequest &HttpRequest::onFinished(std::function<void (QVariantMap)> lambda)
-{
-    return onResponse(h_onFinished, QVariant::fromValue(lambda));
-}
+HttpRequest &HttpRequest::repeat(int count) { m_params.repeatCount = count; return *this; }
 
-HttpRequest &HttpRequest::onFinished(std::function<void (QByteArray)> lambda)
-{
-    return onResponse(h_onFinished, QVariant::fromValue(lambda));
-}
+HttpRequest &HttpRequest::block() { m_params.isBlock = true; return *this; }
+HttpRequest &HttpRequest::sync() { return block(); }
 
-HttpRequest &HttpRequest::onDownloadProgress(const QObject *receiver, const char *method)
-{
-    return onResponse(h_onDownloadProgress, receiver, method);
-}
+HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char  *method) { return onResponse(h_onFinished, receiver, method); }
+HttpRequest &HttpRequest::onFinished(std::function<void (QNetworkReply *)> lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onFinished(std::function<void (QVariantMap)>     lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onFinished(std::function<void (QByteArray)>      lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
 
-HttpRequest &HttpRequest::onDownloadProgress(std::function<void (qint64, qint64)> lambda)
-{
-    return onResponse(h_onDownloadProgress, QVariant::fromValue(lambda));
-}
+HttpRequest &HttpRequest::onSuccess(const QObject *receiver, const char  *method) { return onFinished(receiver, method); }
+HttpRequest &HttpRequest::onSuccess(std::function<void (QNetworkReply *)> lambda) { return onFinished(lambda); }
+HttpRequest &HttpRequest::onSuccess(std::function<void (QVariantMap)>     lambda) { return onFinished(lambda); }
+HttpRequest &HttpRequest::onSuccess(std::function<void (QByteArray)>      lambda) { return onFinished(lambda); }
 
-HttpRequest &HttpRequest::onUploadProgress(const QObject *receiver, const char *method)
-{
-    return onResponse(h_onUploadProgress, receiver, method);
-}
+HttpRequest &HttpRequest::onFailed(const QObject *receiver,              const char *method) { return onError(receiver, method); }
+HttpRequest &HttpRequest::onFailed(std::function<void (QNetworkReply::NetworkError)> lambda) { return onError(lambda); }
+HttpRequest &HttpRequest::onFailed(std::function<void (QString)>                     lambda) { return onError(lambda); }
+HttpRequest &HttpRequest::onFailed(std::function<void (QNetworkReply *)>             lambda) { return onError(lambda); }
 
-HttpRequest &HttpRequest::onUploadProgress(std::function<void (qint64, qint64)> lambda)
-{
-    return onResponse(h_onUploadProgress, QVariant::fromValue(lambda));
-}
+HttpRequest &HttpRequest::onError(const QObject *receiver,              const char *method) { return onResponse(h_onError, receiver, method); }
+HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply::NetworkError)> lambda) { return onResponse(h_onError, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onError(std::function<void (QString)>                     lambda) { return onResponse(h_onError, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply *)>             lambda) { return onResponse(h_onError, QVariant::fromValue(lambda)); }
 
-HttpRequest &HttpRequest::onError(const QObject *receiver, const char *method)
-{
-    return onResponse(h_onError, receiver, method);
-}
+HttpRequest &HttpRequest::onReadyRead(const QObject *receiver, const char  *method) { return onResponse(h_onReadyRead, receiver, method); }
+HttpRequest &HttpRequest::onReadyRead(std::function<void (QNetworkReply *)> lambda) { return onResponse(h_onReadyRead, QVariant::fromValue(lambda)); }
 
-HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply::NetworkError)> lambda)
-{
-    return onResponse(h_onError, QVariant::fromValue(lambda));
-}
+HttpRequest &HttpRequest::onDownloadProgress(const QObject *receiver, const char *method) { return onResponse(h_onDownloadProgress, receiver, method); }
+HttpRequest &HttpRequest::onDownloadProgress(std::function<void (qint64, qint64)> lambda) { return onResponse(h_onDownloadProgress, QVariant::fromValue(lambda)); }
 
-HttpRequest &HttpRequest::onError(std::function<void (QString)> lambda)
-{
-    return onResponse(h_onError, QVariant::fromValue(lambda));
-}
+HttpRequest &HttpRequest::onDownloadSuccess(const QObject *receiver, const char *method) { return onResponse(h_onDownloadSuccess, receiver, method); }
+HttpRequest &HttpRequest::onDownloadSuccess(std::function<void ()>               lambda) { return onResponse(h_onDownloadSuccess, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onDownloadSuccess(std::function<void (QString)>        lambda) { return onResponse(h_onDownloadSuccess, QVariant::fromValue(lambda)); }
 
-HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply *)> lambda)
-{
-    return onResponse(h_onError, QVariant::fromValue(lambda));
-}
+HttpRequest &HttpRequest::onDownloadFailed(const QObject *receiver, const char *method) { return onResponse(h_onDownloadFailed, receiver, method); }
+HttpRequest &HttpRequest::onDownloadFailed(std::function<void ()>               lambda) { return onResponse(h_onDownloadFailed, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onDownloadFailed(std::function<void (QString)>        lambda) { return onResponse(h_onDownloadFailed, QVariant::fromValue(lambda)); }
 
-HttpRequest &HttpRequest::onSuccess(const QObject *receiver, const char *method)
-{
-    return onFinished(receiver, method);
-}
+HttpRequest &HttpRequest::onUploadProgress(const QObject *receiver, const char *method) { return onResponse(h_onUploadProgress, receiver, method); }
+HttpRequest &HttpRequest::onUploadProgress(std::function<void (qint64, qint64)> lambda) { return onResponse(h_onUploadProgress, QVariant::fromValue(lambda)); }
 
-HttpRequest &HttpRequest::onSuccess(std::function<void (QNetworkReply *)> lambda)
-{
-    return onFinished(lambda);
-}
+HttpRequest &HttpRequest::onTimeout(const QObject *receiver, const char  *method) { return onResponse(h_onTimeout, receiver, method); }
+HttpRequest &HttpRequest::onTimeout(std::function<void (QNetworkReply *)> lambda) { return onResponse(h_onTimeout, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onTimeout(std::function<void ()>                lambda) { return onResponse(h_onTimeout, QVariant::fromValue(lambda)); }
 
-HttpRequest &HttpRequest::onSuccess(std::function<void (QVariantMap)> lambda)
-{
-    return onFinished(lambda);
-}
+HttpRequest &HttpRequest::onRetried(const QObject *receiver, const char  *method) { return onResponse(h_onRetried, receiver, method); }
+HttpRequest &HttpRequest::onRetried(std::function<void ()>                lambda) { return onResponse(h_onRetried, QVariant::fromValue(lambda)); }
 
-HttpRequest &HttpRequest::onSuccess(std::function<void (QByteArray)> lambda)
-{
-    return onFinished(lambda);
-}
+HttpRequest &HttpRequest::onRepeated(const QObject *receiver, const char *method) { return onResponse(h_onRepeated, receiver, method); }
+HttpRequest &HttpRequest::onRepeated(std::function<void ()>               lambda) { return onResponse(h_onRepeated, QVariant::fromValue(lambda)); }
 
-HttpRequest &HttpRequest::onFailed(const QObject *receiver, const char *method)
-{
-    return onError(receiver, method);
-}
-
-HttpRequest &HttpRequest::onFailed(std::function<void (QNetworkReply::NetworkError)> lambda)
-{
-    return onError(lambda);
-}
-
-HttpRequest &HttpRequest::onFailed(std::function<void (QString)> lambda)
-{
-    return onError(lambda);
-}
-
-HttpRequest &HttpRequest::onFailed(std::function<void (QNetworkReply *)> lambda)
-{
-    return onError(lambda);
-}
-
-HttpRequest &HttpRequest::timeout(const int &second)
-{
-    return timeoutMs(second * 1000);
-}
-
-HttpRequest &HttpRequest::timeoutMs(const int &msec)
-{
-    m_params.timeoutMs = msec;
-    return *this;
-}
-
-HttpRequest &HttpRequest::onTimeout(const QObject *receiver, const char *method)
-{
-    return onResponse(h_onTimeout, receiver, method);
-}
-
-HttpRequest &HttpRequest::onTimeout(std::function<void (QNetworkReply *)> lambda)
-{
-    return onResponse(h_onTimeout, QVariant::fromValue(lambda));
-}
-
-HttpRequest &HttpRequest::onTimeout(std::function<void ()> lambda)
-{
-    return onResponse(h_onTimeout, QVariant::fromValue(lambda));
-}
-
-HttpRequest &HttpRequest::retry(int count)
-{
-    m_params.retryCount = count;
-    return *this;
-}
-
-HttpRequest &HttpRequest::onRetried(const QObject *receiver, const char *method)
-{
-    return onResponse(h_onRetried, receiver, method);
-}
-
-HttpRequest &HttpRequest::onRetried(std::function<void ()> lambda)
-{
-    return onResponse(h_onRetried, QVariant::fromValue(lambda));
-}
-
-HttpRequest &HttpRequest::repeat(int count)
-{
-    m_params.repeatCount = count;
-    return *this;
-}
-
-HttpRequest &HttpRequest::onRepeated(const QObject *receiver, const char *method)
-{
-    return onResponse(h_onRepeated, receiver, method);
-}
-
-HttpRequest &HttpRequest::onRepeated(std::function<void ()> lambda)
-{
-    return onResponse(h_onRepeated, QVariant::fromValue(lambda));
-}
-
-HttpRequest &HttpRequest::block()
-{
-    m_params.isBlock = true;
-    return *this;
-}
-
-HttpRequest &HttpRequest::sync()
-{
-    return block();
-}
-
-HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *method)
-{
-    return onResponse(h_onFinished, receiver, method);
-}
-
-HttpRequest &HttpRequest::onResponse(std::function<void (QNetworkReply*)> lambda)
-{
-    return onResponse(h_onFinished, QVariant::fromValue(lambda));
-}
-
-HttpRequest &HttpRequest::onResponse(std::function<void (QVariantMap)> lambda)
-{
-    return onResponse(h_onFinished, QVariant::fromValue(lambda));
-}
-
-HttpRequest &HttpRequest::onResponse(std::function<void (QByteArray)> lambda)
-{
-    return onResponse(h_onFinished, QVariant::fromValue(lambda));
-}
-
+HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *method) { return onResponse(h_onFinished, receiver, method); }
+HttpRequest &HttpRequest::onResponse(std::function<void (QNetworkReply*)> lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onResponse(std::function<void (QVariantMap)>    lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onResponse(std::function<void (QByteArray)>     lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onResponse(HandleType type, QVariant            lambda) { return onResponse(type, lambda.typeName(), lambda); }
+HttpRequest &HttpRequest::onResponse(HandleType type, const QObject *receiver, const char *method) { return onResponse(type, method, QVariant::fromValue((QObject *)receiver)); }
 HttpRequest &HttpRequest::onResponse(HandleType type, QString key, QVariant value)
 {
     if (!m_params.handleMap.contains(type)) {
@@ -830,16 +665,7 @@ HttpRequest &HttpRequest::onResponse(HandleType type, QString key, QVariant valu
     m_params.handleMap.insert(type, handleList);
     return *this;
 }
-
-HttpRequest &HttpRequest::onResponse(HandleType type, const QObject *receiver, const char *method)
-{
-    return onResponse(type, method, QVariant::fromValue((QObject *)receiver));
-}
-
-HttpRequest &HttpRequest::onResponse(HandleType type, QVariant lambda)
-{
-    return onResponse(type, lambda.typeName(), lambda);
-}
+// event [0]
 
 inline QDebug &operator<<(QDebug &debug, const QNetworkAccessManager::Operation &op)
 {
