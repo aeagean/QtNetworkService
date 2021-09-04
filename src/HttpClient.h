@@ -349,6 +349,17 @@ public:
     }
 };
 
+class HttpBlocker: public QEventLoop {
+    Q_OBJECT
+public:
+    HttpBlocker(QNetworkReply *reply, bool isBlock) : QEventLoop(reply) {
+        if (isBlock) {
+            connect(reply, SIGNAL(finished()), this, SLOT(quit()));
+            this->exec();
+        }
+    }
+};
+
 #ifdef QT_APP_DEBUG
 #define _debugger qDebug().noquote().nospace() \
                           << "[AeaQt::Network] Debug: -> " \
@@ -833,90 +844,39 @@ HttpRequest &HttpRequest::onResponse(HandleType type, QVariant lambda)
 inline QDebug &operator<<(QDebug &debug, const QNetworkAccessManager::Operation &op)
 {
     switch (op) {
-        case QNetworkAccessManager::HeadOperation:
-            debug  << "HeadOperation";
-            break;
-        case QNetworkAccessManager::GetOperation:
-            debug  << "GetOperation";
-            break;
-        case QNetworkAccessManager::PostOperation:
-            debug  << "PostOperation";
-            break;
-        case QNetworkAccessManager::PutOperation:
-            debug  << "PutOperation";
-            break;
-        case QNetworkAccessManager::DeleteOperation:
-            debug  << "DeleteOperation";
-            break;
-        case QNetworkAccessManager::CustomOperation:
-            debug  << "CustomOperation";
-            break;
-        default:
-            debug  << "UnknownOperation";
-            break;
+        case QNetworkAccessManager::HeadOperation: return debug  << "HeadOperation";
+        case QNetworkAccessManager::GetOperation:  return debug  << "GetOperation";
+        case QNetworkAccessManager::PostOperation: return debug  << "PostOperation";
+        case QNetworkAccessManager::PutOperation:  return debug  << "PutOperation";
+        case QNetworkAccessManager::DeleteOperation: return debug  << "DeleteOperation";
+        case QNetworkAccessManager::CustomOperation: return debug  << "CustomOperation";
+        default: return debug  << "UnknownOperation";
     }
-
-    return debug;
 }
 
 template<typename T>
 inline T &operator<<(T &debug, const HttpRequest::HandleType &handleType)
 {
     switch (handleType) {
-        case HttpRequest::h_onFinished:
-            debug << "onFinished";
-            break;
-        case HttpRequest::h_onError:
-            debug << "onError";
-            break;
-        case HttpRequest::h_onDownloadProgress:
-            debug << "onDownloadProgress";
-            break;
-        case HttpRequest::h_onUploadProgress:
-            debug << "onUploadProgress";
-            break;
-        case HttpRequest::h_onTimeout:
-            debug << "onTimeout";
-            break;
-        case HttpRequest::h_onReadyRead:
-            debug << "onReadyRead";
-            break;
-        case HttpRequest::h_onDownloadSuccess:
-            debug << "onDownloadSuccess";
-            break;
-        case HttpRequest::h_onDownloadFailed:
-            debug << "onDownloadFailed";
-            break;
-        case HttpRequest::h_onEncrypted:
-            debug << "onEncrypted";
-            break;
-        case HttpRequest::h_onMetaDataChanged:
-            debug << "onMetaChanged";
-            break;
-        case HttpRequest::h_onPreSharedKeyAuthenticationRequired:
-            debug << "onPreSharedKeyAuthenticationRequired";
-            break;
-        case HttpRequest::h_onRedirectAllowed:
-            debug << "onRedirectAllowed";
-            break;
-        case HttpRequest::h_onRedirected:
-            debug << "onRedirected";
-            break;
-        case HttpRequest::h_onSslErrors:
-            debug << "onSslErrors";
-            break;
-        case HttpRequest::h_onRetried:
-            debug << "onRetried";
-            break;
-        case HttpRequest::h_onRepeated:
-            debug << "onRepeated";
-            break;
-        default:
-            debug << "Unknow";
-            break;
+        case HttpRequest::h_onFinished: return debug << "onFinished";
+        case HttpRequest::h_onError:    return debug << "onError";
+        case HttpRequest::h_onDownloadProgress: return debug << "onDownloadProgress";
+        case HttpRequest::h_onUploadProgress:   return debug << "onUploadProgress";
+        // todo: onUploadProgressSuccess and onUploadProgressFaied
+        case HttpRequest::h_onDownloadSuccess:  return debug << "onDownloadSuccess";
+        case HttpRequest::h_onDownloadFailed:   return debug << "onDownloadFailed";
+        case HttpRequest::h_onTimeout:          return debug << "onTimeout";
+        case HttpRequest::h_onReadyRead:        return debug << "onReadyRead";
+        case HttpRequest::h_onEncrypted:        return debug << "onEncrypted";
+        case HttpRequest::h_onMetaDataChanged:  return debug << "onMetaChanged";
+        case HttpRequest::h_onPreSharedKeyAuthenticationRequired: return debug << "onPreSharedKeyAuthenticationRequired";
+        case HttpRequest::h_onRedirectAllowed:  return debug << "onRedirectAllowed";
+        case HttpRequest::h_onRedirected:       return debug << "onRedirected";
+        case HttpRequest::h_onSslErrors:        return debug << "onSslErrors";
+        case HttpRequest::h_onRetried:          return debug << "onRetried";
+        case HttpRequest::h_onRepeated:         return debug << "onRepeated";
+        default: return debug << "Unknow";
     }
-
-    return debug;
 }
 
 HttpResponse *HttpRequest::exec()
@@ -1306,11 +1266,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
         }
     }
 
-    if (isBlock) {
-        QEventLoop loop;
-        QObject::connect(reply, SIGNAL(finished()), &loop, SLOT(quit()));
-        loop.exec();
-    }
+    new HttpBlocker(reply, isBlock);
 }
 
 HttpResponse::~HttpResponse()
