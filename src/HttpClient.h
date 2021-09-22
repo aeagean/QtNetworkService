@@ -182,8 +182,8 @@ public:
     /**
      * @brief Block(or sync) current thread, entering an event loop.
      */
-    inline HttpRequest &block(); 
-    inline HttpRequest &sync();
+    inline HttpRequest &block(bool isBlock = true);
+    inline HttpRequest &sync(bool isSync = true);
 
     inline HttpResponse *exec();
 
@@ -596,8 +596,8 @@ HttpRequest &HttpRequest::retry(int count) { m_params.retryCount = count; return
 
 HttpRequest &HttpRequest::repeat(int count) { m_params.repeatCount = count; return *this; }
 
-HttpRequest &HttpRequest::block() { m_params.isBlock = true; return *this; }
-HttpRequest &HttpRequest::sync() { return block(); }
+HttpRequest &HttpRequest::block(bool isBlock) { m_params.isBlock = isBlock; return *this; }
+HttpRequest &HttpRequest::sync(bool isSync) { return block(isSync); }
 
 HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char  *method) { return onResponse(h_onFinished, receiver, method); }
 HttpRequest &HttpRequest::onFinished(std::function<void (QNetworkReply *)> lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
