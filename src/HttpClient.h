@@ -45,6 +45,7 @@ class HttpClient : public QNetworkAccessManager
 {
     Q_OBJECT
 public:
+    inline static HttpClient *instance();
     inline HttpClient();
 
     inline HttpRequest get(const QString &url);
@@ -876,6 +877,12 @@ HttpRequest &HttpRequest::attribute(QNetworkRequest::Attribute attribute, const 
 {
     m_params.request.setAttribute(attribute, value);
     return *this;
+}
+
+HttpClient *HttpClient::instance()
+{
+    static HttpClient client;
+    return &client;
 }
 
 HttpClient::HttpClient()
