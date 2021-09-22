@@ -8,7 +8,7 @@ client.get("https://qthub.com")
 ```
 
 # 1. 如何使用？
-* 采用head-only的方式实现。只需在你的工程中包含 src 目录的 HttpClient.hpp 文件即可。
+* 采用head-only的方式实现。只需在你的工程中包含 src 目录的 HttpClient.h 文件即可。
 
 # 2. 使用文档
 
