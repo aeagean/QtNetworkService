@@ -20,6 +20,7 @@
 
 #include <QNetworkReply>
 #include <QHttpMultiPart>
+#include <QAuthenticator>
 
 #include <QJsonObject>
 #include <QJsonDocument>
@@ -110,6 +111,21 @@ public:
     inline HttpRequest &maximumRedirectsAllowed(int maxRedirectsAllowed);
     inline HttpRequest &originatingObject(QObject *object);
     inline HttpRequest &readBufferSize(qint64 size);
+
+    // Authentication
+    inline HttpRequest &autoAuthenticationRequired(const QAuthenticator &authenticator);
+    inline HttpRequest &autoAuthenticationRequired(const QString &user, const QString &password);
+    // 超过身份验证计数则触发失败并中断请求。
+    // count >= 0 => count
+    // count < 0 => infinite
+    inline HttpRequest &authenticationRequiredCount(int count = 1);
+
+    inline HttpRequest &onAuthenticationRequired(const QObject *receiver, const char *method);
+    inline HttpRequest &onAuthenticationRequired(std::function<void (QAuthenticator *)> lambda);
+
+    inline HttpRequest &onAuthenticationRequireFailed(const QObject *receiver, const char *method);
+    inline HttpRequest &onAuthenticationRequireFailed(std::function<void ()> lambda);
+    inline HttpRequest &onAuthenticationRequireFailed(std::function<void (QNetworkReply *)> lambda);
 
     // onFinished == onSuccess
     inline HttpRequest &onSuccess(const QObject *receiver, const char *method);
@@ -204,7 +220,9 @@ public:
         h_onRedirected,
         h_onSslErrors,
         h_onRetried,
-        h_onRepeated
+        h_onRepeated,
+        h_onAuthenticationRequired,
+        h_onAuthenticationRequireFailed,
     };
 
     struct Params {
@@ -234,6 +252,8 @@ public:
         int                              retryCount;
         bool                             enabledRetry;
         int                              repeatCount;
+        QAuthenticator                   authenticator;
+        int                              authenticationRequiredCount;
 
         qint64                                              readBufferSize;
         QList<QSslError>                                    ignoreSslErrors;
@@ -252,6 +272,7 @@ public:
             body           = qMakePair(BodyType::None, QByteArray());
             downloadFile   = qMakePair(DownloadEnabled::Disabled, QString(""));
             readBufferSize = 0;
+            authenticationRequiredCount = 1;
         }
     };
 
@@ -317,6 +338,10 @@ signals:
     void retried();
     void repeated();
 
+    void authenticationRequired(QAuthenticator *authentication);
+    void authenticationRequireFailed();
+    void authenticationRequireFailed(QNetworkReply *);
+
 private slots:
     inline void onFinished();
     inline void onError(QNetworkReply::NetworkError error);
@@ -333,12 +358,14 @@ private slots:
     inline void onRedirected(const QUrl &url);
     inline void onSslErrors(const QList<QSslError> &errors);
 
+    inline void onAuthenticationRequired(QNetworkReply *reply, QAuthenticator *authenticator);
+
 private:
     HttpRequest::Params m_params;
     HttpRequest         m_httpRequest;
     QFile               m_downloadFile;
     int                 m_retriesRemaining = 0;
-    int                 m_repeated = 1;
+    int                 m_authenticationCount = 0;
 };
 
 class HttpResponseTimeout : public QObject {
@@ -589,6 +616,27 @@ HttpRequest &HttpRequest::readBufferSize(qint64 size)
     return *this;
 }
 
+HttpRequest &HttpRequest::autoAuthenticationRequired(const QAuthenticator &authenticator)
+{
+    m_params.authenticator = authenticator;
+    return *this;
+}
+
+HttpRequest &HttpRequest::autoAuthenticationRequired(const QString &user, const QString &password)
+{
+    QAuthenticator a;
+    a.setUser(user);
+    a.setPassword(password);
+
+    return autoAuthenticationRequired(a);
+}
+
+HttpRequest &HttpRequest::authenticationRequiredCount(int count)
+{
+    m_params.authenticationRequiredCount = count;
+    return *this;
+}
+
 // event [0]
 HttpRequest &HttpRequest::timeout(const int &second) { return timeoutMs(second * 1000); }
 HttpRequest &HttpRequest::timeoutMs(const int &msec) { m_params.timeoutMs = msec; return *this; }
@@ -647,6 +695,13 @@ HttpRequest &HttpRequest::onRetried(std::function<void ()>                lambda
 HttpRequest &HttpRequest::onRepeated(const QObject *receiver, const char *method) { return onResponse(h_onRepeated, receiver, method); }
 HttpRequest &HttpRequest::onRepeated(std::function<void ()>               lambda) { return onResponse(h_onRepeated, QVariant::fromValue(lambda)); }
 
+HttpRequest &HttpRequest::onAuthenticationRequired(const QObject *receiver, const char *method)   { return onResponse(h_onAuthenticationRequired, receiver, method); }
+HttpRequest &HttpRequest::onAuthenticationRequired(std::function<void (QAuthenticator *)> lambda) { return onResponse(h_onAuthenticationRequired, QVariant::fromValue(lambda)); }
+
+HttpRequest &HttpRequest::onAuthenticationRequireFailed(const QObject *receiver, const char *method) { return onResponse(h_onAuthenticationRequireFailed, receiver, method); }
+HttpRequest &HttpRequest::onAuthenticationRequireFailed(std::function<void ()> lambda) { return onResponse(h_onAuthenticationRequireFailed, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onAuthenticationRequireFailed(std::function<void (QNetworkReply *)> lambda) { return onResponse(h_onAuthenticationRequireFailed, QVariant::fromValue(lambda)); }
+
 HttpRequest &HttpRequest::onResponse(const QObject *receiver, const char *method) { return onResponse(h_onFinished, receiver, method); }
 HttpRequest &HttpRequest::onResponse(std::function<void (QNetworkReply*)> lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
 HttpRequest &HttpRequest::onResponse(std::function<void (QVariantMap)>    lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
@@ -702,6 +757,8 @@ inline T &operator<<(T &debug, const HttpRequest::HandleType &handleType)
         case HttpRequest::h_onSslErrors:        return debug << "onSslErrors";
         case HttpRequest::h_onRetried:          return debug << "onRetried";
         case HttpRequest::h_onRepeated:         return debug << "onRepeated";
+        case HttpRequest::h_onAuthenticationRequired: return debug << "onAuthenticationRequired";
+        case HttpRequest::h_onAuthenticationRequireFailed: return debug << "onAuthenticationRequireFailed";
         default: return debug << "Unknow";
     }
 }
@@ -1016,6 +1073,8 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
 
     connect(reply, SIGNAL(preSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)), this, SLOT(onPreSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)));
 
+    connect(reply->manager(), SIGNAL(authenticationRequired(QNetworkReply*, QAuthenticator*)), this, SLOT(onAuthenticationRequired(QNetworkReply*,QAuthenticator*)));
+
     // fixme: Too cumbersome
     for (auto each : handleMap.toStdMap()) {
         const HttpRequest::HandleType         &key   = each.first;
@@ -1082,6 +1141,13 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
             }
             else if (key == HttpRequest::h_onRepeated) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, repeated, lambdaString, lambda, void);
+            }
+            else if (key == HttpRequest::h_onAuthenticationRequired) {
+                ret += HTTP_RESPONSE_CONNECT_X(this, authenticationRequired, lambdaString, lambda, QAuthenticator*);
+            }
+            else if (key == HttpRequest::h_onAuthenticationRequireFailed) {
+                ret += HTTP_RESPONSE_CONNECT_X(this, authenticationRequireFailed, lambdaString, lambda, void);
+                ret += HTTP_RESPONSE_CONNECT_X(this, authenticationRequireFailed, lambdaString, lambda, QNetworkReply*);
             }
             else {
                 // do nothing
@@ -1341,6 +1407,36 @@ void HttpResponse::onSslErrors(const QList<QSslError> &errors)
     emit sslErrors(errors);
 }
 
+void HttpResponse::onAuthenticationRequired(QNetworkReply *reply, QAuthenticator *authenticator)
+{
+    if (this->reply() != reply) {
+        return;
+    }
+
+    m_authenticationCount++;
+
+    bool isAuthenticationSuccessed = (m_authenticationCount >= 2);
+    if (isAuthenticationSuccessed) {
+        emit authenticationRequireFailed();
+        emit authenticationRequireFailed(this->reply());
+    }
+
+    if (m_params.authenticationRequiredCount >= 0 &&
+        m_authenticationCount > m_params.authenticationRequiredCount)
+    {
+        return;
+    }
+
+    if (m_params.authenticator.isNull()) {
+        emit authenticationRequired(authenticator);
+    }
+    else {
+        authenticator->setUser(m_params.authenticator.user());
+        authenticator->setPassword(m_params.authenticator.password());
+        // todo setOption....
+    }
+}
+
 }
 
 #define HTTPRESPONSE_DECLARE_METATYPE(...) \
@@ -1356,5 +1452,6 @@ HTTPRESPONSE_DECLARE_METATYPE(QNetworkReply::NetworkError)
 HTTPRESPONSE_DECLARE_METATYPE(QSslPreSharedKeyAuthenticator*)
 HTTPRESPONSE_DECLARE_METATYPE(QUrl)
 HTTPRESPONSE_DECLARE_METATYPE(QList<QSslError>)
+HTTPRESPONSE_DECLARE_METATYPE(QAuthenticator*)
 
 #endif // QTHUB_COM_HTTPCLIENT_HPP
