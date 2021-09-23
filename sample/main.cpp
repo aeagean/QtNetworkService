@@ -192,6 +192,41 @@ public:
               .onFailed([](QString err){qDebug()<< "post form-data: " << err;})
               .exec();
         // [x]
+
+        // [x] 身份验证
+        client.get("https://httpbin.org/basic-auth/admin/123456")
+              .onAuthenticationRequired([](QAuthenticator *authenticator) {
+                    authenticator->setUser("admin");
+                    authenticator->setPassword("123456");
+                    qDebug() << "=============";
+                })
+              .onSuccess([](QString result){qDebug()<<"success: "<<result;})
+              .onFailed([](QString err){qDebug()<<"failed: "<<err;})
+              .exec();
+        // [x]
+
+        // [x] 身份自动验证
+        client.get("https://httpbin.org/basic-auth/admin/123456")
+              .autoAuthenticationRequired("admin", "123456")
+              .onSuccess([](QString result){qDebug()<<"success: "<<result;})
+              .onFailed([](QString err){qDebug()<<"failed: "<<err;})
+              .exec();
+        // [x]
+
+        // [x] 身份验证次数与错误处理
+        client.get("https://httpbin.org/basic-auth/admin/123456")
+              .authenticationRequiredCount(2) // 最大重试验证次数为2次(默认值为1次)
+              .onAuthenticationRequired([](QAuthenticator *authenticator) {
+                    authenticator->setUser("admin");
+                    authenticator->setPassword("1234563"); // failed
+                })
+              .onAuthenticationRequireFailed([](){ // 验证身份失败的回调
+                    qDebug() << "authentication failed!";
+                })
+              .onSuccess([](QString result){qDebug()<<"success: "<<result;})
+              .onFailed([](QString err){qDebug()<<"failed: "<<err;})
+              .exec();
+        // [x]
     }
 
 public slots:
@@ -245,13 +280,18 @@ int main(int argc, char *argv[])
     object.exec();
 #else
     HttpClient client;
-    client.post("https://httpbin.org/post")
-            .bodyWithFormData("1", "2")
-            .bodyWithFormData("3", "4")
-            .onSuccess([](QString result){qDebug().noquote() << "post form-data: " << result;})
-            .onFailed([](QString err){qDebug()<< "post form-data: " << err;})
-            .block()
-            .exec();
+    client.get("https://httpbin.org/basic-auth/admin/123456")
+          .authenticationRequiredCount(2)
+          .onAuthenticationRequired([](QAuthenticator *tor) {
+                  tor->setUser("admin");
+                  tor->setPassword("1234563");
+            })
+          .onAuthenticationRequireFailed([](){
+                qDebug() << "authentication failed!";
+            })
+          .onSuccess([](QString result){qDebug()<<"success: "<<result;})
+          .onFailed([](QString err){qDebug()<<"failed: "<<err;})
+          .exec();
     qDebug() << ">>>>";
 #endif
 
