@@ -443,6 +443,82 @@ client.get("https://httpbin.org/get")
       .exec();
 ```
 
+## 2.14 身份验证
+### 接口：
+1. 自动填写身份验证信息。注：当QNetworkAccessManager的authenticationRequired信号触发时，会自动往QAuthenticator填写用户名和密码信息。  
+```cpp
+HttpRequest &autoAuthenticationRequired(const QAuthenticator &authenticator);
+HttpRequest &autoAuthenticationRequired(const QString &user, const QString &password);
+```
+
+2. 通过回调/槽函数手动填写身份验证信息。
+```cpp
+inline HttpRequest &onAuthenticationRequired(const QObject *receiver, const char *method);
+inline HttpRequest &onAuthenticationRequired(std::function<void (QAuthenticator *)> lambda);
+```
+
+3. 设置限制身份验证的次数，超过身份验证计数则触发失败并中断请求。  
+
+变量 | 解释 
+--- | ---
+`count < 0` | 不限制验证次数
+`count = 0` | 不验证 
+`count = 1` | 限制验证1次(默认值)
+`count > 0` | 限制count次
+
+```cpp
+inline HttpRequest &authenticationRequiredCount(int count = 1);
+```
+
+4. 身份验证失败后错误回调。
+```cpp
+inline HttpRequest &onAuthenticationRequireFailed(const QObject *receiver, const char *method);
+inline HttpRequest &onAuthenticationRequireFailed(std::function<void ()> lambda);
+inline HttpRequest &onAuthenticationRequireFailed(std::function<void (QNetworkReply *)> lambda);
+```
+
+### 例子
+1. 身份验证
+```cpp
+client.get("https://httpbin.org/basic-auth/admin/123456")
+      .onAuthenticationRequired([](QAuthenticator *authenticator) {
+            authenticator->setUser("admin");
+            authenticator->setPassword("123456");
+            qDebug() << "=============";
+        })
+      .onSuccess([](QString result){qDebug()<<"success: "<<result;})
+      .onFailed([](QString err){qDebug()<<"failed: "<<err;})
+      .exec();
+```
+
+2. 身份自动验证
+```cpp
+client.get("https://httpbin.org/basic-auth/admin/123456")
+      .autoAuthenticationRequired("admin", "123456")
+      .onSuccess([](QString result){qDebug()<<"success: "<<result;})
+      .onFailed([](QString err){qDebug()<<"failed: "<<err;})
+      .exec();
+```
+
+3. 身份验证次数与错误处理
+```cpp
+client.get("https://httpbin.org/basic-auth/admin/123456")
+      .authenticationRequiredCount(2) // 最大重试验证次数为2次(默认值为1次)
+      .onAuthenticationRequired([](QAuthenticator *authenticator) {
+            authenticator->setUser("admin");
+            authenticator->setPassword("1234563"); // 错误输入
+        })
+      .onAuthenticationRequireFailed([](){ // 验证身份失败的回调
+            qDebug() << "authentication failed!";
+        })
+      .onSuccess([](QString result){qDebug()<<"success: "<<result;})
+      .onFailed([](QString err){qDebug()<<"failed: "<<err;})
+      .exec();
+```
+
+## 注意
+* `autoAuthenticationRequired`和`onAuthenticationRequired`不能同时使用，因为它们是互斥实现。如不慎同时使用，只会生效`autoAuthenticationRequired`操作。
+
 # 3. 扫码关注微信公众号:Qt 君，第一时间获取推送。
 
 <p align="center">
