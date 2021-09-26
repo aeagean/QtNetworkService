@@ -184,7 +184,7 @@ client.post("https://example.com")
       .exec();
 ```
 
-## 添加 params
+## 2.9 添加 params
 
 ### 接口:
 
@@ -213,7 +213,7 @@ client.get("https://example.com?key1=value1&key2=value2&key3=value3")
       .onFailed([](QString error){})
 ```
 
-## 2.9 添加 body
+## 2.10 添加 body
 
 ### 接口:
 
@@ -340,7 +340,7 @@ client.post("http://httpbin.org/post")
       .exec();
 ```
 
-## 2.10 携带特定的用户数据到响应回调函数
+## 2.11 携带特定的用户数据到响应回调函数
 
 ### 接口:
 
@@ -361,18 +361,20 @@ client.get("http://httpbin.org/get")
       .exec();
 ```
 
-## 2.11 下载文件
+## 2.12 下载文件
 ### 接口:
-* 设置下载操作
+1. 设置下载操作
+&emsp;&emsp;保存为默认的文件名，会从请求头去拿文件名字，如果请求头没有则为链接最后的文本内容。
 ```cpp
-/* 保存为默认的文件名，会从请求头去拿文件名字，如果请求头没有则为链接最后的文本内容。*/
 HttpRequest &download();
+```
 
-/* 指定保存的文件名字,可包含路径。*/
+&emsp;&emsp;指定保存的文件名字,可包含路径。
+```cpp
 HttpRequest &download(const QString &file);
 ```
 
-* 响应回调/信号槽
+2. 下载成功或失败的响应回调/信号槽
 ```cpp
 HttpRequest &onDownloadSuccess(const QObject *receiver, const char *method);
 HttpRequest &onDownloadSuccess(std::function<void ()> lambda);
@@ -383,21 +385,65 @@ HttpRequest &onDownloadFailed(std::function<void ()> lambda);
 HttpRequest &onDownloadFailed(std::function<void (QString)> lambda);
 ```
 
+3. 断点续传下载
+&emsp;&emsp;默认开启断点续传下载功能，即当程序异常退出时，再次运行会接着从已下载的位置下载。
+&emsp;&emsp;需要注意的是，如果服务器不支持断点续传功能，则每次下载都是从头开始下载。
+
+ 参数 | 解释
+ --- | ---
+ enabled | 开启/关闭断点续传下载
+
+```cpp
+HttpRequest &enabledBreakpointDownload(bool enabled = true);
+```
+
+
+4. 文件下载进度的响应回调/信号槽
+&emsp;&emsp;回调传递的参数分别是已保存的文件字节数和文件总字节大小。
+```cpp
+HttpRequest &onFileDownloadProgress(const QObject *receiver, const char *method);
+HttpRequest &onFileDownloadProgress(std::function<void (qint64, qint64)> lambda);
+```
+
 ### 例子:
+1. 简单下载文件
 ```cpp
 client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
-      .download() // 启用默认文件名字下载
-      .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
-          // 下载进度
-          qDebug() << "bytes received: " << bytesReceived
-                   << "bytes total: " << bytesTotal;
+      .download("QtNetworkService.zip")
+      .onDownloadSuccess([](QString fileName) {
+            qDebug() << "Download completed: " << fileName;
        })
-      .onDownloadSuccess([](QString fileName) { qDebug()<<"download success: "<<fileName; })
-      .onDownloadFailed([](QString error) { qDebug()<<"download failed: "<<error; })
+      .onDownloadFailed([](QString error) {
+            qDebug() << "Download failed: " << error;
+       })
       .exec();
 ```
 
-## 2.12 失败重试
+2. 断点续传下载
+```cpp
+client.get("http://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/6.0/6.0.3/single/qt-everywhere-src-6.0.3.tar.xz")
+      .download() // 启用自动设置文件名字 => qt-everywhere-src-6.0.3.tar.xz
+      .enabledBreakpointDownload() // 启用断点续传下载
+      .onFileDownloadProgress([](qint64 recv, qint64 total) {
+            // 获取文件下载进度
+            qDebug().nospace() << (100 * qreal(recv)/total) << "%";
+       })
+      .onDownloadSuccess([](QString fileName) {
+            qDebug() << "Download completed: " << fileName;
+       })
+      .onDownloadFailed([](QString error) {
+            qDebug() << "Download failed: " << error;
+       })
+      .onSuccess([](QString result) { // 可省略
+            qDebug() << "success: " << result;
+       })
+      .onFailed([](QString err) { // 可省略
+            qDebug() << "failed: " << err;
+       })
+      .exec();
+```
+
+## 2.13 失败重试
 ### 接口:
 &emsp;&emsp;设置失败请求后的重试次数，默认值为0。
 ```cpp
@@ -420,7 +466,7 @@ client.get("xxx://httpbin.org/get")
       .exec();
 ```
 
-## 2.13 重复请求
+## 2.14 重复请求
 ### 接口:
 &emsp;&emsp;设置需要重复请求的次数，默认值为1。
 ```cpp
@@ -443,7 +489,7 @@ client.get("https://httpbin.org/get")
       .exec();
 ```
 
-## 2.14 身份验证
+## 2.15 身份验证
 ### 接口：
 1. 自动填写身份验证信息。注：当QNetworkAccessManager的authenticationRequired信号触发时，会自动往QAuthenticator填写用户名和密码信息。  
 ```cpp
