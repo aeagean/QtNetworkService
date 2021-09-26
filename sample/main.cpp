@@ -123,8 +123,8 @@ public:
         client.post("http://httpbin.org/post")
               .header("content-type", contentType)
               .body(multiPart)
-              .onSuccess([](QString result){})
-              .onFailed([](QString error){})
+              .onSuccess([](QString result){ qDebug()<<"result: success"<<result; })
+              .onFailed([](QString error){ qDebug()<<"error: "<<error; })
               .exec();
         // [8]
 

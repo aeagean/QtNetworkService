@@ -548,7 +548,11 @@ HttpRequest &HttpRequest::download()
 
 HttpRequest &HttpRequest::download(const QString &file)
 {
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
+    this->attribute(QNetworkRequest::RedirectPolicyAttribute, true);
+#else
     this->attribute(QNetworkRequest::FollowRedirectsAttribute, true);
+#endif
 
     m_params.downloadFile = qMakePair(Params::DownloadEnabled::Enabled, file);
     return *this;
