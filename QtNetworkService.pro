@@ -1,12 +1,21 @@
 #**********************************************************
-#Author: Qt君
-#微信公众号: Qt君
-#Website: qthub.com
-#Email:  2088201923@qq.com
-#QQ交流群: 732271126
-#Source Code: https://github.com/aeagean/QtNetworkService
-#LISCENSE: MIT
-#**********************************************************
+#* Author(作者)     : Qt君
+#* 微信公众号        : Qt君
+#* Website(网站)    : qthub.com
+#* QQ交流群         : 1039852727
+#* Email(邮箱)      : 2088201923@qq.com
+#* Support(技术支持&合作) :2088201923(QQ)
+#* Source Code(源码): https://github.com/aeagean/QtNetworkService
+#* LISCENSE(开源协议): MIT
+#* Demo(演示):
+#==========================================================
+#  static AeaQt::HttpClient client;
+#  client.get("https://qthub.com")
+#        .onSuccess([](QString result) { qDebug()<<"success!"; })
+#        .onFailed([](QString error) { qDebug()<<"failed!"; })
+#        .exec();
+#==========================================================
+#*********************************************************/
 QT += core
 QT -= gui
 
@@ -34,3 +43,6 @@ else {
 }
 
 include($$PWD/src/QtNetworkService.pri)
+
+DISTFILES += \
+    README.md

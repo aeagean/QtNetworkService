@@ -1,11 +1,20 @@
 ﻿/**********************************************************
- * Author: Qt君
- * 微信公众号: Qt君
- * Website: qthub.com
- * Email:  2088201923@qq.com
- * QQ交流群: 732271126
- * Source Code: https://github.com/aeagean/QtNetworkService
- * LISCENSE: MIT
+ * Author(作者)     : Qt君
+ * 微信公众号        : Qt君
+ * Website(网站)    : qthub.com
+ * QQ交流群         : 1039852727
+ * Email(邮箱)      : 2088201923@qq.com
+ * Support(技术支持&合作) :2088201923(QQ)
+ * Source Code(源码): https://github.com/aeagean/QtNetworkService
+ * LISCENSE(开源协议): MIT
+ * Demo(演示):
+ ==========================================================
+   static AeaQt::HttpClient client;
+   client.get("https://qthub.com")
+         .onSuccess([](QString result) { qDebug()<<"success!"; })
+         .onFailed([](QString error) { qDebug()<<"failed!"; })
+         .exec();
+ ==========================================================
 **********************************************************/
 #include "HttpClient.h"
 #include <QCoreApplication>
@@ -227,6 +236,25 @@ public:
               .onFailed([](QString err){qDebug()<<"failed: "<<err;})
               .exec();
         // [x]
+
+        // [x] 断点续传下载
+        client.get("http://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/6.0/6.0.3/single/qt-everywhere-src-6.0.3.tar.xz")
+              .download() // 启用自动设置文件名字 => qt-everywhere-src-6.0.3.tar.xz
+              .enabledBreakpointDownload() // 启用断点续传下载
+              .onFileDownloadProgress([](qint64 recv, qint64 total) {
+                    qDebug() << (100 * qreal(recv)/total) << "%";
+               })
+              .onDownloadSuccess([](QString fileName) {
+                    qDebug() << "download completed: " << fileName;
+               })
+              .onSuccess([](QString result) {
+                    qDebug() << "success: " << result;
+               })
+              .onFailed([](QString err) {
+                    qDebug() << "failed: " << err;
+               })
+              .exec();
+        // [x]
     }
 
 public slots:
@@ -279,20 +307,29 @@ int main(int argc, char *argv[])
     Object object;
     object.exec();
 #else
+    qDebug() << "start...";
     HttpClient client;
-    client.get("https://httpbin.org/basic-auth/admin/123456")
-          .authenticationRequiredCount(2)
-          .onAuthenticationRequired([](QAuthenticator *tor) {
-                  tor->setUser("admin");
-                  tor->setPassword("1234563");
-            })
-          .onAuthenticationRequireFailed([](){
-                qDebug() << "authentication failed!";
-            })
-          .onSuccess([](QString result){qDebug()<<"success: "<<result;})
-          .onFailed([](QString err){qDebug()<<"failed: "<<err;})
+    client.get("http://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/6.0/6.0.3/single/qt-everywhere-src-6.0.3.tar.xz")
+          .download() // 启用自动设置文件名字 => qt-everywhere-src-6.0.3.tar.xz
+          .enabledBreakpointDownload() // 启用断点续传下载
+          .onFileDownloadProgress([](qint64 recv, qint64 total) {
+                // 获取文件下载进度
+                qDebug().nospace() << (100 * qreal(recv)/total) << "%";
+           })
+          .onDownloadSuccess([](QString fileName) {
+                qDebug() << "Download completed: " << fileName;
+           })
+          .onDownloadFailed([](QString error) {
+                qDebug() << "Download failed: " << error;
+           })
+          .onSuccess([](QString result) { // 可省略
+                qDebug() << "success: " << result;
+           })
+          .onFailed([](QString err) { // 可省略
+                qDebug() << "failed: " << err;
+           })
           .exec();
-    qDebug() << ">>>>";
+    qDebug() << "end...";
 #endif
 
     return a.exec();

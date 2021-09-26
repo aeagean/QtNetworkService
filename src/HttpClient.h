@@ -1,12 +1,13 @@
 ﻿/**********************************************************
- * Author: Qt君
- * 微信公众号: Qt君
- * Website: qthub.com
- * Email:  2088201923@qq.com
- * QQ交流群: 732271126
- * Source Code: https://github.com/aeagean/QtNetworkService
- * LISCENSE: MIT
- * Demo:
+ * Author(作者)     : Qt君
+ * 微信公众号        : Qt君
+ * Website(网站)    : qthub.com
+ * QQ交流群         : 1039852727
+ * Email(邮箱)      : 2088201923@qq.com
+ * Support(技术支持&合作) :2088201923(QQ)
+ * Source Code(源码): https://github.com/aeagean/QtNetworkService
+ * LISCENSE(开源协议): MIT
+ * Demo(演示):
  ==========================================================
    static AeaQt::HttpClient client;
    client.get("https://qthub.com")
@@ -49,6 +50,7 @@ public:
     inline static HttpClient *instance();
     inline HttpClient();
 
+    inline HttpRequest head(const QString &url);
     inline HttpRequest get(const QString &url);
     inline HttpRequest post(const QString &url);
     inline HttpRequest put(const QString &url);
@@ -177,6 +179,10 @@ public:
     inline HttpRequest &download();
     inline HttpRequest &download(const QString &file);
 
+    inline HttpRequest &enabledBreakpointDownload(bool enabled = true);
+    inline HttpRequest &onFileDownloadProgress(const QObject *receiver, const char *method);
+    inline HttpRequest &onFileDownloadProgress(std::function<void (qint64, qint64)> lambda);
+
     inline HttpRequest &onDownloadSuccess(const QObject *receiver, const char *method);
     inline HttpRequest &onDownloadSuccess(std::function<void ()> lambda);
     inline HttpRequest &onDownloadSuccess(std::function<void (QString)> lambda);
@@ -187,6 +193,10 @@ public:
 
     inline HttpRequest &onReadyRead(const QObject *receiver, const char *method);
     inline HttpRequest &onReadyRead(std::function<void (QNetworkReply*)> lambda);
+
+    inline HttpRequest &onHead(const QObject *receiver, const char *method);
+    inline HttpRequest &onHead(std::function<void (QList<QNetworkReply::RawHeaderPair>)> lambda);
+    inline HttpRequest &onHead(std::function<void (QMap<QString, QString>)> lambda);
 
     inline HttpRequest &retry(int count);
     inline HttpRequest &onRetried(const QObject *receiver, const char *method);
@@ -223,6 +233,8 @@ public:
         h_onRepeated,
         h_onAuthenticationRequired,
         h_onAuthenticationRequireFailed,
+        h_onHead,
+        h_onFileDownloadProgess,
     };
 
     struct Params {
@@ -236,9 +248,22 @@ public:
             FormData               // multipart/form-data
         };
 
-        enum DownloadEnabled {
-            Disabled,
-            Enabled,
+        struct Downloader {
+            bool    isEnabled;
+            QString fileName;
+            bool    enabledBreakpointDownload;
+            bool    isSupportBreakpointDownload;
+            qint64  currentSize;
+            qint64  totalSize;
+
+            Downloader() {
+                isEnabled = false;
+                fileName = "";
+                enabledBreakpointDownload = true;
+                isSupportBreakpointDownload = false;
+                totalSize = 0;
+                currentSize = 0;
+            }
         };
 
         QNetworkAccessManager::Operation op;
@@ -257,7 +282,7 @@ public:
 
         qint64                                              readBufferSize;
         QList<QSslError>                                    ignoreSslErrors;
-        QPair<DownloadEnabled, QString>                     downloadFile;
+        Downloader                                          downloader;
         QMap<HandleType, QList<QPair<QString, QVariant> > > handleMap;
 
         Params()
@@ -270,7 +295,6 @@ public:
             enabledRetry   = false;
             timeoutMs      = -1;
             body           = qMakePair(BodyType::None, QByteArray());
-            downloadFile   = qMakePair(DownloadEnabled::Disabled, QString(""));
             readBufferSize = 0;
             authenticationRequiredCount = 1;
         }
@@ -286,6 +310,8 @@ private:
     inline HttpRequest &onResponse(HandleType type, const QObject *receiver, const char *method);
     inline HttpRequest &onResponse(HandleType type, QVariant lambda);
     inline HttpRequest &onResponse(HandleType type, QString key, QVariant value);
+
+    inline HttpResponse *_exec(Params params);
 
 private:
     Params m_params;
@@ -342,6 +368,11 @@ signals:
     void authenticationRequireFailed();
     void authenticationRequireFailed(QNetworkReply *);
 
+    void head(QList<QNetworkReply::RawHeaderPair>);
+    void head(QMap<QString, QString>);
+
+    void fileDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
+
 private slots:
     inline void onFinished();
     inline void onError(QNetworkReply::NetworkError error);
@@ -360,12 +391,15 @@ private slots:
 
     inline void onAuthenticationRequired(QNetworkReply *reply, QAuthenticator *authenticator);
 
+    inline void onHandleHead();
+
 private:
     HttpRequest::Params m_params;
     HttpRequest         m_httpRequest;
     QFile               m_downloadFile;
     int                 m_retriesRemaining = 0;
     int                 m_authenticationCount = 0;
+    bool                m_isHandleHead = false;
 };
 
 class HttpResponseTimeout : public QObject {
@@ -554,8 +588,25 @@ HttpRequest &HttpRequest::download(const QString &file)
     this->attribute(QNetworkRequest::FollowRedirectsAttribute, true);
 #endif
 
-    m_params.downloadFile = qMakePair(Params::DownloadEnabled::Enabled, file);
+    m_params.downloader.isEnabled = true;
+    m_params.downloader.fileName = file;
     return *this;
+}
+
+HttpRequest &HttpRequest::enabledBreakpointDownload(bool enabled)
+{
+    m_params.downloader.enabledBreakpointDownload = enabled;
+    return *this;
+}
+
+HttpRequest &HttpRequest::onFileDownloadProgress(const QObject *receiver, const char *method)
+{
+    return onResponse(h_onFileDownloadProgess, receiver, method);
+}
+
+HttpRequest &HttpRequest::onFileDownloadProgress(std::function<void (qint64, qint64)> lambda)
+{
+    return onResponse(h_onFileDownloadProgess, QVariant::fromValue(lambda));
 }
 
 HttpRequest &HttpRequest::body(const QString &key, const QString &file)
@@ -675,6 +726,10 @@ HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply *)>         
 HttpRequest &HttpRequest::onReadyRead(const QObject *receiver, const char  *method) { return onResponse(h_onReadyRead, receiver, method); }
 HttpRequest &HttpRequest::onReadyRead(std::function<void (QNetworkReply *)> lambda) { return onResponse(h_onReadyRead, QVariant::fromValue(lambda)); }
 
+HttpRequest &HttpRequest::onHead(const QObject *receiver, const char *method) { return onResponse(h_onHead, receiver, method); }
+HttpRequest &HttpRequest::onHead(std::function<void (QList<QNetworkReply::RawHeaderPair>)> lambda) { return onResponse(h_onHead, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onHead(std::function<void (QMap<QString, QString>)> lambda) { return onResponse(h_onHead, QVariant::fromValue(lambda)); }
+
 HttpRequest &HttpRequest::onDownloadProgress(const QObject *receiver, const char *method) { return onResponse(h_onDownloadProgress, receiver, method); }
 HttpRequest &HttpRequest::onDownloadProgress(std::function<void (qint64, qint64)> lambda) { return onResponse(h_onDownloadProgress, QVariant::fromValue(lambda)); }
 
@@ -725,6 +780,147 @@ HttpRequest &HttpRequest::onResponse(HandleType type, QString key, QVariant valu
     m_params.handleMap.insert(type, handleList);
     return *this;
 }
+
+HttpResponse *HttpRequest::_exec(Params params)
+{
+#ifdef QT_APP_DEBUG
+    _debugger << "Http Client info: ";
+    _debugger << "Url: " << params.request.url().toString();
+    _debugger << "Type: " << params.op;
+    QString headers;
+    for (int i = 0; i < params.request.rawHeaderList().count(); i++) {
+        QString each = params.request.rawHeaderList().at(i);
+        QString header = params.request.rawHeader(each.toUtf8());
+        headers += QString("%1: %2;").arg(each)
+                                     .arg(header);
+    }
+
+    _debugger << "Header: " << headers;
+    _debugger << "Body:\r\n" << params.body;
+#endif
+
+    static QMap<QNetworkAccessManager::Operation, QByteArray> verbMap = {
+        {QNetworkAccessManager::HeadOperation, "HEAD"},
+        {QNetworkAccessManager::GetOperation,  "GET"},
+        {QNetworkAccessManager::PostOperation, "POST"},
+        {QNetworkAccessManager::PutOperation,  "PUT"},
+    };
+
+    if (!verbMap.contains(params.op)) {
+        qWarning() << "Url: [" << params.request.url().toString() << "]" << params.op << "not support!";
+        return nullptr;
+    }
+
+    using BodyType = HttpRequest::Params::BodyType;
+    BodyType        bodyType = params.body.first;
+    QVariant           &body = params.body.second;
+    QNetworkRequest &request = params.request;
+    HttpClient   *httpClient = params.httpClient;
+
+    if (bodyType == BodyType::MultiPart) {
+        QHttpMultiPart *multiPart = body.value<QHttpMultiPart*>();
+        QString       contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
+
+        request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
+
+        params.reply = params.httpClient->sendCustomRequest(request,
+                                                       verbMap.value(params.op),
+                                                       multiPart);
+        multiPart->setParent(params.reply);
+
+    }
+    else if (bodyType == BodyType::FileMap) {
+        QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+        QString contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
+        request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
+
+        const auto &fileMap = body.value<QMap<QString, QString>>();
+        for (const auto &each : fileMap.toStdMap()) {
+            const QString &key      = each.first;
+            const QString &filePath = each.second;
+
+            QFile *file = new QFile(filePath);
+            file->open(QIODevice::ReadOnly);
+            file->setParent(multiPart);
+
+            // todo
+            // part.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("text/plain"));
+
+            // note: "form-data; name=\"%1\";filename=\"%2\"" != "form-data; name=\"%1\";filename=\"%2\";"
+            QString dispositionHeader = QString("form-data; name=\"%1\";filename=\"%2\"")
+                    .arg(key)
+                    .arg(QFileInfo(filePath).fileName());
+            QHttpPart part;
+            part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
+            part.setBodyDevice(file);
+
+            multiPart->append(part);
+        }
+
+        params.reply = httpClient->sendCustomRequest(request,
+                                              verbMap.value(params.op),
+                                              multiPart);
+        if (params.reply)
+            multiPart->setParent(params.reply);
+        else
+            delete multiPart;
+
+    }
+    else if (bodyType == BodyType::FormData) {
+        QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+        QString       contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
+        request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
+
+        const auto &formDataMap = body.value<QMap<QString, QVariant>>();
+        for (const auto &each : formDataMap.toStdMap()) {
+            const QString &key      = each.first;
+            const QString &value    = each.second.toString();
+
+            QString dispositionHeader = QString("form-data; name=\"%1\"").arg(key);
+
+            QHttpPart part;
+            part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
+            part.setBody(value.toUtf8());
+
+            multiPart->append(part);
+        }
+
+        params.reply = httpClient->sendCustomRequest(request,
+                                              verbMap.value(params.op),
+                                              multiPart);
+
+        if (params.reply)
+            multiPart->setParent(params.reply);
+        else
+            delete multiPart;
+    }
+    else {
+        // fixme
+        if (params.op == QNetworkAccessManager::HeadOperation) {
+            QNetworkAccessManager *m = params.httpClient;
+            params.reply = m->head(request);
+        }
+        else {
+            params.reply = params.httpClient->sendCustomRequest(request,
+                                                                    verbMap.value(params.op),
+                                                                    body.toByteArray());
+        }
+    }
+
+    if (params.reply == nullptr) {
+        // fixme: todo onError
+        qWarning() << "Http reply invalid";
+        Q_ASSERT(params.reply);
+        return nullptr;
+    }
+
+    // fixme
+    params.reply->ignoreSslErrors(params.ignoreSslErrors);
+    params.reply->setReadBufferSize(params.readBufferSize);
+
+    return new HttpResponse(params, *this);
+}
+
 // event [0]
 
 inline QDebug &operator<<(QDebug &debug, const QNetworkAccessManager::Operation &op)
@@ -763,139 +959,133 @@ inline T &operator<<(T &debug, const HttpRequest::HandleType &handleType)
         case HttpRequest::h_onRepeated:         return debug << "onRepeated";
         case HttpRequest::h_onAuthenticationRequired: return debug << "onAuthenticationRequired";
         case HttpRequest::h_onAuthenticationRequireFailed: return debug << "onAuthenticationRequireFailed";
+        case HttpRequest::h_onHead:             return debug << "onHead";
+        case HttpRequest::h_onFileDownloadProgess: return debug << "onFileDownloadProgress";
         default: return debug << "Unknow";
     }
 }
 
-HttpResponse *HttpRequest::exec()
+static int extractCode(const char *member)
 {
-#ifdef QT_APP_DEBUG
-    _debugger << "Http Client info: ";
-    _debugger << "Url: " << m_params.request.url().toString();
-    _debugger << "Type: " << m_params.op;
-    QString headers;
-    for (int i = 0; i < m_params.request.rawHeaderList().count(); i++) {
-        QString each = m_params.request.rawHeaderList().at(i);
-        QString header = m_params.request.rawHeader(each.toUtf8());
-        headers += QString("%1: %2;").arg(each)
-                                     .arg(header);
+    /* extract code, ensure QMETHOD_CODE <= code <= QSIGNAL_CODE */
+    return (((int)(*member) - '0') & 0x3);
+}
+
+static bool isMethod(const char *member)
+{
+    int ret = extractCode(member);
+    return  ret >= QMETHOD_CODE && ret <= QSIGNAL_CODE;
+}
+
+
+template<typename M, typename L, typename T>
+bool httpResponseConnect(L sender, T senderSignal, const QString &lambdaString, const QVariant &lambda)
+{
+    if (lambdaString == QVariant::fromValue(M()).typeName()) {
+        return QObject::connect(sender, senderSignal, lambda.value<M>());
     }
+    else if (isMethod(qPrintable(lambdaString))) {
+        QString signal = QMetaMethod::fromSignal(senderSignal).methodSignature();
+        signal.insert(0, "2");
+        signal.replace("qlonglong", "qint64");
 
-    _debugger << "Header: " << headers;
-    _debugger << "Body:\r\n" << m_params.body;
-#endif
+        const QObject *receiver = lambda.value<QObject*>();
+        QString          method = QMetaObject::normalizedSignature(qPrintable(lambdaString)); // remove 'const', like: const QString => QString
 
-    static QMap<QNetworkAccessManager::Operation, QByteArray> verbMap = {
-        {QNetworkAccessManager::GetOperation,  "GET"},
-        {QNetworkAccessManager::PostOperation, "POST"},
-        {QNetworkAccessManager::PutOperation,  "PUT"},
-    };
-
-    if (!verbMap.contains(m_params.op)) {
-        qWarning() << "Url: [" << m_params.request.url().toString() << "]" << m_params.op << "not support!";
-        return nullptr;
-    }
-
-    using BodyType = HttpRequest::Params::BodyType;
-    BodyType        bodyType = m_params.body.first;
-    QVariant           &body = m_params.body.second;
-    QNetworkRequest &request = m_params.request;
-    HttpClient   *httpClient = m_params.httpClient;
-
-    if (bodyType == BodyType::MultiPart) {
-        QHttpMultiPart *multiPart = body.value<QHttpMultiPart*>();
-        QString       contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
-
-        request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
-
-        m_params.reply = m_params.httpClient->sendCustomRequest(request,
-                                                       verbMap.value(m_params.op),
-                                                       multiPart);
-        multiPart->setParent(m_params.reply);
-
-    }
-    else if (bodyType == BodyType::FileMap) {
-        QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
-        QString contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
-        request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
-
-        const auto &fileMap = body.value<QMap<QString, QString>>();
-        for (const auto &each : fileMap.toStdMap()) {
-            const QString &key      = each.first;
-            const QString &filePath = each.second;
-
-            QFile *file = new QFile(filePath);
-            file->open(QIODevice::ReadOnly);
-            file->setParent(multiPart);
-
-            // todo
-            // part.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("text/plain"));
-
-            // note: "form-data; name=\"%1\";filename=\"%2\"" != "form-data; name=\"%1\";filename=\"%2\";"
-            QString dispositionHeader = QString("form-data; name=\"%1\";filename=\"%2\"")
-                    .arg(key)
-                    .arg(QFileInfo(filePath).fileName());
-            QHttpPart part;
-            part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
-            part.setBodyDevice(file);
-
-            multiPart->append(part);
+        if (QMetaObject::checkConnectArgs(qPrintable(signal), qPrintable(method))) {
+            return QObject::connect(sender, qPrintable(signal), receiver, qPrintable(method));
         }
-
-        m_params.reply = httpClient->sendCustomRequest(request,
-                                              verbMap.value(m_params.op),
-                                              multiPart);
-        if (m_params.reply)
-            multiPart->setParent(m_params.reply);
-        else
-            delete multiPart;
-
-    }
-    else if (bodyType == BodyType::FormData) {
-        QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
-        QString       contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
-        request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
-
-        const auto &formDataMap = body.value<QMap<QString, QVariant>>();
-        for (const auto &each : formDataMap.toStdMap()) {
-            const QString &key      = each.first;
-            const QString &value    = each.second.toString();
-
-            QString dispositionHeader = QString("form-data; name=\"%1\"").arg(key);
-
-            QHttpPart part;
-            part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
-            part.setBody(value.toUtf8());
-
-            multiPart->append(part);
+        else {
+            return false;
         }
-
-        m_params.reply = httpClient->sendCustomRequest(request,
-                                              verbMap.value(m_params.op),
-                                              multiPart);
-
-        if (m_params.reply)
-            multiPart->setParent(m_params.reply);
-        else
-            delete multiPart;
     }
     else {
-        m_params.reply = m_params.httpClient->sendCustomRequest(request,
-                                                                verbMap.value(m_params.op),
-                                                                body.toByteArray());
+        return false;
+    }
+}
+
+#define HTTP_RESPONSE_CONNECT_X(sender, senderSignal, lambdaString, lambda, ...) \
+    httpResponseConnect< std::function<void (__VA_ARGS__)> > ( \
+             sender, \
+             static_cast<void (HttpResponse::*)(__VA_ARGS__)>(&HttpResponse::senderSignal), \
+             lambdaString, \
+             lambda);
+
+HttpResponse *HttpRequest::exec()
+{
+    Params params = m_params;
+    if (params.downloader.isEnabled) {
+        bool isSupportContinueDownload = false;
+        QString fileName = params.request.url().fileName();
+        qint64 contentLength = 0;
+        HttpClient client;
+        client.head(params.request.url().toString())
+              .onHead([&](QMap<QString, QString> header){
+                for (auto each: header.toStdMap()) {
+                    QString key = each.first;
+                    QString value = each.second;
+
+                    if (key.contains("Content-Disposition", Qt::CaseInsensitive)) {
+                        QString dispositionHeader = value;
+                        // fixme rx
+                        QRegExp rx("attachment;\\s*filename=([\\S]+)");
+                        if (rx.exactMatch(dispositionHeader)) {
+                            fileName = rx.cap(1);
+                        }
+                    }
+
+                    if (key.contains("Content-Length", Qt::CaseInsensitive)) {
+                        contentLength = value.toLongLong();
+                    }
+
+                    if (key.contains("Content-Range", Qt::CaseInsensitive) ||
+                        key.contains("Accept-Ranges", Qt::CaseInsensitive)) {
+                        isSupportContinueDownload = true;
+                    }
+                }
+               })
+              .block()
+              .exec();
+
+        if (params.downloader.fileName.isEmpty()) {
+            params.downloader.fileName = fileName;
+        }
+
+        params.downloader.totalSize = contentLength;
+        params.downloader.isSupportBreakpointDownload = isSupportContinueDownload;
+
+        if (params.downloader.enabledBreakpointDownload && isSupportContinueDownload) {
+            QFile file(params.downloader.fileName);
+            if (file.exists() && file.open(QIODevice::ReadOnly)) {
+                params.downloader.currentSize = file.size();
+
+                if (file.size() == contentLength) {
+                    HttpResponse *response = new HttpResponse(params, *this);
+                    emit response->fileDownloadProgress(contentLength, contentLength);
+
+                    emit response->downloadFinished();
+                    emit response->downloadFinished(params.downloader.fileName);
+
+                    emit response->finished(QByteArray(""));
+                    emit response->finished(QVariantMap{});
+                    emit response->finished(nullptr);
+
+                    response->deleteLater();
+                    return response;
+                }
+                else if (file.size() > contentLength) {
+                    file.close();
+                    file.open(QIODevice::Truncate);
+                    file.close();
+                }
+                else {
+                    params.request.setRawHeader("Range", QString("bytes=%1-").arg(file.size()).toUtf8());
+                }
+            }
+        }    
     }
 
-    if (m_params.reply == nullptr) {
-        // fixme: todo onError
-        qWarning() << "http reply invalid";
-        return nullptr;
-    }
-
-    // fixme
-    m_params.reply->ignoreSslErrors(m_params.ignoreSslErrors);
-    m_params.reply->setReadBufferSize(m_params.readBufferSize);
-
-    return new HttpResponse(m_params, *this);
+    return _exec(params);
 }
 
 HttpRequest &HttpRequest::enabledRetry(bool isEnabled)
@@ -950,6 +1140,11 @@ HttpClient::HttpClient()
 {
 }
 
+HttpRequest HttpClient::head(const QString &url)
+{
+    return HttpRequest(QNetworkAccessManager::HeadOperation, this).url(url);
+}
+
 HttpRequest HttpClient::get(const QString &url)
 {
     return HttpRequest(QNetworkAccessManager::GetOperation, this).url(url);
@@ -969,52 +1164,6 @@ HttpRequest HttpClient::send(const QString &url, QNetworkAccessManager::Operatio
 {
     return HttpRequest(op, this).url(url);
 }
-
-static int extractCode(const char *member)
-{
-    /* extract code, ensure QMETHOD_CODE <= code <= QSIGNAL_CODE */
-    return (((int)(*member) - '0') & 0x3);
-}
-
-static bool isMethod(const char *member)
-{
-    int ret = extractCode(member);
-    return  ret >= QMETHOD_CODE && ret <= QSIGNAL_CODE;
-}
-
-
-template<typename M, typename T>
-bool httpResponseConnect(const HttpResponse *sender, T senderSignal, const QString &lambdaString, const QVariant &lambda)
-{
-    if (lambdaString == QVariant::fromValue(M()).typeName()) {
-        return QObject::connect(sender, senderSignal, lambda.value<M>());
-    }
-    else if (isMethod(qPrintable(lambdaString))) {
-        QString signal = QMetaMethod::fromSignal(senderSignal).methodSignature();
-        signal.insert(0, "2");
-        signal.replace("qlonglong", "qint64");
-
-        const QObject *receiver = lambda.value<QObject*>();
-        QString          method = QMetaObject::normalizedSignature(qPrintable(lambdaString)); // remove 'const', like: const QString => QString
-
-        if (QMetaObject::checkConnectArgs(qPrintable(signal), qPrintable(method))) {
-            return QObject::connect(sender, qPrintable(signal), receiver, qPrintable(method));
-        }
-        else {
-            return false;
-        }
-    }
-    else {
-        return false;
-    }
-}
-
-#define HTTP_RESPONSE_CONNECT_X(sender, senderSignal, lambdaString, lambda, ...) \
-    httpResponseConnect< std::function<void (__VA_ARGS__)> > ( \
-             sender, \
-             static_cast<void (HttpResponse::*)(__VA_ARGS__)>(&HttpResponse::senderSignal), \
-             lambdaString, \
-             lambda);
 
 #if (QT_VERSION < QT_VERSION_CHECK(5, 8, 0))
 QNetworkReply *HttpClient::sendCustomRequest(const QNetworkRequest &request, const QByteArray &verb, const QByteArray &data)
@@ -1056,28 +1205,32 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
 
     new HttpResponseTimeout(this, timeout);
 
-    connect(reply, SIGNAL(finished()),                         this, SLOT(onFinished()));
-    connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
+    if (reply) {
+        connect(reply, SIGNAL(finished()),                         this, SLOT(onFinished()));
+        connect(reply, SIGNAL(finished()),                         this, SLOT(onHandleHead()));
+        connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
 
-    connect(reply, SIGNAL(downloadProgress(qint64, qint64)),   this, SLOT(onDownloadProgress(qint64, qint64)));
-    connect(reply, SIGNAL(uploadProgress(qint64, qint64)),     this, SLOT(onUploadProgress(qint64, qint64)));
+        connect(reply, SIGNAL(downloadProgress(qint64, qint64)),   this, SLOT(onDownloadProgress(qint64, qint64)));
+        connect(reply, SIGNAL(uploadProgress(qint64, qint64)),     this, SLOT(onUploadProgress(qint64, qint64)));
 
-    connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadOnceReplyHeader()));
-    connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadyRead()));
+        connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadOnceReplyHeader()));
+        connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadyRead()));
+        connect(reply, SIGNAL(readyRead()),                        this, SLOT(onHandleHead()));
 
-    connect(reply, SIGNAL(encrypted()),                        this, SLOT(onEncrypted()));
-    connect(reply, SIGNAL(metaDataChanged()),                  this, SLOT(onMetaDataChanged()));
+        connect(reply, SIGNAL(encrypted()),                        this, SLOT(onEncrypted()));
+        connect(reply, SIGNAL(metaDataChanged()),                  this, SLOT(onMetaDataChanged()));
 
-    connect(reply, SIGNAL(redirected(QUrl)),                   this, SLOT(onRedirected(QUrl)));
-    connect(reply, SIGNAL(sslErrors(QList<QSslError>)),        this, SLOT(onSslErrors(QList<QSslError>)));
+        connect(reply, SIGNAL(redirected(QUrl)),                   this, SLOT(onRedirected(QUrl)));
+        connect(reply, SIGNAL(sslErrors(QList<QSslError>)),        this, SLOT(onSslErrors(QList<QSslError>)));
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
-    connect(reply, SIGNAL(redirectAllowed()),                  this, SLOT(onRedirectAllowed()));
-#endif
+    #if (QT_VERSION >= QT_VERSION_CHECK(5, 9, 0))
+        connect(reply, SIGNAL(redirectAllowed()),                  this, SLOT(onRedirectAllowed()));
+    #endif
 
-    connect(reply, SIGNAL(preSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)), this, SLOT(onPreSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)));
+        connect(reply, SIGNAL(preSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)), this, SLOT(onPreSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)));
 
-    connect(reply->manager(), SIGNAL(authenticationRequired(QNetworkReply*, QAuthenticator*)), this, SLOT(onAuthenticationRequired(QNetworkReply*,QAuthenticator*)));
+        connect(reply->manager(), SIGNAL(authenticationRequired(QNetworkReply*, QAuthenticator*)), this, SLOT(onAuthenticationRequired(QNetworkReply*,QAuthenticator*)));
+    }
 
     // fixme: Too cumbersome
     for (auto each : handleMap.toStdMap()) {
@@ -1152,6 +1305,13 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
             else if (key == HttpRequest::h_onAuthenticationRequireFailed) {
                 ret += HTTP_RESPONSE_CONNECT_X(this, authenticationRequireFailed, lambdaString, lambda, void);
                 ret += HTTP_RESPONSE_CONNECT_X(this, authenticationRequireFailed, lambdaString, lambda, QNetworkReply*);
+            }
+            else if (key == HttpRequest::h_onHead) {
+                ret += HTTP_RESPONSE_CONNECT_X(this, head, lambdaString, lambda, QList<QNetworkReply::RawHeaderPair>);
+                ret += HTTP_RESPONSE_CONNECT_X(this, head, lambdaString, lambda, QMap<QString, QString>);
+            }
+            else if (key == HttpRequest::h_onFileDownloadProgess) {
+                ret += HTTP_RESPONSE_CONNECT_X(this, fileDownloadProgress, lambdaString, lambda, qint64, qint64);
             }
             else {
                 // do nothing
@@ -1248,7 +1408,7 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
     QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
     QString errorString = reply->errorString().isEmpty() ? metaEnum.valueToKey(error) : reply->errorString();
 
-    if (m_params.downloadFile.first == HttpRequest::Params::DownloadEnabled::Enabled) {
+    if (m_params.downloader.isEnabled) {
         QString error = QString("Url: %1 file: %2 error: %3")
                 .arg(m_params.request.url().toString()) // fixme
                 .arg(m_downloadFile.fileName())
@@ -1320,7 +1480,7 @@ void HttpResponse::onReadyRead()
 {
     QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
 
-    if (m_params.downloadFile.first == HttpRequest::Params::Enabled) {
+    if (m_params.downloader.isEnabled) {
         if (m_downloadFile.isOpen()){
             int size = m_downloadFile.write(reply->readAll());
             if (size == -1) {
@@ -1329,6 +1489,10 @@ void HttpResponse::onReadyRead()
                                 .arg(m_downloadFile.fileName());
                 emit downloadError();
                 emit downloadError(error);
+            }
+            else {
+                m_params.downloader.currentSize += size;
+                emit fileDownloadProgress(m_params.downloader.currentSize, m_params.downloader.totalSize);
             }
         }
         else {
@@ -1344,32 +1508,24 @@ void HttpResponse::onReadyRead()
 
 void HttpResponse::onReadOnceReplyHeader()
 {
-    if (m_params.downloadFile.first != HttpRequest::Params::DownloadEnabled::Enabled)
+    if (! m_params.downloader.isEnabled)
         return;
 
     QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
     disconnect(reply, SIGNAL(readyRead()), this, SLOT(onReadOnceReplyHeader()));
 
-    QString fileName = m_params.downloadFile.second;
-    if (fileName.isEmpty()) {
-        // fixme utf8
-        QString dispositionHeader = QString::fromUtf8(reply->header(QNetworkRequest::ContentDispositionHeader).toByteArray());
-
-        // fixme rx
-        QRegExp rx("attachment;\\sfilename=([\\S]+)");
-        if (rx.exactMatch(dispositionHeader)) {
-            fileName = rx.cap(1);
-        }
-        else {
-            fileName = m_params.request.url().fileName();
-        }
-
-        _debugger << "start downloading: url:" << reply->url().toString() << "fileName: " << fileName;
-    }
-
+    QString fileName = m_params.downloader.fileName;
     m_downloadFile.setFileName(fileName);
 
-    if (!m_downloadFile.open(QIODevice::WriteOnly)) {
+    QIODevice::OpenMode mode = QIODevice::WriteOnly;
+    if (m_params.downloader.isSupportBreakpointDownload &&
+        m_params.downloader.enabledBreakpointDownload &&
+        QFile::exists(fileName))
+    {
+        mode = QIODevice::Append;
+    }
+
+    if (!m_downloadFile.open(mode)) {
         QString error = QString("Url: %1 %2 Non-Writable")
                 .arg(m_params.request.url().toString())
                 .arg(m_downloadFile.fileName());
@@ -1441,6 +1597,29 @@ void HttpResponse::onAuthenticationRequired(QNetworkReply *reply, QAuthenticator
     }
 }
 
+void HttpResponse::onHandleHead()
+{
+    if (m_isHandleHead) {
+        return;
+    }
+
+    m_isHandleHead = true;
+
+    QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+    if (this->receivers(SIGNAL(head(QList<QNetworkReply::RawHeaderPair>))) ||
+        this->receivers(SIGNAL(head(QMap<QString, QString>)))
+       )
+    {
+        emit head(reply->rawHeaderPairs());
+        QMap<QString, QString> map;
+        foreach (auto each, reply->rawHeaderPairs()) {
+            map[each.first] = each.second;
+        }
+
+        emit head(map);
+    }
+}
+
 }
 
 #define HTTPRESPONSE_DECLARE_METATYPE(...) \
@@ -1457,5 +1636,7 @@ HTTPRESPONSE_DECLARE_METATYPE(QSslPreSharedKeyAuthenticator*)
 HTTPRESPONSE_DECLARE_METATYPE(QUrl)
 HTTPRESPONSE_DECLARE_METATYPE(QList<QSslError>)
 HTTPRESPONSE_DECLARE_METATYPE(QAuthenticator*)
+HTTPRESPONSE_DECLARE_METATYPE(QList<QNetworkReply::RawHeaderPair>)
+HTTPRESPONSE_DECLARE_METATYPE(QMap<QString, QString>)
 
 #endif // QTHUB_COM_HTTPCLIENT_HPP
