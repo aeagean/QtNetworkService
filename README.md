@@ -386,8 +386,9 @@ HttpRequest &onDownloadFailed(std::function<void (QString)> lambda);
 ```
 
 3. 断点续传下载
-&emsp;&emsp;默认开启断点续传下载功能，即当程序异常退出时，再次运行会接着从已下载的位置下载。
-&emsp;&emsp;需要注意的是，如果服务器不支持断点续传功能，则每次下载都是从头开始下载。
+
+&emsp;&emsp;默认开启断点续传下载功能，即当程序异常退出时，再次运行会接着从已下载的位置下载。  
+&emsp;&emsp;需要注意的是: 如果服务器不支持断点续传功能，则每次下载都是从头开始下载。  
 
  参数 | 解释
  --- | ---
@@ -397,8 +398,8 @@ HttpRequest &onDownloadFailed(std::function<void (QString)> lambda);
 HttpRequest &enabledBreakpointDownload(bool enabled = true);
 ```
 
-
 4. 文件下载进度的响应回调/信号槽
+
 &emsp;&emsp;回调传递的参数分别是已保存的文件字节数和文件总字节大小。
 ```cpp
 HttpRequest &onFileDownloadProgress(const QObject *receiver, const char *method);
@@ -429,9 +430,11 @@ client.get("http://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/6.0/6.0.3/single/q
             qDebug().nospace() << (100 * qreal(recv)/total) << "%";
        })
       .onDownloadSuccess([](QString fileName) {
+            // 下载成功
             qDebug() << "Download completed: " << fileName;
        })
       .onDownloadFailed([](QString error) {
+            // 下载失败
             qDebug() << "Download failed: " << error;
        })
       .onSuccess([](QString result) { // 可省略
