@@ -21,12 +21,15 @@ int main(int argc, char *argv[])
 
 #if 0
     HttpClient c;
-//    c.head("https://github.com/aeagean/QtNetworkService/archive/refs/heads/master.zip")
-    c.get("http://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/6.0/6.0.3/single/qt-everywhere-src-6.0.3.tar.xz")
-    .download()
+//    c.get("https://github.com/aeagean/QtNetworkService/archive/refs/heads/master.zip")
+    c.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
+//    c.get("http://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/6.0/6.0.3/single/qt-everywhere-src-6.0.3.tar.xz")
+//    .download()
+    .timeout(30)
+    .attribute(QNetworkRequest::RedirectPolicyAttribute, true)
     .onHead([](QMap<QString, QString> map) { qDebug() << ">" << map;})
     .onDownloadFileNameChanged([](QString fileName){ qDebug() << "file: " << fileName;})
-    .onFinished([](QByteArray s){ qDebug() << "success:" << s.size();})
+    .onFinished([](QString s){ qDebug() << "success:" << s;})
     .onFailed([](QByteArray s){ qDebug() << "failed:" << s;})
     .exec();
 #else
