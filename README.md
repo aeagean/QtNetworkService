@@ -376,13 +376,13 @@ HttpRequest &download(const QString &file);
 
 2. 下载成功或失败的响应回调/信号槽
 ```cpp
-HttpRequest &onDownloadSuccess(const QObject *receiver, const char *method);
-HttpRequest &onDownloadSuccess(std::function<void ()> lambda);
-HttpRequest &onDownloadSuccess(std::function<void (QString)> lambda);
+HttpRequest &onDownloadFileSuccess(const QObject *receiver, const char *method);
+HttpRequest &onDownloadFileSuccess(std::function<void ()> lambda);
+HttpRequest &onDownloadFileSuccess(std::function<void (QString)> lambda);
 
-HttpRequest &onDownloadFailed(const QObject *receiver, const char *method);
-HttpRequest &onDownloadFailed(std::function<void ()> lambda);
-HttpRequest &onDownloadFailed(std::function<void (QString)> lambda);
+HttpRequest &onDownloadFileFailed(const QObject *receiver, const char *method);
+HttpRequest &onDownloadFileFailed(std::function<void ()> lambda);
+HttpRequest &onDownloadFileFailed(std::function<void (QString)> lambda);
 ```
 
 3. 断点续传下载
@@ -402,8 +402,8 @@ HttpRequest &enabledBreakpointDownload(bool enabled = true);
 
 &emsp;&emsp;回调传递的参数分别是已保存的文件字节数和文件总字节大小。
 ```cpp
-HttpRequest &onFileDownloadProgress(const QObject *receiver, const char *method);
-HttpRequest &onFileDownloadProgress(std::function<void (qint64, qint64)> lambda);
+HttpRequest &onDownloadFileProgress(const QObject *receiver, const char *method);
+HttpRequest &onDownloadFileProgress(std::function<void (qint64, qint64)> lambda);
 ```
 
 ### 例子:
@@ -411,10 +411,10 @@ HttpRequest &onFileDownloadProgress(std::function<void (qint64, qint64)> lambda)
 ```cpp
 client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
       .download("QtNetworkService.zip")
-      .onDownloadSuccess([](QString fileName) {
+      .onDownloadFileSuccess([](QString fileName) {
             qDebug() << "Download completed: " << fileName;
        })
-      .onDownloadFailed([](QString error) {
+      .onDownloadFileFailed([](QString error) {
             qDebug() << "Download failed: " << error;
        })
       .exec();
@@ -425,15 +425,15 @@ client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/
 client.get("http://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/6.0/6.0.3/single/qt-everywhere-src-6.0.3.tar.xz")
       .download() // 启用自动设置文件名字 => qt-everywhere-src-6.0.3.tar.xz
       .enabledBreakpointDownload() // 启用断点续传下载
-      .onFileDownloadProgress([](qint64 recv, qint64 total) {
+      .onDownloadFileProgress([](qint64 recv, qint64 total) {
             // 获取文件下载进度
             qDebug().nospace() << (100 * qreal(recv)/total) << "%";
        })
-      .onDownloadSuccess([](QString fileName) {
+      .onDownloadFileSuccess([](QString fileName) {
             // 下载成功
             qDebug() << "Download completed: " << fileName;
        })
-      .onDownloadFailed([](QString error) {
+      .onDownloadFileFailed([](QString error) {
             // 下载失败
             qDebug() << "Download failed: " << error;
        })
