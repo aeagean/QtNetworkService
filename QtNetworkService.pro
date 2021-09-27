@@ -42,6 +42,11 @@ else {
     message(" ================ QtNetworkService Library ================ ")
 }
 
+msvc {
+    QMAKE_CFLAGS += /utf-8
+    QMAKE_CXXFLAGS += /utf-8
+}
+
 include($$PWD/src/QtNetworkService.pri)
 
 DISTFILES += \
