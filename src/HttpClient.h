@@ -917,16 +917,9 @@ HttpResponse *HttpRequest::_exec(Params params)
             delete multiPart;
     }
     else {
-        // fixme
-//        if (params.op == QNetworkAccessManager::HeadOperation) {
-//            QNetworkAccessManager *m = params.httpClient;
-//            params.reply = m->head(request);
-//        }
-//        else {
-            params.reply = params.httpClient->sendCustomRequest(request,
-                                                                    verbMap.value(params.op),
-                                                                    body.toByteArray());
-//        }
+        params.reply = params.httpClient->sendCustomRequest(request,
+                                                            verbMap.value(params.op),
+                                                            body.toByteArray());
     }
 
     if (params.reply == nullptr) {
@@ -1048,6 +1041,7 @@ HttpResponse *HttpRequest::exec()
         HttpClient client;
         client.get(params.request.url().toString())
               .timeout(30)
+              .attribute(QNetworkRequest::FollowRedirectsAttribute, true)
               .onHead([&](QList<QNetworkReply::RawHeaderPair> _headerForPair) {
                     headerForPair = _headerForPair;
                })
@@ -1077,8 +1071,8 @@ HttpResponse *HttpRequest::exec()
                     }
                })
               .onReadyRead([](QNetworkReply *reply){ reply->abort(); })
-//              .onSuccess([](QByteArray s){qDebug()<<"s:" << s;})
-//              .onFailed([](QString s){qDebug()<<"f:" << s;})
+              .onSuccess([](QByteArray s){qDebug()<<"s:" << s;})
+              .onFailed([](QString s){qDebug()<<"f:" << s;})
               .block()
               .exec();
 
