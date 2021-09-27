@@ -156,8 +156,8 @@ public:
                   qDebug() << "bytes received: " << bytesReceived
                            << "bytes total: " << bytesTotal;
                })
-              .onDownloadSuccess([](QString fileName) { qDebug()<<"download success: "<<fileName; })
-              .onDownloadFailed([](QString error) { qDebug()<<"download failed: "<<error; })
+              .onDownloadFileSuccess([](QString fileName) { qDebug()<<"download success: "<<fileName; })
+              .onDownloadFileFailed([](QString error) { qDebug()<<"download failed: "<<error; })
               .exec();
         // [10]
 
@@ -241,10 +241,10 @@ public:
         client.get("http://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/6.0/6.0.3/single/qt-everywhere-src-6.0.3.tar.xz")
               .download() // 启用自动设置文件名字 => qt-everywhere-src-6.0.3.tar.xz
               .enabledBreakpointDownload() // 启用断点续传下载
-              .onFileDownloadProgress([](qint64 recv, qint64 total) {
+              .onDownloadFileProgress([](qint64 recv, qint64 total) {
                     qDebug() << (100 * qreal(recv)/total) << "%";
                })
-              .onDownloadSuccess([](QString fileName) {
+              .onDownloadFileSuccess([](QString fileName) {
                     qDebug() << "download completed: " << fileName;
                })
               .onSuccess([](QString result) {
@@ -312,14 +312,14 @@ int main(int argc, char *argv[])
     client.get("http://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/6.0/6.0.3/single/qt-everywhere-src-6.0.3.tar.xz")
           .download() // 启用自动设置文件名字 => qt-everywhere-src-6.0.3.tar.xz
           .enabledBreakpointDownload() // 启用断点续传下载
-          .onFileDownloadProgress([](qint64 recv, qint64 total) {
+          .onDownloadFileProgress([](qint64 recv, qint64 total) {
                 // 获取文件下载进度
                 qDebug().nospace() << (100 * qreal(recv)/total) << "%";
            })
-          .onDownloadSuccess([](QString fileName) {
+          .onDownloadFileSuccess([](QString fileName) {
                 qDebug() << "Download completed: " << fileName;
            })
-          .onDownloadFailed([](QString error) {
+          .onDownloadFileFailed([](QString error) {
                 qDebug() << "Download failed: " << error;
            })
           .onSuccess([](QString result) { // 可省略
