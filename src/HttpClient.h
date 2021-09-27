@@ -150,24 +150,28 @@ public:
     inline HttpRequest &onSuccess(std::function<void (QNetworkReply*)> lambda);
     inline HttpRequest &onSuccess(std::function<void (QVariantMap)> lambda);
     inline HttpRequest &onSuccess(std::function<void (QByteArray)> lambda);
+    inline HttpRequest &onSuccess(std::function<void ()> lambda);
 
     // onFinished == onSuccess
     inline HttpRequest &onFinished(const QObject *receiver, const char *method);
     inline HttpRequest &onFinished(std::function<void (QNetworkReply*)> lambda);
     inline HttpRequest &onFinished(std::function<void (QVariantMap)> lambda);
     inline HttpRequest &onFinished(std::function<void (QByteArray)> lambda);
+    inline HttpRequest &onFinished(std::function<void ()> lambda);
 
     // onError == onFailed
     inline HttpRequest &onError(const QObject *receiver, const char *method);
-    inline HttpRequest &onError(std::function<void (QByteArray)> lambda);
-    inline HttpRequest &onError(std::function<void (QNetworkReply::NetworkError)> lambda);
     inline HttpRequest &onError(std::function<void (QNetworkReply*)> lambda);
+    inline HttpRequest &onError(std::function<void (QNetworkReply::NetworkError)> lambda);
+    inline HttpRequest &onError(std::function<void (QByteArray)> lambda);
+    inline HttpRequest &onError(std::function<void ()> lambda);
 
     // onError == onFailed
     inline HttpRequest &onFailed(const QObject *receiver, const char *method);
-    inline HttpRequest &onFailed(std::function<void (QByteArray)> lambda);
-    inline HttpRequest &onFailed(std::function<void (QNetworkReply::NetworkError)> lambda);
     inline HttpRequest &onFailed(std::function<void (QNetworkReply*)> lambda);
+    inline HttpRequest &onFailed(std::function<void (QNetworkReply::NetworkError)> lambda);
+    inline HttpRequest &onFailed(std::function<void (QByteArray)> lambda);
+    inline HttpRequest &onFailed(std::function<void ()> lambda);
 
     inline HttpRequest &onReadyRead(const QObject *receiver, const char *method);
     inline HttpRequest &onReadyRead(std::function<void (QNetworkReply*)> lambda);
@@ -339,7 +343,7 @@ public:
 
 signals:
     void finished(QNetworkReply *reply);
-    void finished(QString result);
+    void finished();
     void finished(QByteArray result);
     void finished(QVariantMap resultMap);
 
@@ -347,7 +351,7 @@ signals:
     void uploadProgress(qint64, qint64);
 
     void error(QByteArray error);
-    void error(QString errorString);
+    void error();
     void error(QNetworkReply::NetworkError error);
     void error(QNetworkReply *reply);
 
@@ -718,21 +722,25 @@ HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char  *metho
 HttpRequest &HttpRequest::onFinished(std::function<void (QNetworkReply *)> lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
 HttpRequest &HttpRequest::onFinished(std::function<void (QVariantMap)>     lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
 HttpRequest &HttpRequest::onFinished(std::function<void (QByteArray)>      lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onFinished(std::function<void ()>                lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
 
 HttpRequest &HttpRequest::onSuccess(const QObject *receiver, const char  *method) { return onFinished(receiver, method); }
 HttpRequest &HttpRequest::onSuccess(std::function<void (QNetworkReply *)> lambda) { return onFinished(lambda); }
 HttpRequest &HttpRequest::onSuccess(std::function<void (QVariantMap)>     lambda) { return onFinished(lambda); }
 HttpRequest &HttpRequest::onSuccess(std::function<void (QByteArray)>      lambda) { return onFinished(lambda); }
+HttpRequest &HttpRequest::onSuccess(std::function<void ()>                lambda) { return onFinished(lambda); }
 
 HttpRequest &HttpRequest::onFailed(const QObject *receiver,              const char *method) { return onError(receiver, method); }
+HttpRequest &HttpRequest::onFailed(std::function<void (QNetworkReply *)>             lambda) { return onError(lambda); }
 HttpRequest &HttpRequest::onFailed(std::function<void (QNetworkReply::NetworkError)> lambda) { return onError(lambda); }
 HttpRequest &HttpRequest::onFailed(std::function<void (QByteArray)>                  lambda) { return onError(lambda); }
-HttpRequest &HttpRequest::onFailed(std::function<void (QNetworkReply *)>             lambda) { return onError(lambda); }
+HttpRequest &HttpRequest::onFailed(std::function<void ()>                            lambda) { return onError(lambda); }
 
 HttpRequest &HttpRequest::onError(const QObject *receiver,              const char *method) { return onResponse(h_onError, receiver, method); }
+HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply *)>             lambda) { return onResponse(h_onError, QVariant::fromValue(lambda)); }
 HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply::NetworkError)> lambda) { return onResponse(h_onError, QVariant::fromValue(lambda)); }
 HttpRequest &HttpRequest::onError(std::function<void (QByteArray)>                  lambda) { return onResponse(h_onError, QVariant::fromValue(lambda)); }
-HttpRequest &HttpRequest::onError(std::function<void (QNetworkReply *)>             lambda) { return onResponse(h_onError, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onError(std::function<void ()>                            lambda) { return onResponse(h_onError, QVariant::fromValue(lambda)); }
 
 HttpRequest &HttpRequest::onReadyRead(const QObject *receiver, const char  *method) { return onResponse(h_onReadyRead, receiver, method); }
 HttpRequest &HttpRequest::onReadyRead(std::function<void (QNetworkReply *)> lambda) { return onResponse(h_onReadyRead, QVariant::fromValue(lambda)); }
@@ -1096,6 +1104,7 @@ HttpResponse *HttpRequest::exec()
                     emit response->downloadFileFinished();
                     emit response->downloadFileFinished(params.downloader.fileName);
 
+                    emit response->finished();
                     emit response->finished(QByteArray(""));
                     emit response->finished(QVariantMap{});
                     emit response->finished(nullptr);
@@ -1275,7 +1284,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
             int ret = 0;
 
             if (key == HttpRequest::h_onFinished) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QString);
+                ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, void);
                 ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QByteArray);
                 ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QVariantMap);
                 ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QNetworkReply*);
@@ -1287,7 +1296,7 @@ HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
                 ret += HTTP_RESPONSE_CONNECT_X(this, uploadProgress, lambdaString, lambda, qint64, qint64);
             }
             else if (key == HttpRequest::h_onError) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QString);
+                ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, void);
                 ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QByteArray);
                 ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QNetworkReply*);
                 ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QNetworkReply::NetworkError);
@@ -1397,14 +1406,14 @@ void HttpResponse::onFinished()
         isAutoDelete = false;
     }
 
-    if (this->receivers(SIGNAL(finished(QByteArray))) > 0 ||
-        this->receivers(SIGNAL(finished(QString))) > 0 ||
+    if (this->receivers(SIGNAL(finished())) > 0 ||
+        this->receivers(SIGNAL(finished(QByteArray))) > 0 ||
         this->receivers(SIGNAL(finished(QVariantMap))) > 0)
     {
         QByteArray result = reply->readAll();
-        emit finished(result);
+        emit finished();
 
-        emit finished(QString(result));
+        emit finished(result);
 
         QVariantMap resultMap = QJsonDocument::fromJson(result).object().toVariantMap();
         emit finished(resultMap);
@@ -1463,7 +1472,7 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
         isAutoDelete = false;
     }
 
-    emit this->error(errorString);
+    emit this->error();
     emit this->error(error);
     emit this->error(errorString.toLocal8Bit());
 
