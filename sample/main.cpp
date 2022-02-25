@@ -40,10 +40,13 @@ public:
               .exec();
         // [0]
 
+        std::function<void (QByteArray)> funcOnSuccess = [](QString result) { qDebug()<<"result: " << result.left(10); };
+        std::function<void (QByteArray)> funcOnFailed = [](QString error) { qDebug()<<"error: " << error; };
+
         // [1] 使用lambda方式实现简单的监听成功与失败的事件处理
         client.get("https://qthub.com")
-              .onSuccess([](QString result) { qDebug()<<"result: " << result.left(10); })
-              .onFailed([](QString error) { qDebug()<<"error: " << error; })
+              .onSuccess(funcOnSuccess)
+              .onFailed(funcOnSuccess)
               .exec();
         // [1]
 
@@ -57,12 +60,12 @@ public:
 
         // [3] lambda获取下载进度
         client.get("https://qthub.com")
-              .onSuccess([](QString result) { qDebug()<<"result: " << result.left(10); })
+              .onSuccess(funcOnSuccess)
               .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
                   qDebug() << "lambda bytes received: " << bytesReceived
                            << "bytes total: " << bytesTotal;
                })
-              .onFailed([](QString error) { qDebug()<<"error: " << error; })
+              .onFailed(funcOnFailed)
               .exec();
         // [3]
 
@@ -73,7 +76,7 @@ public:
                   qDebug() << "lambda bytes received: " << bytesReceived
                            << "bytes total: " << bytesTotal;
                })
-              .onFailed([](QString error) { qDebug()<<"error: " << error; })
+              .onFailed(funcOnFailed)
               .onTimeout([](QNetworkReply *) { qDebug()<<"timeout"; })
               .timeout(1) // 1s超时, => timeoutMs(1000)
               .exec();
@@ -106,7 +109,7 @@ public:
         client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
               .onReadyRead([](QNetworkReply *reply) { qDebug()<< "readyRead: "<<reply->readAll().size(); })
               .onSuccess([](QString result) { qDebug()<<"result: success"<<result; })
-              .onFailed([](QString error) { qDebug()<<"error: "<<error; })
+              .onFailed(funcOnFailed)
               .exec();
         // [7]
 
@@ -133,7 +136,7 @@ public:
               .header("content-type", contentType)
               .body(multiPart)
               .onSuccess([](QString result){ qDebug()<<"result: success"<<result; })
-              .onFailed([](QString error){ qDebug()<<"error: "<<error; })
+              .onFailed(funcOnFailed)
               .exec();
         // [8]
 
@@ -144,7 +147,7 @@ public:
                     QVariant value = reply->request().attribute(QNetworkRequest::User);
                     qDebug()<< value.toString();
                })
-              .onFailed([](QString error){ qDebug()<<error; })
+              .onFailed(funcOnFailed)
               .exec();
 
         // [9]
@@ -175,20 +178,20 @@ public:
               .repeat(3) // 总共重复请求的次数
               .onRepeated([](){qDebug()<<"repeated!";}) // 重复请求操作完成后的回调
               .onSuccess([](QString result){qDebug()<<result;})
-              .onFailed([](QString err){qDebug()<<err;})
+              .onFailed(funcOnFailed)
               .exec();
         // [x]
 
         // [x] 同步操作,适用于一些顺序队列的请求
        client.get("https://httpbin.org/get")
              .onSuccess([](QString result){qDebug()<<result;})
-             .onFailed([](QString err){qDebug()<<err;})
+             .onFailed(funcOnFailed)
              .sync() // 同步操作
              .exec();
         // 或
        client.get("https://httpbin.org/get")
              .onSuccess([](QString result){qDebug()<<result;})
-             .onFailed([](QString err){qDebug()<<err;})
+             .onFailed(funcOnFailed)
              .block() // 同步操作
              .exec();
         // [x]
@@ -218,7 +221,7 @@ public:
         client.get("https://httpbin.org/basic-auth/admin/123456")
               .autoAuthenticationRequired("admin", "123456")
               .onSuccess([](QString result){qDebug()<<"success: "<<result;})
-              .onFailed([](QString err){qDebug()<<"failed: "<<err;})
+              .onFailed(funcOnFailed)
               .exec();
         // [x]
 
@@ -313,7 +316,7 @@ int main(int argc, char *argv[])
           .download() // 启用自动设置文件名字 => qt-everywhere-src-6.0.3.tar.xz
           .enabledBreakpointDownload() // 启用断点续传下载
           .onDownloadFileProgress([](qint64 recv, qint64 total) {
-                // 获取文件下载进度
+                /* 获取文件下载进度*/
                 qDebug().nospace() << (100 * qreal(recv)/total) << "%";
            })
           .onDownloadFileSuccess([](QString fileName) {

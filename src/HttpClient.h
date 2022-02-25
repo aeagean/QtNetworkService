@@ -7,33 +7,40 @@
  * Support(技术支持&合作) :2088201923(QQ)
  * Source Code(源码): https://github.com/aeagean/QtNetworkService
  * LISCENSE(开源协议): MIT
- * Demo(演示):
+ add createInstanceForAutoDelete
  ==========================================================
    static AeaQt::HttpClient client;
    client.get("https://qthub.com")
          .onSuccess([](QString result) { qDebug()<<"success!"; })
          .onFailed([](QString error) { qDebug()<<"failed!"; })
          .exec();
+   or 
+
+   AeaQt::HttpClient* client = AeaQt::HttpClient::createInstanceForAutoDelete();
+   client->get("https://qthub.com")
+         .onSuccess([](QString result) { qDebug()<<"success!"; })
+		 .onFailed([](QString error) { qDebug()<<"failed!"; })
+         .exec();
  ==========================================================
 **********************************************************/
 #ifndef QTHUB_COM_HTTPCLIENT_HPP
 #define QTHUB_COM_HTTPCLIENT_HPP
 
-#include <QNetworkReply>
-#include <QHttpMultiPart>
-#include <QAuthenticator>
+#include <QtNetwork/QNetworkReply>
+#include <QtNetwork/QHttpMultiPart>
+#include <QtNetwork/QAuthenticator>
 
-#include <QJsonObject>
-#include <QJsonDocument>
+#include <QtCore/QJsonObject>
+#include <QtCore/QJsonDocument>
 
-#include <QBuffer>
-#include <QMetaEnum>
-#include <QUrlQuery>
-#include <QFileInfo>
+#include <QtCore/QBuffer>
+#include <QtCore/QMetaEnum>
+#include <QtCore/QUrlQuery>
+#include <QtCore/QFileInfo>
 
-#include <QTimer>
-#include <QEventLoop>
-#include <QDebug>
+#include <QtCore/QTimer>
+#include <QtCore/QEventLoop>
+#include <QtCore/QDebug>
 
 #include <functional>
 
@@ -48,6 +55,7 @@ class HttpClient : public QNetworkAccessManager
     Q_OBJECT
 public:
     inline static HttpClient *instance();
+	inline static HttpClient *createInstanceForAutoDelete();
     inline HttpClient();
 
     inline HttpRequest head(const QString &url);
@@ -62,6 +70,7 @@ private:
     inline QNetworkReply *sendCustomRequest(const QNetworkRequest &request, const QByteArray &verb, const QByteArray &data);
     inline QNetworkReply *sendCustomRequest(const QNetworkRequest &request, const QByteArray &verb, QHttpMultiPart *multiPart);
 #endif
+	bool m_bAutoDelete = false;
     friend class HttpRequest;
 };
 
@@ -315,6 +324,7 @@ protected:
 
 protected:
     inline HttpRequest &enabledRetry(bool isEnabled);
+	inline bool isAutoDeleteClient() { return m_params.httpClient->m_bAutoDelete; }
 
     friend class HttpResponse;
 
@@ -1038,41 +1048,44 @@ HttpResponse *HttpRequest::exec()
         QMap<QString, QString> headerForMap;
         HttpResponse *response = new HttpResponse(params, *this);
 
+        std::function<void (QList<QNetworkReply::RawHeaderPair>)> funcOnHead = [&](QList<QNetworkReply::RawHeaderPair> _headerForPair) {
+            headerForPair = _headerForPair;
+       };
+        std::function<void (QMap<QString, QString>)> funcOnHead2 = [&](QMap<QString, QString> _headerForMap){
+            headerForMap = _headerForMap;
+            for (auto each: headerForMap.toStdMap()) {
+                QString key = each.first;
+                QString value = each.second;
+
+                if (key.contains("Content-Disposition", Qt::CaseInsensitive)) {
+                    QString dispositionHeader = value;
+                    // fixme rx
+                    QRegExp rx("attachment;\\s*filename=([\\S]+)");
+                    if (rx.exactMatch(dispositionHeader)) {
+                        fileName = rx.cap(1);
+                    }
+                }
+
+                if (key.contains("Content-Length", Qt::CaseInsensitive)) {
+                    contentLength = value.toLongLong();
+                }
+
+                if (key.contains("Content-Range", Qt::CaseInsensitive) ||
+                    key.contains("Accept-Ranges", Qt::CaseInsensitive)) {
+                    isSupportContinueDownload = true;
+                }
+            }
+       };
+
         HttpClient client;
         client.get(params.request.url().toString())
               .timeout(30)
               .attribute(QNetworkRequest::FollowRedirectsAttribute, true)
-              .onHead([&](QList<QNetworkReply::RawHeaderPair> _headerForPair) {
-                    headerForPair = _headerForPair;
-               })
-              .onHead([&](QMap<QString, QString> _headerForMap){
-                    headerForMap = _headerForMap;
-                    for (auto each: headerForMap.toStdMap()) {
-                        QString key = each.first;
-                        QString value = each.second;
-
-                        if (key.contains("Content-Disposition", Qt::CaseInsensitive)) {
-                            QString dispositionHeader = value;
-                            // fixme rx
-                            QRegExp rx("attachment;\\s*filename=([\\S]+)");
-                            if (rx.exactMatch(dispositionHeader)) {
-                                fileName = rx.cap(1);
-                            }
-                        }
-
-                        if (key.contains("Content-Length", Qt::CaseInsensitive)) {
-                            contentLength = value.toLongLong();
-                        }
-
-                        if (key.contains("Content-Range", Qt::CaseInsensitive) ||
-                            key.contains("Accept-Ranges", Qt::CaseInsensitive)) {
-                            isSupportContinueDownload = true;
-                        }
-                    }
-               })
+              .onHead(funcOnHead)
+              .onHead(funcOnHead2)
               .onReadyRead([](QNetworkReply *reply){ reply->abort(); })
-              .onSuccess([](QByteArray s){qDebug()<<"s:" << s;})
-              .onFailed([](QString s){qDebug()<<"f:" << s;})
+              //.onSuccess([](QByteArray s){qDebug()<<"s:" << s;})
+              //.onFailed([](QString s){qDebug()<<"f:" << s;})
               .block()
               .exec();
 
@@ -1167,8 +1180,15 @@ HttpRequest &HttpRequest::attribute(QNetworkRequest::Attribute attribute, const 
 
 HttpClient *HttpClient::instance()
 {
-    static HttpClient client;
-    return &client;
+	static HttpClient client;
+	return &client;
+}
+
+HttpClient *HttpClient::createInstanceForAutoDelete()
+{
+	HttpClient* client = new HttpClient();
+	client->m_bAutoDelete = true;
+	return client;
 }
 
 HttpClient::HttpClient()
@@ -1420,6 +1440,9 @@ void HttpResponse::onFinished()
     }
     else {
         emit repeated();
+
+		if( m_httpRequest.isAutoDeleteClient() )
+			m_params.httpClient->deleteLater();
     }
 
     if (isAutoDelete) {
@@ -1477,6 +1500,8 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
     }
     else {
         emit repeated();
+		if( m_httpRequest.isAutoDeleteClient() )
+			m_params.httpClient->deleteLater();
     }
 
     if (isAutoDelete) {
