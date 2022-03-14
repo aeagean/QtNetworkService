@@ -74,6 +74,7 @@ Downloader::Downloader(QWidget *parent) : QWidget(parent)
     m_statisticsTimer->start(1000);
 }
 
+// 开始下载
 void Downloader::startDownload()
 {
     if (isDownloading()) {
@@ -84,7 +85,7 @@ void Downloader::startDownload()
     // 开启统计下载信息定时器
     m_statisticsTimer->start();
 
-    // 下载文件
+    // 断点续传下载文件
     m_response = m_client.get(m_urlEdit->text())
                          .download()
                          .enabledBreakpointDownload()
@@ -97,6 +98,7 @@ void Downloader::startDownload()
     m_isDownloading = true;
 }
 
+// 暂停下载
 void Downloader::pauseDownload()
 {
     if (isDownloading()) {
@@ -108,6 +110,7 @@ void Downloader::pauseDownload()
     m_statusLabel->setText("已暂停");
 }
 
+// 重新下载
 void Downloader::restoreDownload()
 {
     this->pauseDownload();
@@ -124,6 +127,7 @@ void Downloader::onOpenFileDirClicked()
     qDebug() << "open url result: " << ok;
 }
 
+// 统计下载信息
 void Downloader::onStatisticsTimer()
 {
     if (m_lastRecvSize == -1) {
