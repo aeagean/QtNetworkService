@@ -14,29 +14,13 @@
 
 using namespace AeaQt;
 
-// Qt 5.12.1 msvc question head
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-#if 0
-    HttpClient c;
-//    c.get("https://github.com/aeagean/QtNetworkService/archive/refs/heads/master.zip")
-    c.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
-//    c.get("http://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/6.0/6.0.3/single/qt-everywhere-src-6.0.3.tar.xz")
-//    .download()
-    .timeout(30)
-    .attribute(QNetworkRequest::RedirectPolicyAttribute, true)
-    .onHead([](QMap<QString, QString> map) { qDebug() << ">" << map;})
-    .onDownloadFileNameChanged([](QString fileName){ qDebug() << "file: " << fileName;})
-    .onFinished([](QString s){ qDebug() << "success:" << s;})
-    .onFailed([](QByteArray s){ qDebug() << "failed:" << s;})
-    .exec();
-#else
     Downloader d;
-    d.setWindowTitle("下载器@Qt君");
+    d.setWindowTitle("断点续传下载器@Qt君");
     d.show();
-#endif
 
     return a.exec();
 }
