@@ -73,6 +73,7 @@ private:
     qint64        m_lastRecvSize    = -1;
     qint64        m_currentRecvSize = -1;
     qint64        m_totalSize       = -1;
+    bool          m_isDownloading   = false;
 };
 
 }

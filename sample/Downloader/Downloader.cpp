@@ -93,13 +93,15 @@ void Downloader::startDownload()
                          .onDownloadFileSuccess(this, SLOT(onDownloadFileSuccess(QString)))
                          .onDownloadFileFailed(this, SLOT(onDownloadFileFailed(QString)))
                          .exec();
+
+    m_isDownloading = true;
 }
 
 void Downloader::pauseDownload()
 {
     if (isDownloading()) {
         m_response->reply()->abort();
-        m_response = nullptr;
+        m_isDownloading = false;
     }
 
     m_statisticsTimer->stop();
@@ -164,16 +166,18 @@ void Downloader::onDownloadFileProgress(qint64 recv, qint64 total)
 void Downloader::onDownloadFileSuccess(QString fileName)
 {
     m_statusLabel->setText("下载完成");
+    m_isDownloading = false;
     qDebug() << "Download success: " << fileName;
 }
 
 void Downloader::onDownloadFileFailed(QString fileName)
 {
     m_statusLabel->setText("下载失败");
+    m_isDownloading = false;
     qDebug() << "Download failed: " << fileName;
 }
 
 bool Downloader::isDownloading()
 {
-    return m_response != nullptr;
+    return m_isDownloading;
 }
