@@ -48,7 +48,7 @@ class HttpClient : public QNetworkAccessManager
     Q_OBJECT
 public:
     inline static HttpClient *instance();
-    inline HttpClient();
+    inline HttpClient(QObject *parent = nullptr);
 
     inline HttpRequest head(const QString &url);
     inline HttpRequest get(const QString &url);
@@ -1171,7 +1171,8 @@ HttpClient *HttpClient::instance()
     return &client;
 }
 
-HttpClient::HttpClient()
+HttpClient::HttpClient(QObject *parent) :
+    QNetworkAccessManager(parent)
 {
 }
 
