@@ -297,6 +297,17 @@ private:
     HttpClient m_httpClient;
 };
 
+void autoDeleteDemo()
+{
+    HttpClient *client = new HttpClient;
+    client->get("http://www.qthub.com")
+           .onSuccess([](const QString &s) { qDebug() << s.left(10); })
+           .onFailed([](const QString &s) { qDebug() << s.left(10); })
+           .exec();
+
+    QObject::connect(client, &HttpClient::finished, client, &HttpClient::deleteLater);
+}
+
 #include "main.moc"
 
 int main(int argc, char *argv[])
@@ -308,27 +319,7 @@ int main(int argc, char *argv[])
     object.exec();
 #else
     qDebug() << "start...";
-    HttpClient client;
-    client.get("http://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/6.0/6.0.3/single/qt-everywhere-src-6.0.3.tar.xz")
-          .download() // 启用自动设置文件名字 => qt-everywhere-src-6.0.3.tar.xz
-          .enabledBreakpointDownload() // 启用断点续传下载
-          .onDownloadFileProgress([](qint64 recv, qint64 total) {
-                // 获取文件下载进度
-                qDebug().nospace() << (100 * qreal(recv)/total) << "%";
-           })
-          .onDownloadFileSuccess([](QString fileName) {
-                qDebug() << "Download completed: " << fileName;
-           })
-          .onDownloadFileFailed([](QString error) {
-                qDebug() << "Download failed: " << error;
-           })
-          .onSuccess([](QString result) { // 可省略
-                qDebug() << "success: " << result;
-           })
-          .onFailed([](QString err) { // 可省略
-                qDebug() << "failed: " << err;
-           })
-          .exec();
+    autoDeleteDemo();
     qDebug() << "end...";
 #endif
 
