@@ -49,6 +49,7 @@ class HttpClient : public QNetworkAccessManager
 public:
     inline static HttpClient *instance();
     inline HttpClient(QObject *parent = nullptr);
+    inline QString getVersion() const;
 
     inline HttpRequest head(const QString &url);
     inline HttpRequest get(const QString &url);
@@ -250,8 +251,10 @@ public:
     };
 
 protected:
-    struct Params {
-        enum BodyType {
+    struct Params
+    {
+        enum BodyType
+        {
             None = 0,              // This request does not have a body.
             Raw,
             Raw_Json,              // application/json
@@ -261,7 +264,8 @@ protected:
             FormData               // multipart/form-data
         };
 
-        struct Downloader {
+        struct Downloader
+        {
             bool    isEnabled;
             QString fileName;
             bool    enabledBreakpointDownload;
@@ -269,7 +273,8 @@ protected:
             qint64  currentSize;
             qint64  totalSize;
 
-            Downloader() {
+            Downloader()
+            {
                 isEnabled = false;
                 fileName = "";
                 enabledBreakpointDownload = true;
@@ -417,19 +422,27 @@ private:
     bool                m_isHandleHead = false;
 };
 
-class HttpResponseTimeout : public QObject {
+class HttpResponseTimeout : public QObject
+{
     Q_OBJECT
 public:
-    HttpResponseTimeout(HttpResponse *parent, const int timeout = -1) : QObject(parent) {
-        if (timeout > 0)
+    HttpResponseTimeout(HttpResponse *parent, const int timeout = -1) : QObject(parent)
+    {
+        if (timeout > 0) {
             QTimer::singleShot(timeout, parent, SLOT(onTimeout()));
+        }
+        else {
+            // do nothing
+        }
     }
 };
 
-class HttpBlocker: public QEventLoop {
+class HttpBlocker: public QEventLoop
+{
     Q_OBJECT
 public:
-    HttpBlocker(QNetworkReply *reply, bool isBlock) : QEventLoop(reply) {
+    HttpBlocker(QNetworkReply *reply, bool isBlock) : QEventLoop(reply)
+    {
         if (isBlock) {
             connect(reply, SIGNAL(finished()), this, SLOT(quit()));
             this->exec();
@@ -516,10 +529,9 @@ HttpRequest &HttpRequest::bodyWithFormUrlencoded(const QVariantMap &keyValueMap)
         m_formUrlencodedMap[each.first] = each.second;
     }
 
-    QMapIterator<QString, QVariant> i(m_formUrlencodedMap);
-
     QUrl url;
     QUrlQuery urlQuery(url);
+    QMapIterator<QString, QVariant> i(m_formUrlencodedMap);
     while (i.hasNext()) {
         i.next();
         urlQuery.addQueryItem(i.key(), i.value().toString());
@@ -821,7 +833,8 @@ HttpResponse *HttpRequest::_exec(Params params)
     _debugger << "Body:\r\n" << params.body;
 #endif
 
-    static QMap<QNetworkAccessManager::Operation, QByteArray> verbMap = {
+    static QMap<QNetworkAccessManager::Operation, QByteArray> verbMap =
+    {
         {QNetworkAccessManager::HeadOperation, "HEAD"},
         {QNetworkAccessManager::GetOperation,  "GET"},
         {QNetworkAccessManager::PostOperation, "POST"},
@@ -1174,6 +1187,11 @@ HttpClient *HttpClient::instance()
 HttpClient::HttpClient(QObject *parent) :
     QNetworkAccessManager(parent)
 {
+}
+
+QString HttpClient::getVersion() const
+{
+    return "1.0.0";
 }
 
 HttpRequest HttpClient::head(const QString &url)
