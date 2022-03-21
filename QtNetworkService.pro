@@ -19,8 +19,6 @@
 QT += core
 QT -= gui
 
-CONFIG += c++11
-
 #DEFINES += QT_APP_DEBUG
 DEFINES += QT_APP_MODE
 

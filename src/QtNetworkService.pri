@@ -13,3 +13,5 @@ HEADERS += \
     $$PWD/HttpClient.h
 
 QT += network
+
+CONFIG += c++11

@@ -301,8 +301,8 @@ void autoDeleteDemo()
 {
     HttpClient *client = new HttpClient;
     client->get("http://www.qthub.com")
-           .onSuccess([](const QString &s) { qDebug() << s.left(10); })
-           .onFailed([](const QString &s) { qDebug() << s.left(10); })
+           .onSuccess([](const QString &s) { qDebug() << "success: " << s.left(10); })
+           .onFailed([](const QString &s) { qDebug() << "error: " << s.left(10); })
            .exec();
 
     QObject::connect(client, &HttpClient::finished, client, &HttpClient::deleteLater);

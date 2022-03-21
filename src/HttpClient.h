@@ -251,77 +251,64 @@ public:
     };
 
 protected:
-    struct Params
+    enum BodyType
     {
-        enum BodyType
+        None = 0,              // This request does not have a body.
+        Raw,
+        Raw_Json,              // application/json
+        X_Www_Form_Urlencoded, // x-www-form-urlencoded
+        FileMap,               // multipart/form-data
+        MultiPart,             // multipart/form-data
+        FormData               // multipart/form-data
+    };
+
+    struct Downloader
+    {
+        bool    isEnabled;
+        QString fileName;
+        bool    enabledBreakpointDownload;
+        bool    isSupportBreakpointDownload;
+        qint64  currentSize;
+        qint64  totalSize;
+
+        Downloader()
         {
-            None = 0,              // This request does not have a body.
-            Raw,
-            Raw_Json,              // application/json
-            X_Www_Form_Urlencoded, // x-www-form-urlencoded
-            FileMap,               // multipart/form-data
-            MultiPart,             // multipart/form-data
-            FormData               // multipart/form-data
-        };
-
-        struct Downloader
-        {
-            bool    isEnabled;
-            QString fileName;
-            bool    enabledBreakpointDownload;
-            bool    isSupportBreakpointDownload;
-            qint64  currentSize;
-            qint64  totalSize;
-
-            Downloader()
-            {
-                isEnabled = false;
-                fileName = "";
-                enabledBreakpointDownload = true;
-                isSupportBreakpointDownload = false;
-                totalSize = 0;
-                currentSize = 0;
-            }
-        };
-
-        QNetworkAccessManager::Operation op;
-        HttpClient                      *httpClient;
-        QNetworkReply                   *reply;
-        QNetworkRequest                  request;
-
-        QPair<BodyType, QVariant>        body;
-        int                              timeoutMs; // ms
-        bool                             isBlock;
-        int                              retryCount;
-        bool                             enabledRetry;
-        int                              repeatCount;
-        QAuthenticator                   authenticator;
-        int                              authenticationRequiredCount;
-
-        qint64                                              readBufferSize;
-        QList<QSslError>                                    ignoreSslErrors;
-        Downloader                                          downloader;
-        QMap<HandleType, QList<QPair<QString, QVariant> > > handleMap;
-
-        Params()
-        {
-            reply          = nullptr;
-            httpClient     = nullptr;
-            isBlock        = false;
-            retryCount     = 0;
-            repeatCount    = 1;
-            enabledRetry   = false;
-            timeoutMs      = -1;
-            body           = qMakePair(BodyType::None, QByteArray());
-            readBufferSize = 0;
-            authenticationRequiredCount = 1;
+            isEnabled = false;
+            fileName = "";
+            enabledBreakpointDownload = true;
+            isSupportBreakpointDownload = false;
+            totalSize = 0;
+            currentSize = 0;
         }
     };
 
+    QNetworkAccessManager::Operation m_op;
+    HttpClient                      *m_httpClient = nullptr;
+    QNetworkReply                   *m_reply = nullptr;
+    QNetworkRequest                  m_request;
+
+    QPair<BodyType, QVariant>        m_body = qMakePair(BodyType::None, QByteArray());
+    int                              m_timeoutMs = -1; // ms
+    bool                             m_isBlock = false;
+    int                              m_retryCount = 0;
+    bool                             m_enabledRetry = false;
+    int                              m_repeatCount = 1;
+    QAuthenticator                   m_authenticator;
+    int                              m_authenticationRequiredCount = 1;
+
+    qint64                                              m_readBufferSize = -1;
+    QList<QSslError>                                    m_ignoreSslErrors;
+    Downloader                                          m_downloader;
+    QMap<HandleType, QList<QPair<QString, QVariant> > > m_handleMap;
+    QVariantMap m_formUrlencodedMap;
+    QVariantMap m_formDataMap;
+
 protected:
     inline HttpRequest &enabledRetry(bool isEnabled);
+    inline HttpResponse *exec(const HttpRequest &httpRequest);
 
     friend class HttpResponse;
+    friend class HttpDownloader;
 
 private:
     inline HttpRequest() = delete;
@@ -329,22 +316,16 @@ private:
     inline HttpRequest &onResponse(HandleType type, QVariant lambda);
     inline HttpRequest &onResponse(HandleType type, QString key, QVariant value);
 
-    inline HttpResponse *_exec(Params params);
-
-private:
-    Params m_params;
-    QVariantMap m_formUrlencodedMap;
-    QVariantMap m_formDataMap;
 };
 
 class HttpResponse : public QObject
 {
     Q_OBJECT
 public:
-    inline explicit HttpResponse(HttpRequest::Params params, HttpRequest httpRequest);
+    inline explicit HttpResponse(const HttpRequest &httpRequest, QObject *parent = nullptr);
     inline virtual ~HttpResponse();
 
-    QNetworkReply *reply() { return static_cast<QNetworkReply*>(this->parent()); }
+    QNetworkReply *reply() { return m_httpRequest.m_reply; }
 
 signals:
     void finished(QNetworkReply *reply);
@@ -414,12 +395,142 @@ private slots:
     inline void onHandleHead();
 
 private:
-    HttpRequest::Params m_params;
     HttpRequest         m_httpRequest;
     QFile               m_downloadFile;
     int                 m_retriesRemaining = 0;
     int                 m_authenticationCount = 0;
     bool                m_isHandleHead = false;
+};
+
+class HttpDownloader : public QObject
+{
+    Q_OBJECT
+    HttpRequest m_httpRequest;
+    bool m_isSupportContinueDownload = false;
+    QString m_fileName;
+    qint64 m_contentLength = 0;
+    QList<QNetworkReply::RawHeaderPair> m_headerForPair;
+    QMap<QString, QString> m_headerForMap;
+    HttpResponse *m_response = nullptr;
+
+public:
+    HttpDownloader(const HttpRequest &httpRequest, QObject *parent) : m_httpRequest(httpRequest), QObject(parent)
+    {
+        m_fileName = this->m_httpRequest.m_request.url().fileName();
+        if (m_fileName.isEmpty()) {
+            m_fileName = this->m_httpRequest.m_request.url().host();
+        }
+    }
+
+    virtual ~HttpDownloader()
+    {
+        qDebug() << __FUNCTION__;
+    }
+
+    HttpResponse *exec()
+    {
+        HttpClient &client = *HttpClient::instance();
+        client.get(m_httpRequest.m_request.url().toString())
+              .timeout(30)
+              .attribute(QNetworkRequest::FollowRedirectsAttribute, true)
+              .onHead(this, SLOT(onHead(QList<QNetworkReply::RawHeaderPair>)))
+              .onHead(this, SLOT(onHead(QMap<QString,QString>)))
+              .onReadyRead(this, SLOT(onReadyRead(QNetworkReply*)))
+              .onFailed(this, SLOT(onResponse(QNetworkReply::NetworkError)))
+              .exec();
+
+        return m_response;
+    }
+
+private slots:
+    void onResponse(QNetworkReply::NetworkError)
+    {
+        HttpResponse *response = m_httpRequest.exec(m_httpRequest);
+        connect(response, &HttpResponse::destroyed, [](){qDebug() << "123";});
+        this->setParent(response);
+    }
+
+    void onHead(QList<QNetworkReply::RawHeaderPair> headerForPair)
+    {
+        m_headerForPair = headerForPair;
+    }
+
+    void onHead(QMap<QString, QString> headerForMap)
+    {
+        m_headerForMap = headerForMap;
+        for (auto each: m_headerForMap.toStdMap()) {
+            QString key = each.first;
+            QString value = each.second;
+
+            if (key.contains("Content-Disposition", Qt::CaseInsensitive)) {
+                QString dispositionHeader = value;
+                // fixme rx
+                QRegExp rx("attachment;\\s*filename=([\\S]+)");
+                if (rx.exactMatch(dispositionHeader)) {
+                    m_fileName = rx.cap(1);
+                }
+            }
+
+            if (key.contains("Content-Length", Qt::CaseInsensitive)) {
+                m_contentLength = value.toLongLong();
+            }
+
+            if (key.contains("Content-Range", Qt::CaseInsensitive) ||
+                    key.contains("Accept-Ranges", Qt::CaseInsensitive)) {
+                m_isSupportContinueDownload = true;
+            }
+        }
+    }
+
+    void onReadyRead(QNetworkReply *reply)
+    {
+        HttpResponse *response = new HttpResponse(m_httpRequest, m_httpRequest.m_reply);
+        if (m_httpRequest.m_downloader.fileName.isEmpty()) {
+            m_httpRequest.m_downloader.fileName = m_fileName;
+            emit response->downloadFileNameChanged(m_fileName);
+        }
+
+        m_httpRequest.m_downloader.totalSize = m_contentLength;
+        m_httpRequest.m_downloader.isSupportBreakpointDownload = m_isSupportContinueDownload;
+
+        if (m_httpRequest.m_downloader.enabledBreakpointDownload &&
+            m_httpRequest.m_downloader.isSupportBreakpointDownload)
+        {
+            QFile file(m_httpRequest.m_downloader.fileName);
+            if (file.exists() && file.open(QIODevice::ReadOnly)) {
+                m_httpRequest.m_downloader.currentSize = file.size();
+
+                if (file.size() == m_contentLength) {
+                    emit response->head(m_headerForPair);
+                    emit response->head(m_headerForMap);
+
+                    emit response->downloadFileProgress(m_contentLength, m_contentLength);
+
+                    emit response->downloadFileFinished();
+                    emit response->downloadFileFinished(m_httpRequest.m_downloader.fileName);
+
+                    emit response->finished();
+                    emit response->finished(QByteArray(""));
+                    emit response->finished(QVariantMap{});
+                    emit response->finished(nullptr);
+
+                    response->deleteLater();
+                }
+                else if (file.size() > m_contentLength) {
+                    file.close();
+                    // Clear file content
+                    file.open(QIODevice::Truncate);
+                    file.close();
+                }
+                else {
+                    m_httpRequest.m_request.setRawHeader("Range", QString("bytes=%1-").arg(file.size()).toUtf8());
+                }
+            }
+        }
+
+        response->deleteLater();
+        reply->abort();
+    }
 };
 
 class HttpResponseTimeout : public QObject
@@ -465,19 +576,19 @@ HttpRequest::~HttpRequest()
 
 HttpRequest::HttpRequest(QNetworkAccessManager::Operation op, HttpClient *httpClient)
 {
-    m_params.op = op;
-    m_params.httpClient = httpClient;
+    m_op = op;
+    m_httpClient = httpClient;
 }
 
 HttpRequest &HttpRequest::url(const QString &url)
 {
-    m_params.request.setUrl(QUrl(url));
+    m_request.setUrl(QUrl(url));
     return *this;
 }
 
 HttpRequest &HttpRequest::header(QNetworkRequest::KnownHeaders header, const QVariant &value)
 {
-    m_params.request.setHeader(header, value);
+    m_request.setHeader(header, value);
     return *this;
 }
 
@@ -494,7 +605,7 @@ HttpRequest &HttpRequest::headers(const QMap<QNetworkRequest::KnownHeaders, QVar
 
 HttpRequest &HttpRequest::header(const QString &key, const QVariant &value)
 {
-    m_params.request.setRawHeader(QByteArray(key.toStdString().data()), QByteArray(value.toString().toStdString().data()));
+    m_request.setRawHeader(QByteArray(key.toStdString().data()), QByteArray(value.toString().toStdString().data()));
     return *this;
 }
 
@@ -540,8 +651,8 @@ HttpRequest &HttpRequest::bodyWithFormUrlencoded(const QVariantMap &keyValueMap)
     url.setQuery(urlQuery);
     const QString &value = url.toString(QUrl::FullyEncoded).toUtf8().remove(0, 1);
 
-    m_params.body = qMakePair(Params::X_Www_Form_Urlencoded, value);
-    m_params.request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+    m_body = qMakePair(X_Www_Form_Urlencoded, value);
+    m_request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
 
     return *this;
 }
@@ -561,8 +672,8 @@ HttpRequest &HttpRequest::bodyWithFormData(const QVariantMap &keyValueMap)
         m_formDataMap[each.first] = each.second;
     }
 
-    m_params.body = qMakePair(Params::FormData, m_formDataMap);
-    m_params.request.setHeader(QNetworkRequest::ContentTypeHeader, "multipart/form-data");
+    m_body = qMakePair(FormData, m_formDataMap);
+    m_request.setHeader(QNetworkRequest::ContentTypeHeader, "multipart/form-data");
     return *this;
 }
 
@@ -574,8 +685,8 @@ HttpRequest &HttpRequest::body(const QJsonObject &json)
 HttpRequest &HttpRequest::bodyWithJson(const QJsonObject &json)
 {
     const QByteArray &value = QJsonDocument(json).toJson();
-    m_params.body = qMakePair(Params::Raw_Json, value);
-    m_params.request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    m_body = qMakePair(Raw_Json, value);
+    m_request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
     return *this;
 }
@@ -587,7 +698,7 @@ HttpRequest &HttpRequest::body(const QByteArray &raw)
 
 HttpRequest &HttpRequest::bodyWithRaw(const QByteArray &raw)
 {
-    m_params.body = qMakePair(Params::Raw, raw);
+    m_body = qMakePair(Raw, raw);
     return *this;
 }
 
@@ -598,7 +709,7 @@ HttpRequest &HttpRequest::body(QHttpMultiPart *multiPart)
 
 HttpRequest &HttpRequest::bodyWithMultiPart(QHttpMultiPart *multiPart)
 {
-    m_params.body = qMakePair(Params::MultiPart, QVariant::fromValue(multiPart));
+    m_body = qMakePair(MultiPart, QVariant::fromValue(multiPart));
     return *this;
 }
 
@@ -615,14 +726,14 @@ HttpRequest &HttpRequest::download(const QString &file)
     this->attribute(QNetworkRequest::FollowRedirectsAttribute, true);
 #endif
 
-    m_params.downloader.isEnabled = true;
-    m_params.downloader.fileName = file;
+    m_downloader.isEnabled = true;
+    m_downloader.fileName = file;
     return *this;
 }
 
 HttpRequest &HttpRequest::enabledBreakpointDownload(bool enabled)
 {
-    m_params.downloader.enabledBreakpointDownload = enabled;
+    m_downloader.enabledBreakpointDownload = enabled;
     return *this;
 }
 
@@ -651,56 +762,56 @@ HttpRequest &HttpRequest::bodyWithFile(const QString &key, const QString &filePa
 
 HttpRequest &HttpRequest::bodyWithFile(const QMap<QString, QString> &fileMap)
 {
-    auto &body = m_params.body;
+    auto &body = m_body;
     auto map = body.second.value<QMap<QString, QString>>();
     for (auto each : fileMap.toStdMap()) {
         map[each.first] = each.second;
     }
 
-    body.first = Params::BodyType::FileMap;
+    body.first = BodyType::FileMap;
     body.second = QVariant::fromValue(map);
     return *this;
 }
 
 HttpRequest &HttpRequest::ignoreSslErrors(const QList<QSslError> &errors)
 {
-    m_params.ignoreSslErrors = errors;
+    m_ignoreSslErrors = errors;
     return *this;
 }
 
 HttpRequest &HttpRequest::sslConfiguration(const QSslConfiguration &config)
 {
-    m_params.request.setSslConfiguration(config);
+    m_request.setSslConfiguration(config);
     return *this;
 }
 
 HttpRequest &HttpRequest::priority(QNetworkRequest::Priority priority)
 {
-    m_params.request.setPriority(priority);
+    m_request.setPriority(priority);
     return *this;
 }
 
 HttpRequest &HttpRequest::maximumRedirectsAllowed(int maxRedirectsAllowed)
 {
-    m_params.request.setMaximumRedirectsAllowed(maxRedirectsAllowed);
+    m_request.setMaximumRedirectsAllowed(maxRedirectsAllowed);
     return *this;
 }
 
 HttpRequest &HttpRequest::originatingObject(QObject *object)
 {
-    m_params.request.setOriginatingObject(object);
+    m_request.setOriginatingObject(object);
     return *this;
 }
 
 HttpRequest &HttpRequest::readBufferSize(qint64 size)
 {
-    m_params.readBufferSize = size;
+    m_readBufferSize = size;
     return *this;
 }
 
 HttpRequest &HttpRequest::autoAuthenticationRequired(const QAuthenticator &authenticator)
 {
-    m_params.authenticator = authenticator;
+    m_authenticator = authenticator;
     return *this;
 }
 
@@ -715,19 +826,19 @@ HttpRequest &HttpRequest::autoAuthenticationRequired(const QString &user, const 
 
 HttpRequest &HttpRequest::authenticationRequiredCount(int count)
 {
-    m_params.authenticationRequiredCount = count;
+    m_authenticationRequiredCount = count;
     return *this;
 }
 
 // event [0]
 HttpRequest &HttpRequest::timeout(const int &second) { return timeoutMs(second * 1000); }
-HttpRequest &HttpRequest::timeoutMs(const int &msec) { m_params.timeoutMs = msec; return *this; }
+HttpRequest &HttpRequest::timeoutMs(const int &msec) { m_timeoutMs = msec; return *this; }
 
-HttpRequest &HttpRequest::retry(int count) { m_params.retryCount = count; return *this; }
+HttpRequest &HttpRequest::retry(int count) { m_retryCount = count; return *this; }
 
-HttpRequest &HttpRequest::repeat(int count) { m_params.repeatCount = count; return *this; }
+HttpRequest &HttpRequest::repeat(int count) { m_repeatCount = count; return *this; }
 
-HttpRequest &HttpRequest::block(bool isBlock) { m_params.isBlock = isBlock; return *this; }
+HttpRequest &HttpRequest::block(bool isBlock) { m_isBlock = isBlock; return *this; }
 HttpRequest &HttpRequest::sync(bool isSync) { return block(isSync); }
 
 HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char  *method) { return onResponse(h_onFinished, receiver, method); }
@@ -803,34 +914,35 @@ HttpRequest &HttpRequest::onResponse(HandleType type, QVariant            lambda
 HttpRequest &HttpRequest::onResponse(HandleType type, const QObject *receiver, const char *method) { return onResponse(type, method, QVariant::fromValue((QObject *)receiver)); }
 HttpRequest &HttpRequest::onResponse(HandleType type, QString key, QVariant value)
 {
-    if (!m_params.handleMap.contains(type)) {
+    if (!m_handleMap.contains(type)) {
         QList<QPair<QString, QVariant> > handleList;
-        m_params.handleMap.insert(type, handleList);
+        m_handleMap.insert(type, handleList);
     }
 
-    auto handleList = m_params.handleMap[type];
+    auto handleList = m_handleMap[type];
     handleList.append({key, value});
 
-    m_params.handleMap.insert(type, handleList);
+    m_handleMap.insert(type, handleList);
     return *this;
 }
 
-HttpResponse *HttpRequest::_exec(Params params)
+HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest)
 {
+    HttpRequest httpRequest = _httpRequest;
 #ifdef QT_APP_DEBUG
     _debugger << "Http Client info: ";
-    _debugger << "Url: " << params.request.url().toString();
-    _debugger << "Type: " << params.op;
+    _debugger << "Url: " << httpRequest.m_request.url().toString();
+    _debugger << "Type: " << httpRequest.m_op;
     QString headers;
-    for (int i = 0; i < params.request.rawHeaderList().count(); i++) {
-        QString each = params.request.rawHeaderList().at(i);
-        QString header = params.request.rawHeader(each.toUtf8());
+    for (int i = 0; i < httpRequest.m_request.rawHeaderList().count(); i++) {
+        QString each = httpRequest.m_request.rawHeaderList().at(i);
+        QString header = httpRequest.m_request.rawHeader(each.toUtf8());
         headers += QString("%1: %2;").arg(each)
                                      .arg(header);
     }
 
     _debugger << "Header: " << headers;
-    _debugger << "Body:\r\n" << params.body;
+    _debugger << "Body:\r\n" << httpRequest.m_body;
 #endif
 
     static QMap<QNetworkAccessManager::Operation, QByteArray> verbMap =
@@ -841,16 +953,16 @@ HttpResponse *HttpRequest::_exec(Params params)
         {QNetworkAccessManager::PutOperation,  "PUT"},
     };
 
-    if (!verbMap.contains(params.op)) {
-        qWarning() << "Url: [" << params.request.url().toString() << "]" << params.op << "not support!";
+    if (!verbMap.contains(httpRequest.m_op)) {
+        qWarning() << "Url: [" << httpRequest.m_request.url().toString() << "]" << httpRequest.m_op << "not support!";
         return nullptr;
     }
 
-    using BodyType = HttpRequest::Params::BodyType;
-    BodyType        bodyType = params.body.first;
-    QVariant           &body = params.body.second;
-    QNetworkRequest &request = params.request;
-    HttpClient   *httpClient = params.httpClient;
+    using BodyType = HttpRequest::BodyType;
+    BodyType        bodyType = httpRequest.m_body.first;
+    QVariant            body = httpRequest.m_body.second;
+    QNetworkRequest  request = httpRequest.m_request;
+    HttpClient   *httpClient = httpRequest.m_httpClient;
 
     if (bodyType == BodyType::MultiPart) {
         QHttpMultiPart *multiPart = body.value<QHttpMultiPart*>();
@@ -858,10 +970,10 @@ HttpResponse *HttpRequest::_exec(Params params)
 
         request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
 
-        params.reply = params.httpClient->sendCustomRequest(request,
-                                                       verbMap.value(params.op),
+        httpRequest.m_reply = httpRequest.m_httpClient->sendCustomRequest(request,
+                                                       verbMap.value(httpRequest.m_op),
                                                        multiPart);
-        multiPart->setParent(params.reply);
+        multiPart->setParent(httpRequest.m_reply);
 
     }
     else if (bodyType == BodyType::FileMap) {
@@ -892,11 +1004,11 @@ HttpResponse *HttpRequest::_exec(Params params)
             multiPart->append(part);
         }
 
-        params.reply = httpClient->sendCustomRequest(request,
-                                              verbMap.value(params.op),
+        httpRequest.m_reply = httpClient->sendCustomRequest(request,
+                                              verbMap.value(httpRequest.m_op),
                                               multiPart);
-        if (params.reply)
-            multiPart->setParent(params.reply);
+        if (httpRequest.m_reply)
+            multiPart->setParent(httpRequest.m_reply);
         else
             delete multiPart;
 
@@ -920,33 +1032,38 @@ HttpResponse *HttpRequest::_exec(Params params)
             multiPart->append(part);
         }
 
-        params.reply = httpClient->sendCustomRequest(request,
-                                              verbMap.value(params.op),
+        httpRequest.m_reply = httpClient->sendCustomRequest(request,
+                                              verbMap.value(httpRequest.m_op),
                                               multiPart);
 
-        if (params.reply)
-            multiPart->setParent(params.reply);
+        if (httpRequest.m_reply)
+            multiPart->setParent(httpRequest.m_reply);
         else
             delete multiPart;
     }
     else {
-        params.reply = params.httpClient->sendCustomRequest(request,
-                                                            verbMap.value(params.op),
+        httpRequest.m_reply = httpRequest.m_httpClient->sendCustomRequest(request,
+                                                            verbMap.value(httpRequest.m_op),
                                                             body.toByteArray());
     }
 
-    if (params.reply == nullptr) {
+    if (httpRequest.m_reply == nullptr) {
         // fixme: todo onError
         qWarning() << "Http reply invalid";
-        Q_ASSERT(params.reply);
+        Q_ASSERT(httpRequest.m_reply);
         return nullptr;
     }
 
     // fixme
-    params.reply->ignoreSslErrors(params.ignoreSslErrors);
-    params.reply->setReadBufferSize(params.readBufferSize);
+    if (!httpRequest.m_ignoreSslErrors.isEmpty()) {
+        httpRequest.m_reply->ignoreSslErrors(httpRequest.m_ignoreSslErrors);
+    }
 
-    return new HttpResponse(params, *this);
+    if (httpRequest.m_readBufferSize >= 0) {
+        httpRequest.m_reply->setReadBufferSize(httpRequest.m_readBufferSize);
+    }
+
+    return new HttpResponse(httpRequest, httpRequest.m_reply);
 }
 
 // event [0]
@@ -1042,115 +1159,32 @@ bool httpResponseConnect(L sender, T senderSignal, const QString &lambdaString, 
 
 HttpResponse *HttpRequest::exec()
 {
-    Params params = m_params;
-    if (params.downloader.isEnabled) {
-        bool isSupportContinueDownload = false;
-        QString fileName = params.request.url().fileName();
-        qint64 contentLength = 0;
-        QList<QNetworkReply::RawHeaderPair> headerForPair;
-        QMap<QString, QString> headerForMap;
-        HttpResponse *response = new HttpResponse(params, *this);
-
-        HttpClient client;
-        client.get(params.request.url().toString())
-              .timeout(30)
-              .attribute(QNetworkRequest::FollowRedirectsAttribute, true)
-              .onHead([&](QList<QNetworkReply::RawHeaderPair> _headerForPair) {
-                    headerForPair = _headerForPair;
-               })
-              .onHead([&](QMap<QString, QString> _headerForMap){
-                    headerForMap = _headerForMap;
-                    for (auto each: headerForMap.toStdMap()) {
-                        QString key = each.first;
-                        QString value = each.second;
-
-                        if (key.contains("Content-Disposition", Qt::CaseInsensitive)) {
-                            QString dispositionHeader = value;
-                            // fixme rx
-                            QRegExp rx("attachment;\\s*filename=([\\S]+)");
-                            if (rx.exactMatch(dispositionHeader)) {
-                                fileName = rx.cap(1);
-                            }
-                        }
-
-                        if (key.contains("Content-Length", Qt::CaseInsensitive)) {
-                            contentLength = value.toLongLong();
-                        }
-
-                        if (key.contains("Content-Range", Qt::CaseInsensitive) ||
-                            key.contains("Accept-Ranges", Qt::CaseInsensitive)) {
-                            isSupportContinueDownload = true;
-                        }
-                    }
-               })
-              .onReadyRead([](QNetworkReply *reply){ reply->abort(); })
-              .onSuccess([](QByteArray s){qDebug()<<"s:" << s;})
-              .onFailed([](QString s){qDebug()<<"f:" << s;})
-              .block()
-              .exec();
-
-        if (params.downloader.fileName.isEmpty()) {
-            params.downloader.fileName = fileName;
-            emit response->downloadFileNameChanged(fileName);
-        }
-
-        params.downloader.totalSize = contentLength;
-        params.downloader.isSupportBreakpointDownload = isSupportContinueDownload;
-
-        if (params.downloader.enabledBreakpointDownload && isSupportContinueDownload) {
-            QFile file(params.downloader.fileName);
-            if (file.exists() && file.open(QIODevice::ReadOnly)) {
-                params.downloader.currentSize = file.size();
-
-                if (file.size() == contentLength) {
-                    emit response->head(headerForPair);
-                    emit response->head(headerForMap);
-
-                    emit response->downloadFileProgress(contentLength, contentLength);
-
-                    emit response->downloadFileFinished();
-                    emit response->downloadFileFinished(params.downloader.fileName);
-
-                    emit response->finished();
-                    emit response->finished(QByteArray(""));
-                    emit response->finished(QVariantMap{});
-                    emit response->finished(nullptr);
-
-                    response->deleteLater();
-                    return response;
-                }
-                else if (file.size() > contentLength) {
-                    file.close();
-                    file.open(QIODevice::Truncate);
-                    file.close();
-                }
-                else {
-                    params.request.setRawHeader("Range", QString("bytes=%1-").arg(file.size()).toUtf8());
-                }
-            }
-        }
-
-        response->deleteLater();
+    if (this->m_downloader.isEnabled) {
+        HttpDownloader *downloader = new HttpDownloader(*this, nullptr);
+        HttpResponse *response = downloader->exec();
+        downloader->setParent(response);
+        return response;
     }
-
-    return _exec(params);
+    else {
+        return exec(*this);
+    }
 }
 
 HttpRequest &HttpRequest::enabledRetry(bool isEnabled)
 {
-    m_params.enabledRetry = isEnabled;
+    m_enabledRetry = isEnabled;
     return *this;
 }
 
 HttpRequest &HttpRequest::queryParam(const QString &key, const QVariant &value)
 {
-    QUrl url(m_params.request.url());
+    QUrl url(m_request.url());
     QUrlQuery urlQuery(url);
 
     urlQuery.addQueryItem(key, value.toString());
     url.setQuery(urlQuery);
 
-    m_params.request.setUrl(url);
+    m_request.setUrl(url);
 
     return *this;
 }
@@ -1168,13 +1202,13 @@ HttpRequest &HttpRequest::queryParams(const QMap<QString, QVariant> &params)
 
 HttpRequest &HttpRequest::userAttribute(const QVariant &value)
 {
-    m_params.request.setAttribute(QNetworkRequest::User, value);
+    m_request.setAttribute(QNetworkRequest::User, value);
     return *this;
 }
 
 HttpRequest &HttpRequest::attribute(QNetworkRequest::Attribute attribute, const QVariant &value)
 {
-    m_params.request.setAttribute(attribute, value);
+    m_request.setAttribute(attribute, value);
     return *this;
 }
 
@@ -1184,8 +1218,7 @@ HttpClient *HttpClient::instance()
     return &client;
 }
 
-HttpClient::HttpClient(QObject *parent) :
-    QNetworkAccessManager(parent)
+HttpClient::HttpClient(QObject *parent) : QNetworkAccessManager(parent)
 {
 }
 
@@ -1246,16 +1279,15 @@ QNetworkReply *HttpClient::sendCustomRequest(const QNetworkRequest &request, con
 }
 #endif
 
-HttpResponse::HttpResponse(HttpRequest::Params params, HttpRequest httpRequest)
-    : QObject(params.reply),
-      m_params(params),
+HttpResponse::HttpResponse(const HttpRequest &httpRequest, QObject *parent)
+    : QObject(parent),
       m_httpRequest(httpRequest),
-      m_retriesRemaining(params.retryCount)
+      m_retriesRemaining(httpRequest.m_retryCount)
 {
-    int timeout          = params.timeoutMs;
-    int isBlock          = params.isBlock;
-    auto handleMap       = params.handleMap;
-    QNetworkReply *reply = params.reply;
+    int timeout          = httpRequest.m_timeoutMs;
+    int isBlock          = httpRequest.m_isBlock;
+    auto handleMap       = httpRequest.m_handleMap;
+    QNetworkReply *reply = httpRequest.m_reply;
 
     new HttpResponseTimeout(this, timeout);
 
@@ -1398,11 +1430,11 @@ HttpResponse::~HttpResponse()
 
 void HttpResponse::onFinished()
 {
-    QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+    QNetworkReply *reply = m_httpRequest.m_reply;
     if (reply->error() != QNetworkReply::NoError)
         return;
 
-    if (m_params.enabledRetry) {
+    if (m_httpRequest.m_enabledRetry) {
         emit retried();
     }
 
@@ -1432,9 +1464,9 @@ void HttpResponse::onFinished()
         emit finished(resultMap);
     }
 
-    if (--m_params.repeatCount > 0) {
+    if (--m_httpRequest.m_repeatCount > 0) {
         HttpRequest httpRequest = m_httpRequest;
-        httpRequest.repeat(m_params.repeatCount)
+        httpRequest.repeat(m_httpRequest.m_repeatCount)
                    .exec();
     }
     else {
@@ -1448,8 +1480,7 @@ void HttpResponse::onFinished()
 
 void HttpResponse::onError(QNetworkReply::NetworkError error)
 {
-    QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
-
+    QNetworkReply *reply = m_httpRequest.m_reply;
     if ( m_retriesRemaining-- > 0) {
         HttpRequest httpRequest = m_httpRequest;
         httpRequest.retry(m_retriesRemaining)
@@ -1459,17 +1490,17 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
         return;
     }
 
-    if (m_params.enabledRetry) {
+    if (m_httpRequest.m_enabledRetry) {
         emit retried();
     }
 
-    const QMetaObject & metaObject = QNetworkReply::staticMetaObject;
+    const QMetaObject &metaObject = QNetworkReply::staticMetaObject;
     QMetaEnum metaEnum = metaObject.enumerator(metaObject.indexOfEnumerator("NetworkError"));
     QString errorString = reply->errorString().isEmpty() ? metaEnum.valueToKey(error) : reply->errorString();
 
-    if (m_params.downloader.isEnabled) {
+    if (m_httpRequest.m_downloader.isEnabled) {
         QString error = QString("Url: %1 file: %2 error: %3")
-                .arg(m_params.request.url().toString()) // fixme
+                .arg(m_httpRequest.m_request.url().toString()) // fixme
                 .arg(m_downloadFile.fileName())
                 .arg(errorString);
 
@@ -1489,9 +1520,9 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
     emit this->error(error);
     emit this->error(errorString.toLocal8Bit());
 
-    if (--m_params.repeatCount > 0) {
+    if (--m_httpRequest.m_repeatCount > 0) {
         HttpRequest httpRequest = m_httpRequest;
-        httpRequest.repeat(m_params.repeatCount)
+        httpRequest.repeat(m_httpRequest.m_repeatCount)
                    .exec();
     }
     else {
@@ -1515,7 +1546,7 @@ void HttpResponse::onUploadProgress(qint64 bytesSent, qint64 bytesTotal)
 
 void HttpResponse::onTimeout()
 {
-    QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+    QNetworkReply *reply = m_httpRequest.m_reply;
     if (reply->isRunning()) {
         reply->abort();
 
@@ -1537,21 +1568,20 @@ void HttpResponse::onTimeout()
 
 void HttpResponse::onReadyRead()
 {
-    QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
-
-    if (m_params.downloader.isEnabled) {
+    QNetworkReply *reply = m_httpRequest.m_reply;
+    if (m_httpRequest.m_downloader.isEnabled) {
         if (m_downloadFile.isOpen()){
             int size = m_downloadFile.write(reply->readAll());
             if (size == -1) {
                 QString error = QString("Url: %1 %2 Write failed!")
-                                .arg(m_params.request.url().toString())
+                                .arg(m_httpRequest.m_request.url().toString())
                                 .arg(m_downloadFile.fileName());
                 emit downloadFileError();
                 emit downloadFileError(error);
             }
             else {
-                m_params.downloader.currentSize += size;
-                emit downloadFileProgress(m_params.downloader.currentSize, m_params.downloader.totalSize);
+                m_httpRequest.m_downloader.currentSize += size;
+                emit downloadFileProgress(m_httpRequest.m_downloader.currentSize, m_httpRequest.m_downloader.totalSize);
             }
         }
         else {
@@ -1567,18 +1597,18 @@ void HttpResponse::onReadyRead()
 
 void HttpResponse::onReadOnceReplyHeader()
 {
-    if (! m_params.downloader.isEnabled)
+    if (! m_httpRequest.m_downloader.isEnabled)
         return;
 
-    QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+    QNetworkReply *reply = m_httpRequest.m_reply;
     disconnect(reply, SIGNAL(readyRead()), this, SLOT(onReadOnceReplyHeader()));
 
-    QString fileName = m_params.downloader.fileName;
+    QString fileName = m_httpRequest.m_downloader.fileName;
     m_downloadFile.setFileName(fileName);
 
     QIODevice::OpenMode mode = QIODevice::WriteOnly;
-    if (m_params.downloader.isSupportBreakpointDownload &&
-        m_params.downloader.enabledBreakpointDownload &&
+    if (m_httpRequest.m_downloader.isSupportBreakpointDownload &&
+        m_httpRequest.m_downloader.enabledBreakpointDownload &&
         QFile::exists(fileName))
     {
         mode = QIODevice::Append;
@@ -1586,7 +1616,7 @@ void HttpResponse::onReadOnceReplyHeader()
 
     if (!m_downloadFile.open(mode)) {
         QString error = QString("Url: %1 %2 Non-Writable")
-                .arg(m_params.request.url().toString())
+                .arg(m_httpRequest.m_request.url().toString())
                 .arg(m_downloadFile.fileName());
         emit downloadFileError();
         emit downloadFileError(error);
@@ -1640,18 +1670,18 @@ void HttpResponse::onAuthenticationRequired(QNetworkReply *reply, QAuthenticator
         emit authenticationRequireFailed(this->reply());
     }
 
-    if (m_params.authenticationRequiredCount >= 0 &&
-        m_authenticationCount > m_params.authenticationRequiredCount)
+    if (m_httpRequest.m_authenticationRequiredCount >= 0 &&
+        m_authenticationCount > m_httpRequest.m_authenticationRequiredCount)
     {
         return;
     }
 
-    if (m_params.authenticator.isNull()) {
+    if (m_httpRequest.m_authenticator.isNull()) {
         emit authenticationRequired(authenticator);
     }
     else {
-        authenticator->setUser(m_params.authenticator.user());
-        authenticator->setPassword(m_params.authenticator.password());
+        authenticator->setUser(m_httpRequest.m_authenticator.user());
+        authenticator->setPassword(m_httpRequest.m_authenticator.password());
         // todo setOption....
     }
 }
@@ -1664,7 +1694,7 @@ void HttpResponse::onHandleHead()
 
     m_isHandleHead = true;
 
-    QNetworkReply *reply = static_cast<QNetworkReply *>(this->parent());
+    QNetworkReply *reply = m_httpRequest.m_reply;
     if (this->receivers(SIGNAL(head(QList<QNetworkReply::RawHeaderPair>))) ||
         this->receivers(SIGNAL(head(QMap<QString, QString>)))
        )
