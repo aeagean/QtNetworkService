@@ -19,7 +19,6 @@
 QT += core
 QT -= gui
 
-#DEFINES += QT_APP_DEBUG
 DEFINES += QT_APP_MODE
 
 contains(DEFINES, QT_APP_MODE) {

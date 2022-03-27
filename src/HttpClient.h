@@ -255,7 +255,6 @@ public:
         h_onDownloadFileNameChanged,
     };
 
-protected:
     enum BodyType
     {
         None = 0,              // This request does not have a body.
@@ -267,6 +266,8 @@ protected:
         FormData               // multipart/form-data
     };
 
+
+protected:
     struct Downloader
     {
         bool    isEnabled;
@@ -310,138 +311,7 @@ protected:
     LogLevel m_logLevel = Warn;
 
 protected:
-    inline QString lineIndent(const QString &source, const QString &indentString) const
-    {
-        QRegularExpression rx("^(.*)");
-        QRegularExpression::PatternOptions patternOptions;
-        patternOptions |= QRegularExpression::MultilineOption;
-        rx.setPatternOptions(patternOptions);
-        return QString(source).replace(rx, indentString + "\\1");
-    }
-
-    inline QString toString() const
-    {
-        QString str = \
-                "General: \n" \
-                "    Request URL: %{url} \n" \
-                "    Request Method: %{method} \n" \
-                "Request Headers: \n" \
-                "%{requestHeaders} \n" \
-                "Request Body: \n" \
-                "%{requestBody}";
-
-        str.replace("%{url}", m_request.url().toString());
-        str.replace("%{method}", toString(m_op));
-        str.replace("%{requestHeaders}", lineIndent(toString(m_request.rawHeaderList()), "    "));
-        str.replace("%{requestBody}", lineIndent(toString(m_body), "    "));
-
-        return str;
-    }
-
-    inline QString toString(const QList<QByteArray> header) const
-    {
-        QString headerString;
-        for (const QByteArray &each : header) {
-            QByteArray value = m_request.rawHeader(each);
-            headerString += QString("%1: %2\n").arg(QString(each)).arg(QString(value));
-        }
-
-        if (headerString.isEmpty()) {
-            return "null";
-        }
-
-        if (headerString.at(headerString.count()-1) == "\n") {
-            headerString.chop(1);
-        }
-
-        return headerString;
-    }
-
-    inline QString toString(const QPair<BodyType, QVariant> &body) const
-    {
-        QString bodyTypeString;
-        bodyTypeString += "Type: " + toString(body.first) + "\n";
-        bodyTypeString += "Data: \n";
-
-        QString bodyDataString;
-        if (body.first == MultiPart) {
-            QDebug d(&bodyDataString);
-            d << body.second;
-        }
-        else if (body.first == FileMap) {
-            const auto &fileMap = body.second.value<QMap<QString, QString>>();
-            for (const auto &each : fileMap.toStdMap()) {
-                const QString &key      = each.first;
-                const QString &filePath = each.second;
-                bodyDataString += key + ": " + filePath + "\n";
-            }
-        }
-        else if (body.first == FormData) {
-            const auto &formDataMap = body.second.value<QMap<QString, QVariant>>();
-            for (const auto &each : formDataMap.toStdMap()) {
-                const QString &key      = each.first;
-                const QString &value    = each.second.toString();
-                bodyDataString += key + ": " + value + "\n";
-            }
-        }
-        else if (body.first == X_Www_Form_Urlencoded ||
-                 body.first == Raw ||
-                 body.first == Raw_Json)
-        {
-            bodyDataString += body.second.toByteArray();
-        }
-
-        if (bodyDataString.isEmpty()) {
-            bodyDataString = "null";
-        }
-
-        bodyDataString = lineIndent(bodyDataString, ">>>>  ");
-
-        QString bodyString = bodyTypeString + bodyDataString;
-        if (bodyString.at(bodyString.count()-1) == "\n") {
-            bodyString.chop(1);
-        }
-
-        return bodyString;
-    }
-
-    inline QString toString(QNetworkAccessManager::Operation o) const
-    {
-        static QMap<QNetworkAccessManager::Operation, QByteArray> verbMap =
-        {
-            {QNetworkAccessManager::HeadOperation, "HEAD"},
-            {QNetworkAccessManager::GetOperation,  "GET"},
-            {QNetworkAccessManager::PostOperation, "POST"},
-            {QNetworkAccessManager::PutOperation,  "PUT"},
-        };
-
-        return verbMap.value(o, "");
-    }
-
-    inline QString toString(BodyType t) const
-    {
-        if (t == MultiPart) {
-            return "MultiPart";
-        }
-        else if (t == FileMap) {
-            return "FileMap";
-        }
-        else if (t == FormData) {
-            return "FormData";
-        }
-        else if (t == Raw) {
-            return "Raw";
-        }
-        else if (t == Raw_Json) {
-            return "RawJson";
-        }
-        else if (t == X_Www_Form_Urlencoded) {
-            return "x_www_form_urlencoded";
-        }
-        else {
-            return "None";
-        }
-    }
+    inline QString toString();
 
     inline HttpRequest &enabledRetry(bool isEnabled);
     inline HttpResponse *exec(const HttpRequest &httpRequest, HttpResponse *httpResponse = nullptr);
@@ -465,7 +335,7 @@ public:
 
     inline void setHttpRequest(const HttpRequest &httpRequest);
     inline QNetworkReply *reply() { return m_httpRequest.m_reply; }
-
+    inline QString toString() const;
 signals:
     void replyChanged(QNetworkReply *reply);
     void finished(QNetworkReply *reply);
@@ -541,6 +411,12 @@ private:
     int                 m_authenticationCount = 0;
     bool                m_isHandleHead = false;
 };
+
+inline QString lineIndent(const QString &source, const QString &indentString);
+inline QString networkOperation2String(QNetworkAccessManager::Operation o);
+inline QString networkHeader2String(const QNetworkRequest &request);
+inline QString networkBody2String(const QPair<HttpRequest::BodyType, QVariant> &body);
+inline QString networkReplyHeader2String(const QNetworkReply *reply);
 
 class HttpDownloader : public QObject
 {
@@ -698,29 +574,6 @@ public:
         }
     }
 };
-
-inline QString toString(const QNetworkReply *reply)
-{
-    QString str = \
-            "General: \n" \
-            "    Request URL: %{url} \n" \
-            "    Request Method: %{method} \n" \
-            "    Request Status: %{status} \n" \
-            "Request Headers: \n" \
-            "%{requestHeaders} \n" \
-            "Response Headers: \n" \
-            "%{responseHeaders} \n" \
-            "Request Body: \n" \
-            "%{requestBody}";
-
-//    str.replace("%{url}", reply->request().url().toString());
-//    str.replace("%{method}", toString(reply->operation()));
-//    str.replace("%{requestHeaders}", lineIndent(toString(reply.rawHeaderList()), "    "));
-//    str.replace("%{requestBody}", lineIndent(toString(m_body), "    "));
-
-
-    return str;
-}
 
 template <typename T>
 void _logger(HttpRequest::LogLevel l1, HttpRequest::LogLevel l2, T str)
@@ -1112,11 +965,30 @@ HttpRequest &HttpRequest::onResponse(HandleType type, QString key, QVariant valu
     return *this;
 }
 
+QString HttpRequest::toString()
+{
+    QString str = \
+            "General: \n" \
+            "    Request URL: %{url} \n" \
+            "    Request Method: %{method} \n" \
+            "Request Headers: \n" \
+            "%{requestHeaders} \n" \
+            "Request Body: \n" \
+            "%{requestBody}";
+
+    str.replace("%{url}", m_request.url().toString());
+    str.replace("%{method}", networkOperation2String(m_op));
+    str.replace("%{requestHeaders}", lineIndent(networkHeader2String(m_request), "    "));
+    str.replace("%{requestBody}", lineIndent(networkBody2String(m_body), "    "));
+
+    return str;
+}
+
 HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest, HttpResponse *httpResponse)
 {
     HttpRequest httpRequest = _httpRequest;
 
-    QByteArray op = toString(httpRequest.m_op).toUtf8();
+    QByteArray op = networkOperation2String(httpRequest.m_op).toUtf8();
     if (op.isEmpty()) {
         QString str = QString("Url: [%1]; Method: [%2] not support!").arg(httpRequest.m_request.url().toString()).arg(QString(op));
         printError(httpRequest.m_logLevel, str);
@@ -1220,7 +1092,7 @@ HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest, HttpResponse *h
         httpRequest.m_reply->setReadBufferSize(httpRequest.m_readBufferSize);
     }
 
-    printDebug(httpRequest.m_logLevel, toString());
+//    printDebug(httpRequest.m_logLevel, toString());
 
     if (httpResponse) {
         httpResponse->setParent(httpRequest.m_reply);
@@ -1603,11 +1475,43 @@ void HttpResponse::setHttpRequest(const HttpRequest &httpRequest)
     }
 }
 
+QString HttpResponse::toString() const
+{
+    QString str = \
+            "General: \n" \
+            "    Request URL: %{url} \n" \
+            "    Request Method: %{method} \n" \
+            "    Request Status: %{status}(%{statusString}) \n" \
+            "Request Headers: \n" \
+            "%{requestHeaders} \n" \
+            "Response Headers: \n" \
+            "%{responseHeaders} \n" \
+            "Request Body: \n" \
+            "%{requestBody}";
+
+    QNetworkReply *reply = this->m_httpRequest.m_reply;
+    str.replace("%{url}", this->m_httpRequest.m_request.url().toString());
+    str.replace("%{method}", networkOperation2String(m_httpRequest.m_op));
+    str.replace("%{status}", QString::number(reply->error()));
+    str.replace("%{statusString}", reply->errorString());
+    str.replace("%{requestHeaders}", lineIndent(networkHeader2String(reply->request()), "    "));
+    str.replace("%{responseHeaders}", lineIndent(networkReplyHeader2String(reply), "    "));
+    str.replace("%{requestBody}", lineIndent(networkBody2String(m_httpRequest.m_body), "    "));
+    return str;
+}
+
 void HttpResponse::onFinished()
 {
     QNetworkReply *reply = m_httpRequest.m_reply; 
     if (reply->error() != QNetworkReply::NoError) {
         return;
+    }
+
+    for (QObject *o : reply->children()) {
+        HttpResponse *response = qobject_cast<HttpResponse*>(o);
+        if (response) {
+            printDebug(m_httpRequest.m_logLevel, response->toString());
+        }
     }
 
     if (m_httpRequest.m_enabledRetry) {
@@ -1888,6 +1792,138 @@ void HttpResponse::onHandleHead()
     }
 }
 
+inline QString lineIndent(const QString &source, const QString &indentString)
+{
+    QRegularExpression rx("^(.*)");
+    QRegularExpression::PatternOptions patternOptions;
+    patternOptions |= QRegularExpression::MultilineOption;
+    rx.setPatternOptions(patternOptions);
+    return QString(source).replace(rx, indentString + "\\1");
+}
+
+inline QString networkHeader2String(const QNetworkRequest &request)
+{
+    QString headerString;
+    for (const QByteArray &each : request.rawHeaderList()) {
+        QByteArray value = request.rawHeader(each);
+        headerString += QString("%1: %2\n").arg(QString(each)).arg(QString(value));
+    }
+
+    if (headerString.isEmpty()) {
+        return "null";
+    }
+
+    if (headerString.at(headerString.count()-1) == "\n") {
+        headerString.chop(1);
+    }
+
+    return headerString;
+}
+
+inline QString networkReplyHeader2String(const QNetworkReply *reply)
+{
+    QString headerString;
+    for (const QByteArray &each : reply->rawHeaderList()) {
+        QByteArray value = reply->rawHeader(each);
+        headerString += QString("%1: %2\n").arg(QString(each)).arg(QString(value));
+    }
+
+    if (headerString.isEmpty()) {
+        return "null";
+    }
+
+    if (headerString.at(headerString.count()-1) == "\n") {
+        headerString.chop(1);
+    }
+
+    return headerString;
+}
+
+inline QString networkBodyType2String(HttpRequest::BodyType t)
+{
+    if (t == HttpRequest::MultiPart) {
+        return "MultiPart";
+    }
+    else if (t == HttpRequest::FileMap) {
+        return "FileMap";
+    }
+    else if (t == HttpRequest::FormData) {
+        return "FormData";
+    }
+    else if (t == HttpRequest::Raw) {
+        return "Raw";
+    }
+    else if (t == HttpRequest::Raw_Json) {
+        return "RawJson";
+    }
+    else if (t == HttpRequest::X_Www_Form_Urlencoded) {
+        return "x_www_form_urlencoded";
+    }
+    else {
+        return "None";
+    }
+}
+
+inline QString networkBody2String(const QPair<HttpRequest::BodyType, QVariant> &body)
+{
+    QString bodyTypeString;
+    bodyTypeString += "Type: " + networkBodyType2String(body.first) + "\n";
+    bodyTypeString += "Data: \n";
+
+    QString bodyDataString;
+    if (body.first == HttpRequest::MultiPart) {
+        QDebug d(&bodyDataString);
+        d << body.second;
+    }
+    else if (body.first == HttpRequest::FileMap) {
+        const auto &fileMap = body.second.value<QMap<QString, QString>>();
+        for (const auto &each : fileMap.toStdMap()) {
+            const QString &key      = each.first;
+            const QString &filePath = each.second;
+            bodyDataString += key + ": " + filePath + "\n";
+        }
+    }
+    else if (body.first == HttpRequest::FormData) {
+        const auto &formDataMap = body.second.value<QMap<QString, QVariant>>();
+        for (const auto &each : formDataMap.toStdMap()) {
+            const QString &key      = each.first;
+            const QString &value    = each.second.toString();
+            bodyDataString += key + ": " + value + "\n";
+        }
+    }
+    else if (body.first == HttpRequest::X_Www_Form_Urlencoded ||
+             body.first == HttpRequest::Raw ||
+             body.first == HttpRequest::Raw_Json)
+    {
+        bodyDataString += body.second.toByteArray();
+    }
+
+    if (bodyDataString.isEmpty()) {
+        bodyDataString = "null";
+    }
+
+    bodyDataString = lineIndent(bodyDataString, "=>    ");
+
+    QString bodyString = bodyTypeString + bodyDataString;
+    if (bodyString.at(bodyString.count()-1) == "\n") {
+        bodyString.chop(1);
+    }
+
+    return bodyString;
+}
+
+inline QString networkOperation2String(QNetworkAccessManager::Operation o)
+{
+    static QMap<QNetworkAccessManager::Operation, QByteArray> verbMap =
+    {
+        {QNetworkAccessManager::HeadOperation, "HEAD"},
+        {QNetworkAccessManager::GetOperation,  "GET"},
+        {QNetworkAccessManager::PostOperation, "POST"},
+        {QNetworkAccessManager::PutOperation,  "PUT"},
+    };
+
+    return verbMap.value(o, "");
+}
 }
 
 #define HTTPRESPONSE_DECLARE_METATYPE(...) \
