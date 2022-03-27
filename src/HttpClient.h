@@ -19,6 +19,7 @@
 #ifndef QTHUB_COM_HTTPCLIENT_HPP
 #define QTHUB_COM_HTTPCLIENT_HPP
 
+#include <QRegularExpression>
 #include <QNetworkReply>
 #include <QHttpMultiPart>
 #include <QAuthenticator>
@@ -69,6 +70,8 @@ private:
 class HttpRequest
 {
 public:
+    enum LogLevel { Off = 0, Trace, Debug, Info, Warn, Error, Fatal, All };
+
     inline explicit HttpRequest(QNetworkAccessManager::Operation op, HttpClient *httpClient);
     inline virtual ~HttpRequest();
 
@@ -143,6 +146,8 @@ public:
      */
     inline HttpRequest &block(bool isBlock = true);
     inline HttpRequest &sync(bool isSync = true);
+
+    inline HttpRequest &logLevel(LogLevel level = Warn);
 
     inline HttpResponse *exec();
 
@@ -302,10 +307,144 @@ protected:
     QMap<HandleType, QList<QPair<QString, QVariant> > > m_handleMap;
     QVariantMap m_formUrlencodedMap;
     QVariantMap m_formDataMap;
+    LogLevel m_logLevel = Warn;
 
 protected:
+    inline QString lineIndent(const QString &source, const QString &indentString) const
+    {
+        QRegularExpression rx("^(.*)");
+        QRegularExpression::PatternOptions patternOptions;
+        patternOptions |= QRegularExpression::MultilineOption;
+        rx.setPatternOptions(patternOptions);
+        return QString(source).replace(rx, indentString + "\\1");
+    }
+
+    inline QString toString() const
+    {
+        QString str = \
+                "General: \n" \
+                "    Request URL: %{url} \n" \
+                "    Request Method: %{method} \n" \
+                "Request Headers: \n" \
+                "%{requestHeaders} \n" \
+                "Request Body: \n" \
+                "%{requestBody}";
+
+        str.replace("%{url}", m_request.url().toString());
+        str.replace("%{method}", toString(m_op));
+        str.replace("%{requestHeaders}", lineIndent(toString(m_request.rawHeaderList()), "    "));
+        str.replace("%{requestBody}", lineIndent(toString(m_body), "    "));
+
+        return str;
+    }
+
+    inline QString toString(const QList<QByteArray> header) const
+    {
+        QString headerString;
+        for (const QByteArray &each : header) {
+            QByteArray value = m_request.rawHeader(each);
+            headerString += QString("%1: %2\n").arg(QString(each)).arg(QString(value));
+        }
+
+        if (headerString.isEmpty()) {
+            return "null";
+        }
+
+        if (headerString.at(headerString.count()-1) == "\n") {
+            headerString.chop(1);
+        }
+
+        return headerString;
+    }
+
+    inline QString toString(const QPair<BodyType, QVariant> &body) const
+    {
+        QString bodyTypeString;
+        bodyTypeString += "Type: " + toString(body.first) + "\n";
+        bodyTypeString += "Data: \n";
+
+        QString bodyDataString;
+        if (body.first == MultiPart) {
+            QDebug d(&bodyDataString);
+            d << body.second;
+        }
+        else if (body.first == FileMap) {
+            const auto &fileMap = body.second.value<QMap<QString, QString>>();
+            for (const auto &each : fileMap.toStdMap()) {
+                const QString &key      = each.first;
+                const QString &filePath = each.second;
+                bodyDataString += key + ": " + filePath + "\n";
+            }
+        }
+        else if (body.first == FormData) {
+            const auto &formDataMap = body.second.value<QMap<QString, QVariant>>();
+            for (const auto &each : formDataMap.toStdMap()) {
+                const QString &key      = each.first;
+                const QString &value    = each.second.toString();
+                bodyDataString += key + ": " + value + "\n";
+            }
+        }
+        else if (body.first == X_Www_Form_Urlencoded ||
+                 body.first == Raw ||
+                 body.first == Raw_Json)
+        {
+            bodyDataString += body.second.toByteArray();
+        }
+
+        if (bodyDataString.isEmpty()) {
+            bodyDataString = "null";
+        }
+
+        bodyDataString = lineIndent(bodyDataString, ">>>>  ");
+
+        QString bodyString = bodyTypeString + bodyDataString;
+        if (bodyString.at(bodyString.count()-1) == "\n") {
+            bodyString.chop(1);
+        }
+
+        return bodyString;
+    }
+
+    inline QString toString(QNetworkAccessManager::Operation o) const
+    {
+        static QMap<QNetworkAccessManager::Operation, QByteArray> verbMap =
+        {
+            {QNetworkAccessManager::HeadOperation, "HEAD"},
+            {QNetworkAccessManager::GetOperation,  "GET"},
+            {QNetworkAccessManager::PostOperation, "POST"},
+            {QNetworkAccessManager::PutOperation,  "PUT"},
+        };
+
+        return verbMap.value(o, "");
+    }
+
+    inline QString toString(BodyType t) const
+    {
+        if (t == MultiPart) {
+            return "MultiPart";
+        }
+        else if (t == FileMap) {
+            return "FileMap";
+        }
+        else if (t == FormData) {
+            return "FormData";
+        }
+        else if (t == Raw) {
+            return "Raw";
+        }
+        else if (t == Raw_Json) {
+            return "RawJson";
+        }
+        else if (t == X_Www_Form_Urlencoded) {
+            return "x_www_form_urlencoded";
+        }
+        else {
+            return "None";
+        }
+    }
+
     inline HttpRequest &enabledRetry(bool isEnabled);
-    inline HttpResponse *exec(const HttpRequest &httpRequest);
+    inline HttpResponse *exec(const HttpRequest &httpRequest, HttpResponse *httpResponse = nullptr);
 
     friend class HttpResponse;
     friend class HttpDownloader;
@@ -315,7 +454,6 @@ private:
     inline HttpRequest &onResponse(HandleType type, const QObject *receiver, const char *method);
     inline HttpRequest &onResponse(HandleType type, QVariant lambda);
     inline HttpRequest &onResponse(HandleType type, QString key, QVariant value);
-
 };
 
 class HttpResponse : public QObject
@@ -325,9 +463,11 @@ public:
     inline explicit HttpResponse(const HttpRequest &httpRequest, QObject *parent = nullptr);
     inline virtual ~HttpResponse();
 
-    QNetworkReply *reply() { return m_httpRequest.m_reply; }
+    inline void setHttpRequest(const HttpRequest &httpRequest);
+    inline QNetworkReply *reply() { return m_httpRequest.m_reply; }
 
 signals:
+    void replyChanged(QNetworkReply *reply);
     void finished(QNetworkReply *reply);
     void finished();
     void finished(QByteArray result);
@@ -422,16 +562,14 @@ public:
         }
     }
 
-    virtual ~HttpDownloader()
-    {
-        qDebug() << __FUNCTION__;
-    }
+    virtual ~HttpDownloader() { }
 
     HttpResponse *exec()
     {
         HttpClient &client = *HttpClient::instance();
         client.get(m_httpRequest.m_request.url().toString())
               .timeout(30)
+              .block(m_httpRequest.m_isBlock)
               .attribute(QNetworkRequest::FollowRedirectsAttribute, true)
               .onHead(this, SLOT(onHead(QList<QNetworkReply::RawHeaderPair>)))
               .onHead(this, SLOT(onHead(QMap<QString,QString>)))
@@ -439,14 +577,14 @@ public:
               .onFailed(this, SLOT(onResponse(QNetworkReply::NetworkError)))
               .exec();
 
+        m_response = new HttpResponse(m_httpRequest, nullptr);
         return m_response;
     }
 
 private slots:
     void onResponse(QNetworkReply::NetworkError)
     {
-        HttpResponse *response = m_httpRequest.exec(m_httpRequest);
-        connect(response, &HttpResponse::destroyed, [](){qDebug() << "123";});
+        HttpResponse *response = m_httpRequest.exec(m_httpRequest, m_response);
         this->setParent(response);
     }
 
@@ -548,7 +686,7 @@ public:
     }
 };
 
-class HttpBlocker: public QEventLoop
+class HttpBlocker : public QEventLoop
 {
     Q_OBJECT
 public:
@@ -561,14 +699,61 @@ public:
     }
 };
 
-#ifdef QT_APP_DEBUG
-#define _debugger qDebug().noquote().nospace() \
-                          << "[AeaQt::Network] Debug: -> " \
-                          << "function: " << __func__ << "; " \
-                          << "line: " << __LINE__ << "; "
-#else
-#define _debugger QNoDebug()
-#endif
+inline QString toString(const QNetworkReply *reply)
+{
+    QString str = \
+            "General: \n" \
+            "    Request URL: %{url} \n" \
+            "    Request Method: %{method} \n" \
+            "    Request Status: %{status} \n" \
+            "Request Headers: \n" \
+            "%{requestHeaders} \n" \
+            "Response Headers: \n" \
+            "%{responseHeaders} \n" \
+            "Request Body: \n" \
+            "%{requestBody}";
+
+//    str.replace("%{url}", reply->request().url().toString());
+//    str.replace("%{method}", toString(reply->operation()));
+//    str.replace("%{requestHeaders}", lineIndent(toString(reply.rawHeaderList()), "    "));
+//    str.replace("%{requestBody}", lineIndent(toString(m_body), "    "));
+
+
+    return str;
+}
+
+template <typename T>
+void _logger(HttpRequest::LogLevel l1, HttpRequest::LogLevel l2, T str)
+{
+    assert(l2 != HttpRequest::All);
+    assert(l2 != HttpRequest::Off);
+
+    if (l1 == 0) {
+        return;
+    }
+
+    if (l1 <= l2 || l1 == HttpRequest::All) {
+        if (l2 <= HttpRequest::Debug) {
+            qDebug().noquote() << str;
+        }
+        else if (l2 == HttpRequest::Warn) {
+            qWarning().noquote() << str;
+        }
+        else if (l2 == HttpRequest::Error) {
+            qCritical().noquote() << str;
+        }
+        else if (l2 == HttpRequest::Fatal) {
+            qFatal("%s\n", str);
+        }
+    }
+}
+
+template <typename T> void printTrace(HttpRequest::LogLevel l, T str) { _logger(l, HttpRequest::Trace, str); }
+template <typename T> void printInfo (HttpRequest::LogLevel l, T str) { _logger(l, HttpRequest::Info, str); }
+template <typename T> void printDebug(HttpRequest::LogLevel l, T str) { _logger(l, HttpRequest::Debug, str); }
+template <typename T> void printWarn (HttpRequest::LogLevel l, T str) { _logger(l, HttpRequest::Warn, str); }
+template <typename T> void printError(HttpRequest::LogLevel l, T str) { _logger(l, HttpRequest::Error, str); }
+template <typename T> void printFatal(HttpRequest::LogLevel l, T str) { _logger(l, HttpRequest::Fatal, str); }
 
 HttpRequest::~HttpRequest()
 {
@@ -830,7 +1015,6 @@ HttpRequest &HttpRequest::authenticationRequiredCount(int count)
     return *this;
 }
 
-// event [0]
 HttpRequest &HttpRequest::timeout(const int &second) { return timeoutMs(second * 1000); }
 HttpRequest &HttpRequest::timeoutMs(const int &msec) { m_timeoutMs = msec; return *this; }
 
@@ -840,6 +1024,8 @@ HttpRequest &HttpRequest::repeat(int count) { m_repeatCount = count; return *thi
 
 HttpRequest &HttpRequest::block(bool isBlock) { m_isBlock = isBlock; return *this; }
 HttpRequest &HttpRequest::sync(bool isSync) { return block(isSync); }
+
+HttpRequest &HttpRequest::logLevel(HttpRequest::LogLevel level) { m_logLevel = level; return *this; }
 
 HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char  *method) { return onResponse(h_onFinished, receiver, method); }
 HttpRequest &HttpRequest::onFinished(std::function<void (QNetworkReply *)> lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
@@ -926,35 +1112,14 @@ HttpRequest &HttpRequest::onResponse(HandleType type, QString key, QVariant valu
     return *this;
 }
 
-HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest)
+HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest, HttpResponse *httpResponse)
 {
     HttpRequest httpRequest = _httpRequest;
-#ifdef QT_APP_DEBUG
-    _debugger << "Http Client info: ";
-    _debugger << "Url: " << httpRequest.m_request.url().toString();
-    _debugger << "Type: " << httpRequest.m_op;
-    QString headers;
-    for (int i = 0; i < httpRequest.m_request.rawHeaderList().count(); i++) {
-        QString each = httpRequest.m_request.rawHeaderList().at(i);
-        QString header = httpRequest.m_request.rawHeader(each.toUtf8());
-        headers += QString("%1: %2;").arg(each)
-                                     .arg(header);
-    }
 
-    _debugger << "Header: " << headers;
-    _debugger << "Body:\r\n" << httpRequest.m_body;
-#endif
-
-    static QMap<QNetworkAccessManager::Operation, QByteArray> verbMap =
-    {
-        {QNetworkAccessManager::HeadOperation, "HEAD"},
-        {QNetworkAccessManager::GetOperation,  "GET"},
-        {QNetworkAccessManager::PostOperation, "POST"},
-        {QNetworkAccessManager::PutOperation,  "PUT"},
-    };
-
-    if (!verbMap.contains(httpRequest.m_op)) {
-        qWarning() << "Url: [" << httpRequest.m_request.url().toString() << "]" << httpRequest.m_op << "not support!";
+    QByteArray op = toString(httpRequest.m_op).toUtf8();
+    if (op.isEmpty()) {
+        QString str = QString("Url: [%1]; Method: [%2] not support!").arg(httpRequest.m_request.url().toString()).arg(QString(op));
+        printError(httpRequest.m_logLevel, str);
         return nullptr;
     }
 
@@ -970,9 +1135,7 @@ HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest)
 
         request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
 
-        httpRequest.m_reply = httpRequest.m_httpClient->sendCustomRequest(request,
-                                                       verbMap.value(httpRequest.m_op),
-                                                       multiPart);
+        httpRequest.m_reply = httpRequest.m_httpClient->sendCustomRequest(request, op, multiPart);
         multiPart->setParent(httpRequest.m_reply);
 
     }
@@ -1004,9 +1167,7 @@ HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest)
             multiPart->append(part);
         }
 
-        httpRequest.m_reply = httpClient->sendCustomRequest(request,
-                                              verbMap.value(httpRequest.m_op),
-                                              multiPart);
+        httpRequest.m_reply = httpClient->sendCustomRequest(request, op, multiPart);
         if (httpRequest.m_reply)
             multiPart->setParent(httpRequest.m_reply);
         else
@@ -1032,9 +1193,7 @@ HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest)
             multiPart->append(part);
         }
 
-        httpRequest.m_reply = httpClient->sendCustomRequest(request,
-                                              verbMap.value(httpRequest.m_op),
-                                              multiPart);
+        httpRequest.m_reply = httpClient->sendCustomRequest(request, op, multiPart);
 
         if (httpRequest.m_reply)
             multiPart->setParent(httpRequest.m_reply);
@@ -1042,14 +1201,12 @@ HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest)
             delete multiPart;
     }
     else {
-        httpRequest.m_reply = httpRequest.m_httpClient->sendCustomRequest(request,
-                                                            verbMap.value(httpRequest.m_op),
-                                                            body.toByteArray());
+        httpRequest.m_reply = httpClient->sendCustomRequest(request, op, body.toByteArray());
     }
 
     if (httpRequest.m_reply == nullptr) {
         // fixme: todo onError
-        qWarning() << "Http reply invalid";
+        printError(httpRequest.m_logLevel, "Http reply invalid");
         Q_ASSERT(httpRequest.m_reply);
         return nullptr;
     }
@@ -1063,13 +1220,23 @@ HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest)
         httpRequest.m_reply->setReadBufferSize(httpRequest.m_readBufferSize);
     }
 
-    return new HttpResponse(httpRequest, httpRequest.m_reply);
+    printDebug(httpRequest.m_logLevel, toString());
+
+    if (httpResponse) {
+        httpResponse->setParent(httpRequest.m_reply);
+        httpResponse->setHttpRequest(httpRequest);
+        return httpResponse;
+    }
+    else {
+        return new HttpResponse(httpRequest, httpRequest.m_reply);
+    }
 }
 
-// event [0]
-
-inline QDebug &operator<<(QDebug &debug, const QNetworkAccessManager::Operation &op)
+inline QDebug operator<<(QDebug debug, const QNetworkAccessManager::Operation &op)
 {
+    QDebugStateSaver saver(debug);
+    debug.nospace();
+
     switch (op) {
         case QNetworkAccessManager::HeadOperation: return debug  << "HeadOperation";
         case QNetworkAccessManager::GetOperation:  return debug  << "GetOperation";
@@ -1081,9 +1248,11 @@ inline QDebug &operator<<(QDebug &debug, const QNetworkAccessManager::Operation 
     }
 }
 
-template<typename T>
-inline T &operator<<(T &debug, const HttpRequest::HandleType &handleType)
+inline QDebug operator<<(QDebug debug, const HttpRequest::HandleType &handleType)
 {
+    QDebugStateSaver saver(debug);
+    debug.nospace();
+
     switch (handleType) {
         case HttpRequest::h_onFinished: return debug << "onFinished";
         case HttpRequest::h_onError:    return debug << "onError";
@@ -1122,7 +1291,6 @@ static bool isMethod(const char *member)
     int ret = extractCode(member);
     return  ret >= QMETHOD_CODE && ret <= QSIGNAL_CODE;
 }
-
 
 template<typename M, typename L, typename T>
 bool httpResponseConnect(L sender, T senderSignal, const QString &lambdaString, const QVariant &lambda)
@@ -1224,7 +1392,7 @@ HttpClient::HttpClient(QObject *parent) : QNetworkAccessManager(parent)
 
 QString HttpClient::getVersion() const
 {
-    return "1.0.0";
+    return "1.1.0";
 }
 
 HttpRequest HttpClient::head(const QString &url)
@@ -1273,7 +1441,7 @@ QNetworkReply *HttpClient::sendCustomRequest(const QNetworkRequest &request, con
         return QNetworkAccessManager::post(request, multiPart);
     }
     else {
-        qDebug() << "not support " << verb << "multi part.";
+        qWarning() << "not support " << verb << "multi part.";
         return nullptr;
     }
 }
@@ -1284,13 +1452,20 @@ HttpResponse::HttpResponse(const HttpRequest &httpRequest, QObject *parent)
       m_httpRequest(httpRequest),
       m_retriesRemaining(httpRequest.m_retryCount)
 {
-    int timeout          = httpRequest.m_timeoutMs;
-    int isBlock          = httpRequest.m_isBlock;
-    auto handleMap       = httpRequest.m_handleMap;
+    this->setHttpRequest(httpRequest);
+}
+
+HttpResponse::~HttpResponse()
+{
+}
+
+void HttpResponse::setHttpRequest(const HttpRequest &httpRequest)
+{
+    if (httpRequest.m_timeoutMs > 0) {
+        new HttpResponseTimeout(this, httpRequest.m_timeoutMs);
+    }
+
     QNetworkReply *reply = httpRequest.m_reply;
-
-    new HttpResponseTimeout(this, timeout);
-
     if (reply) {
         connect(reply, SIGNAL(finished()),                         this, SLOT(onFinished()));
         connect(reply, SIGNAL(finished()),                         this, SLOT(onHandleHead()));
@@ -1316,123 +1491,124 @@ HttpResponse::HttpResponse(const HttpRequest &httpRequest, QObject *parent)
         connect(reply, SIGNAL(preSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)), this, SLOT(onPreSharedKeyAuthenticationRequired(QSslPreSharedKeyAuthenticator*)));
 
         connect(reply->manager(), SIGNAL(authenticationRequired(QNetworkReply*, QAuthenticator*)), this, SLOT(onAuthenticationRequired(QNetworkReply*,QAuthenticator*)));
-    }
 
-    // fixme: Too cumbersome
-    for (auto each : handleMap.toStdMap()) {
-        const HttpRequest::HandleType         &key   = each.first;
-        const QList<QPair<QString, QVariant>> &value = each.second;
+        // fixme: Too cumbersome
+        for (auto each : httpRequest.m_handleMap.toStdMap()) {
+            const HttpRequest::HandleType         &key   = each.first;
+            const QList<QPair<QString, QVariant>> &value = each.second;
 
-        for (auto iter : value) {
-            const QVariant &lambda      = iter.second;
-            const QString &lambdaString = iter.first;
-            int ret = 0;
+            for (auto iter : value) {
+                const QVariant &lambda      = iter.second;
+                const QString &lambdaString = iter.first;
+                int ret = 0;
 
-            if (key == HttpRequest::h_onFinished) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, void);
-                ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QByteArray);
-                ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QVariantMap);
-                ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QNetworkReply*);
-            }
-            else if (key == HttpRequest::h_onDownloadProgress) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, downloadProgress, lambdaString, lambda, qint64, qint64);
-            }
-            else if (key == HttpRequest::h_onUploadProgress) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, uploadProgress, lambdaString, lambda, qint64, qint64);
-            }
-            else if (key == HttpRequest::h_onError) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, void);
-                ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QByteArray);
-                ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QNetworkReply*);
-                ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QNetworkReply::NetworkError);
-            }
-            else if (key == HttpRequest::h_onTimeout) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, timeout, lambdaString, lambda, QNetworkReply*);
-                ret += HTTP_RESPONSE_CONNECT_X(this, timeout, lambdaString, lambda, void);
-            }
-            else if (key == HttpRequest::h_onReadyRead) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, readyRead, lambdaString, lambda, QNetworkReply*);
-            }
-            else if (key == HttpRequest::h_onDownloadFileSuccess) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, downloadFileFinished, lambdaString, lambda, void);
-                ret += HTTP_RESPONSE_CONNECT_X(this, downloadFileFinished, lambdaString, lambda, QString);
-            }
-            else if (key == HttpRequest::h_onDownloadFileFailed) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, downloadFileError, lambdaString, lambda, void);
-                ret += HTTP_RESPONSE_CONNECT_X(this, downloadFileError, lambdaString, lambda, QString);
-            }
-            else if (key == HttpRequest::h_onEncrypted) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, encrypted, lambdaString, lambda, void);
-            }
-            else if (key == HttpRequest::h_onMetaDataChanged) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, metaDataChanged, lambdaString, lambda, void);
-            }
-            else if (key == HttpRequest::h_onPreSharedKeyAuthenticationRequired) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, preSharedKeyAuthenticationRequired, lambdaString, lambda, QSslPreSharedKeyAuthenticator*);
-            }
-            else if (key == HttpRequest::h_onRedirectAllowed) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, redirectAllowed, lambdaString, lambda, void);
-            }
-            else if (key == HttpRequest::h_onRedirected) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, redirected, lambdaString, lambda, QUrl);
-            }
-            else if (key == HttpRequest::h_onSslErrors) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, sslErrors, lambdaString, lambda, QList<QSslError>);
-            }
-            else if (key == HttpRequest::h_onRetried) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, retried, lambdaString, lambda, void);
-            }
-            else if (key == HttpRequest::h_onRepeated) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, repeated, lambdaString, lambda, void);
-            }
-            else if (key == HttpRequest::h_onAuthenticationRequired) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, authenticationRequired, lambdaString, lambda, QAuthenticator*);
-            }
-            else if (key == HttpRequest::h_onAuthenticationRequireFailed) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, authenticationRequireFailed, lambdaString, lambda, void);
-                ret += HTTP_RESPONSE_CONNECT_X(this, authenticationRequireFailed, lambdaString, lambda, QNetworkReply*);
-            }
-            else if (key == HttpRequest::h_onHead) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, head, lambdaString, lambda, QList<QNetworkReply::RawHeaderPair>);
-                ret += HTTP_RESPONSE_CONNECT_X(this, head, lambdaString, lambda, QMap<QString, QString>);
-            }
-            else if (key == HttpRequest::h_onDownloadFileProgess) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, downloadFileProgress, lambdaString, lambda, qint64, qint64);
-            }
-            else if (key == HttpRequest::h_onDownloadFileNameChanged) {
-                ret += HTTP_RESPONSE_CONNECT_X(this, downloadFileNameChanged, lambdaString, lambda, QString);
-            }
-            else {
-                // do nothing
-                qWarning() << "Warning:" << key << "unsupported!";
-            }
+                if (key == HttpRequest::h_onFinished) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, void);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QByteArray);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QVariantMap);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QNetworkReply*);
+                }
+                else if (key == HttpRequest::h_onDownloadProgress) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, downloadProgress, lambdaString, lambda, qint64, qint64);
+                }
+                else if (key == HttpRequest::h_onUploadProgress) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, uploadProgress, lambdaString, lambda, qint64, qint64);
+                }
+                else if (key == HttpRequest::h_onError) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, void);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QByteArray);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QNetworkReply*);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QNetworkReply::NetworkError);
+                }
+                else if (key == HttpRequest::h_onTimeout) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, timeout, lambdaString, lambda, QNetworkReply*);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, timeout, lambdaString, lambda, void);
+                }
+                else if (key == HttpRequest::h_onReadyRead) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, readyRead, lambdaString, lambda, QNetworkReply*);
+                }
+                else if (key == HttpRequest::h_onDownloadFileSuccess) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, downloadFileFinished, lambdaString, lambda, void);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, downloadFileFinished, lambdaString, lambda, QString);
+                }
+                else if (key == HttpRequest::h_onDownloadFileFailed) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, downloadFileError, lambdaString, lambda, void);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, downloadFileError, lambdaString, lambda, QString);
+                }
+                else if (key == HttpRequest::h_onEncrypted) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, encrypted, lambdaString, lambda, void);
+                }
+                else if (key == HttpRequest::h_onMetaDataChanged) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, metaDataChanged, lambdaString, lambda, void);
+                }
+                else if (key == HttpRequest::h_onPreSharedKeyAuthenticationRequired) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, preSharedKeyAuthenticationRequired, lambdaString, lambda, QSslPreSharedKeyAuthenticator*);
+                }
+                else if (key == HttpRequest::h_onRedirectAllowed) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, redirectAllowed, lambdaString, lambda, void);
+                }
+                else if (key == HttpRequest::h_onRedirected) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, redirected, lambdaString, lambda, QUrl);
+                }
+                else if (key == HttpRequest::h_onSslErrors) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, sslErrors, lambdaString, lambda, QList<QSslError>);
+                }
+                else if (key == HttpRequest::h_onRetried) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, retried, lambdaString, lambda, void);
+                }
+                else if (key == HttpRequest::h_onRepeated) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, repeated, lambdaString, lambda, void);
+                }
+                else if (key == HttpRequest::h_onAuthenticationRequired) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, authenticationRequired, lambdaString, lambda, QAuthenticator*);
+                }
+                else if (key == HttpRequest::h_onAuthenticationRequireFailed) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, authenticationRequireFailed, lambdaString, lambda, void);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, authenticationRequireFailed, lambdaString, lambda, QNetworkReply*);
+                }
+                else if (key == HttpRequest::h_onHead) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, head, lambdaString, lambda, QList<QNetworkReply::RawHeaderPair>);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, head, lambdaString, lambda, QMap<QString, QString>);
+                }
+                else if (key == HttpRequest::h_onDownloadFileProgess) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, downloadFileProgress, lambdaString, lambda, qint64, qint64);
+                }
+                else if (key == HttpRequest::h_onDownloadFileNameChanged) {
+                    ret += HTTP_RESPONSE_CONNECT_X(this, downloadFileNameChanged, lambdaString, lambda, QString);
+                }
+                else {
+                    printWarn(httpRequest.m_logLevel, QString("%1 unsupported").arg(key));
+                }
 
-            if (ret == 0) {
-                QString method = lambdaString;
-                if (isMethod(qPrintable(method)))
-                    method.remove(0, 1);
+                if (ret == 0) {
+                    QString method = lambdaString;
+                    if (isMethod(qPrintable(method)))
+                        method.remove(0, 1);
 
-                qWarning() << "Warning:" << key << "method["<< method << "] is invalid!";
+                    printWarn(httpRequest.m_logLevel, QString("%1 method[%2] is invalid").arg(key).arg(method));
+                }
             }
-
         }
     }
 
-    if (reply) {
-        new HttpBlocker(reply, isBlock);
+    if (reply && httpRequest.m_isBlock) {
+        new HttpBlocker(reply, httpRequest.m_isBlock);
     }
-}
 
-HttpResponse::~HttpResponse()
-{
-    _debugger << "destory: " << __FUNCTION__;
+    HttpRequest oldRequest = m_httpRequest;
+    m_httpRequest = httpRequest;
+
+    if (oldRequest.m_reply != httpRequest.m_reply) {
+        emit replyChanged(httpRequest.m_reply);
+    }
 }
 
 void HttpResponse::onFinished()
 {
-    QNetworkReply *reply = m_httpRequest.m_reply;
-    if (reply->error() != QNetworkReply::NoError)
+    QNetworkReply *reply = m_httpRequest.m_reply; 
+    if (reply->error() != QNetworkReply::NoError) {
         return;
+    }
 
     if (m_httpRequest.m_enabledRetry) {
         emit retried();
@@ -1481,6 +1657,9 @@ void HttpResponse::onFinished()
 void HttpResponse::onError(QNetworkReply::NetworkError error)
 {
     QNetworkReply *reply = m_httpRequest.m_reply;
+
+    printInfo(m_httpRequest.m_logLevel, QString("%1 error: %2").arg(reply->url().toString()).arg(error));
+
     if ( m_retriesRemaining-- > 0) {
         HttpRequest httpRequest = m_httpRequest;
         httpRequest.retry(m_retriesRemaining)
