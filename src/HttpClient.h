@@ -70,7 +70,7 @@ private:
 class HttpRequest
 {
 public:
-    enum LogLevel { Off = 0, Trace, Debug, Info, Warn, Error, Fatal, All };
+    enum LogLevel { Off, Fatal, Error, Warn, Debug, Info, Trace, All};
 
     inline explicit HttpRequest(QNetworkAccessManager::Operation op, HttpClient *httpClient);
     inline virtual ~HttpRequest();
@@ -575,38 +575,30 @@ public:
     }
 };
 
-template <typename T>
-void _logger(HttpRequest::LogLevel l1, HttpRequest::LogLevel l2, T str)
-{
-    assert(l2 != HttpRequest::All);
-    assert(l2 != HttpRequest::Off);
+#define _logger(l1, l2, str) \
+do { \
+    if (l1 >= l2) { \
+        if (l2 >= HttpRequest::Debug) { \
+            qDebug().noquote() << str; \
+        } \
+        else if (l2 == HttpRequest::Warn) { \
+            qWarning().noquote() << str; \
+        } \
+        else if (l2 == HttpRequest::Error) { \
+            qCritical().noquote() << str; \
+        } \
+        else if (l2 == HttpRequest::Fatal) { \
+            qFatal("%s\n", str); \
+        } \
+    } \
+} while(0);
 
-    if (l1 == 0) {
-        return;
-    }
-
-    if (l1 <= l2 || l1 == HttpRequest::All) {
-        if (l2 <= HttpRequest::Debug) {
-            qDebug().noquote() << str;
-        }
-        else if (l2 == HttpRequest::Warn) {
-            qWarning().noquote() << str;
-        }
-        else if (l2 == HttpRequest::Error) {
-            qCritical().noquote() << str;
-        }
-        else if (l2 == HttpRequest::Fatal) {
-            qFatal("%s\n", str);
-        }
-    }
-}
-
-template <typename T> void printTrace(HttpRequest::LogLevel l, T str) { _logger(l, HttpRequest::Trace, str); }
-template <typename T> void printInfo (HttpRequest::LogLevel l, T str) { _logger(l, HttpRequest::Info, str); }
-template <typename T> void printDebug(HttpRequest::LogLevel l, T str) { _logger(l, HttpRequest::Debug, str); }
-template <typename T> void printWarn (HttpRequest::LogLevel l, T str) { _logger(l, HttpRequest::Warn, str); }
-template <typename T> void printError(HttpRequest::LogLevel l, T str) { _logger(l, HttpRequest::Error, str); }
-template <typename T> void printFatal(HttpRequest::LogLevel l, T str) { _logger(l, HttpRequest::Fatal, str); }
+#define printTrace(level, str) _logger(level, HttpRequest::Trace, str)
+#define printInfo(level, str)  _logger(level, HttpRequest::Info,  str)
+#define printDebug(level, str) _logger(level, HttpRequest::Debug, str)
+#define printWarn(level, str)  _logger(level, HttpRequest::Warn,  str)
+#define printError(level, str) _logger(level, HttpRequest::Error, str)
+#define printFatal(level, str) _logger(level, HttpRequest::Fatal, str)
 
 HttpRequest::~HttpRequest()
 {
@@ -1092,7 +1084,7 @@ HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest, HttpResponse *h
         httpRequest.m_reply->setReadBufferSize(httpRequest.m_readBufferSize);
     }
 
-//    printDebug(httpRequest.m_logLevel, toString());
+    printDebug(httpRequest.m_logLevel, toString());
 
     if (httpResponse) {
         httpResponse->setParent(httpRequest.m_reply);
