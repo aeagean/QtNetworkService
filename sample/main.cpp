@@ -18,6 +18,7 @@
 **********************************************************/
 #include "HttpClient.h"
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QDebug>
 
 using namespace AeaQt;
@@ -308,6 +309,62 @@ void autoDeleteDemo()
     QObject::connect(client, &HttpClient::finished, client, &HttpClient::deleteLater);
 }
 
+void downloaderDemo()
+{
+    QElapsedTimer t;
+    t.start();
+
+    HttpClient *client = new HttpClient;
+    HttpResponse *response = client->get("http://www.qthub.com")
+           .header("1", 2)
+           .download()
+           .onDownloadFileSuccess([](QString file) { qDebug()<<file; })
+           .onDownloadFileFailed([](QString file) { qDebug()<<"error:"<<file; })
+           .exec();
+
+    QObject::connect(response, &HttpResponse::replyChanged, [](QNetworkReply *reply){qDebug() << "reply:" << reply;});
+    QObject::connect(client, &HttpClient::finished, client, &HttpClient::deleteLater);
+    qDebug() << "download elapsed(ms): " << t.elapsed();
+}
+
+void testHttpMultiPart()
+{
+    QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+    QString contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
+
+    QFile *file = new QFile("demo.txt");
+    file->open(QIODevice::ReadOnly);
+    file->setParent(multiPart);
+
+    QString dispositionHeader = QString("form-data; name=\"%1\";filename=\"%2\"")
+            .arg("text_file")
+            .arg(file->fileName());
+
+    QHttpPart part;
+    part.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("text/plain"));
+    part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
+    part.setBodyDevice(file);
+
+    multiPart->append(part);
+
+    QJsonObject json = {
+        {"1", "2"},
+        {"11", "2"}
+    };
+    HttpClient &client = *HttpClient::instance();
+    client.post("http://httpbin.org/post")
+//            .header("content-type", contentType)
+//            .body(multiPart)
+            .body(">>>>>>>>>>>>>>>>>")
+//            .bodyWithFile("1", "232")
+//            .bodyWithFile("2", "232")
+//            .logLevel(HttpRequest::Off)
+            .logLevel(HttpRequest::Info)
+            .onSuccess([](QString result){ qDebug().noquote()<<"result: success"<<result; })
+    .onFailed([](QString error){ qDebug()<<"error: "<<error; })
+    .exec();
+}
+
 #include "main.moc"
 
 int main(int argc, char *argv[])
@@ -318,8 +375,10 @@ int main(int argc, char *argv[])
     Object object;
     object.exec();
 #else
+
+//    qDebug().noquote() << lineIndent("12341234\n22323\n233", ">>>>");
     qDebug() << "start...";
-    autoDeleteDemo();
+    testHttpMultiPart();
     qDebug() << "end...";
 #endif
 
