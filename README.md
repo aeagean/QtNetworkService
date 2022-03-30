@@ -568,7 +568,28 @@ client.get("https://httpbin.org/basic-auth/admin/123456")
 ## 注意
 * `autoAuthenticationRequired`和`onAuthenticationRequired`不能同时使用，因为它们是互斥实现。如不慎同时使用，只会生效`autoAuthenticationRequired`操作。
 
-# 3. 扫码关注微信公众号:Qt 君，第一时间获取推送。
+## 2.16 调试打印
+### 接口：
+&emsp;&emsp;打印等级分为:
+```cpp
+enum LogLevel {
+    Off,
+    Fatal,
+    Error,
+    Warn,
+    Debug,
+    Info,
+    Trace,
+    All
+};
+```
+
+&emsp;&emsp;默认打印等级是**Warn**,设置不同的等级会在内部打印对应等级的打印。
+```cpp
+inline HttpRequest &logLevel(LogLevel level = Warn);
+```
+
+# 3. 扫码关注微信公众号Qt 君，第一时间获取推送。
 
 <p align="center">
   <img src="http://www.qtbig.com/about/index/my_qrcode.jpg" alt="微信公众号:Qt君">
