@@ -106,7 +106,9 @@ public:
     inline HttpRequest &bodyWithMultiPart(QHttpMultiPart *multiPart);
 
     // multi-params
-    inline HttpRequest &body(const QString &key, const QString &file);
+    inline HttpRequest &body(const QString &key, const QByteArray& raw, const QString& contentType = "application/x-www-form-urlencoded");
+    inline HttpRequest &body(const QString &key, const QJsonObject& json);
+    inline HttpRequest &body(const QString &key, const QVariantMap& formUrlencoded);
     inline HttpRequest &bodyWithFile(const QString &key, const QString &file);
     inline HttpRequest &bodyWithFile(const QMap<QString/*key*/, QString/*file*/> &fileMap); // => QMap<key, file>; like: { "key": "/home/example/car.jpeg" }
 
@@ -261,7 +263,6 @@ public:
         Raw,
         Raw_Json,              // application/json
         X_Www_Form_Urlencoded, // x-www-form-urlencoded
-        FileMap,               // multipart/form-data
         MultiPart,             // multipart/form-data
         FormData               // multipart/form-data
     };
@@ -575,6 +576,13 @@ public:
     }
 };
 
+struct HttpMultiPart
+{
+    QString contentType;
+    QString key;
+    QVariant value;
+};
+
 #define _logger(l1, l2, str) \
 do { \
     if (l1 >= l2) { \
@@ -777,29 +785,55 @@ HttpRequest &HttpRequest::onDownloadFileProgress(std::function<void (qint64, qin
     return onResponse(h_onDownloadFileProgess, QVariant::fromValue(lambda));
 }
 
-HttpRequest &HttpRequest::body(const QString &key, const QString &file)
+HttpRequest &HttpRequest::body(const QString& key, const QByteArray& raw, const QString& contentType)
 {
-    return bodyWithFile(key, file);
+    HttpMultiPart multiPart;
+    multiPart.contentType = contentType;
+    multiPart.key = key;
+    multiPart.value = raw;
+
+    auto data = m_body.second.value<QList<HttpMultiPart>>();
+    data.append(multiPart);
+    m_body = qMakePair(BodyType::FormData, QVariant::fromValue(data));
+    return *this;
+}
+
+HttpRequest &HttpRequest::body(const QString& key, const QJsonObject& json) {
+    const QByteArray& value = QJsonDocument(json).toJson();
+    return body(key, value, "application/json");
+}
+
+HttpRequest &HttpRequest::body(const QString& key, const QVariantMap& formUrlencoded)
+{
+    QUrl url;
+    QUrlQuery urlQuery(url);
+    for (const auto& i: formUrlencoded.keys()) {
+        urlQuery.addQueryItem(i, formUrlencoded[i].toString());
+    }
+    url.setQuery(urlQuery);
+    const auto& value = url.toString(QUrl::FullyEncoded).toUtf8().remove(0, 1);
+
+    body(key, value);
+    return *this;
 }
 
 HttpRequest &HttpRequest::bodyWithFile(const QString &key, const QString &filePath)
 {
-    QMap<QString, QString> map;
-    map[key] = filePath;
+    HttpMultiPart multiPart;
+    multiPart.key = key;
+    multiPart.value = filePath;
 
-    return bodyWithFile(map);
+    auto data = m_body.second.value<QList<HttpMultiPart>>();
+    data.append(multiPart);
+    m_body = qMakePair(BodyType::FormData, QVariant::fromValue(data));
+    return *this;
 }
 
 HttpRequest &HttpRequest::bodyWithFile(const QMap<QString, QString> &fileMap)
 {
-    auto &body = m_body;
-    auto map = body.second.value<QMap<QString, QString>>();
-    for (auto each : fileMap.toStdMap()) {
-        map[each.first] = each.second;
+    for (const auto& key: fileMap.keys()) {
+        bodyWithFile(key, fileMap[key]);
     }
-
-    body.first = BodyType::FileMap;
-    body.second = QVariant::fromValue(map);
     return *this;
 }
 
@@ -992,6 +1026,7 @@ HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest, HttpResponse *h
     QVariant            body = httpRequest.m_body.second;
     QNetworkRequest  request = httpRequest.m_request;
     HttpClient   *httpClient = httpRequest.m_httpClient;
+    httpRequest.m_body = qMakePair(BodyType::None, QByteArray());
 
     if (bodyType == BodyType::MultiPart) {
         QHttpMultiPart *multiPart = body.value<QHttpMultiPart*>();
@@ -1003,58 +1038,46 @@ HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest, HttpResponse *h
         multiPart->setParent(httpRequest.m_reply);
 
     }
-    else if (bodyType == BodyType::FileMap) {
-        QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
-        QString contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
-        request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
-
-        const auto &fileMap = body.value<QMap<QString, QString>>();
-        for (const auto &each : fileMap.toStdMap()) {
-            const QString &key      = each.first;
-            const QString &filePath = each.second;
-
-            QFile *file = new QFile(filePath);
-            file->open(QIODevice::ReadOnly);
-            file->setParent(multiPart);
-
-            // todo
-            // part.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("text/plain"));
-
-            // note: "form-data; name=\"%1\";filename=\"%2\"" != "form-data; name=\"%1\";filename=\"%2\";"
-            QString dispositionHeader = QString("form-data; name=\"%1\";filename=\"%2\"")
-                    .arg(key)
-                    .arg(QFileInfo(filePath).fileName());
-            QHttpPart part;
-            part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
-            part.setBodyDevice(file);
-
-            multiPart->append(part);
-        }
-
-        httpRequest.m_reply = httpClient->sendCustomRequest(request, op, multiPart);
-        if (httpRequest.m_reply)
-            multiPart->setParent(httpRequest.m_reply);
-        else
-            delete multiPart;
-
-    }
     else if (bodyType == BodyType::FormData) {
-        QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+        auto multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
         QString       contentType = QString("multipart/form-data;boundary=%1").arg(multiPart->boundary().data());
         request.setHeader(QNetworkRequest::ContentTypeHeader, contentType);
 
-        const auto &formDataMap = body.value<QMap<QString, QVariant>>();
-        for (const auto &each : formDataMap.toStdMap()) {
-            const QString &key      = each.first;
-            const QString &value    = each.second.toString();
+        if (body.canConvert<QVariantMap>()) {
+            auto formData = body.value<QVariantMap>();
+            for (const auto& key: formData.keys()) {
 
-            QString dispositionHeader = QString("form-data; name=\"%1\"").arg(key);
+                QHttpPart part;
+                part.setHeader(QNetworkRequest::ContentDispositionHeader, QString("form-data; name=\"%1\"").arg(key));
+                part.setBody(formData[key].toString().toUtf8());
 
-            QHttpPart part;
-            part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
-            part.setBody(value.toUtf8());
+                multiPart->append(part);
+            }
+        } else if (body.canConvert<QList<HttpMultiPart>>()) {
+            auto multipartData = body.value<QList<HttpMultiPart>>();
+            for (const auto& partData: multipartData) {
 
-            multiPart->append(part);
+                QHttpPart part;
+                if (partData.contentType.isEmpty()) {
+                    auto filePath = partData.value.toString();
+                    auto file = new QFile(filePath);
+                    file->open(QIODevice::ReadOnly);
+                    file->setParent(multiPart);
+
+                    QString dispositionHeader = QString("form-data; name=\"%1\";filename=\"%2\"")
+                        .arg(partData.key)
+                        .arg(QFileInfo(filePath).fileName());
+                    part.setHeader(QNetworkRequest::ContentDispositionHeader, dispositionHeader);
+                    part.setBodyDevice(file);
+
+                } else {
+                    part.setHeader(QNetworkRequest::ContentDispositionHeader, QString("form-data; name=\"%1\"").arg(partData.key));
+                    part.setHeader(QNetworkRequest::ContentTypeHeader, partData.contentType);
+                    part.setBody(partData.value.toByteArray());
+                }
+
+                multiPart->append(part);
+            }
         }
 
         httpRequest.m_reply = httpClient->sendCustomRequest(request, op, multiPart);
@@ -1836,9 +1859,6 @@ inline QString networkBodyType2String(HttpRequest::BodyType t)
     if (t == HttpRequest::MultiPart) {
         return "MultiPart";
     }
-    else if (t == HttpRequest::FileMap) {
-        return "FileMap";
-    }
     else if (t == HttpRequest::FormData) {
         return "FormData";
     }
@@ -1867,20 +1887,25 @@ inline QString networkBody2String(const QPair<HttpRequest::BodyType, QVariant> &
         QDebug d(&bodyDataString);
         d << body.second;
     }
-    else if (body.first == HttpRequest::FileMap) {
-        const auto &fileMap = body.second.value<QMap<QString, QString>>();
-        for (const auto &each : fileMap.toStdMap()) {
-            const QString &key      = each.first;
-            const QString &filePath = each.second;
-            bodyDataString += key + ": " + filePath + "\n";
-        }
-    }
     else if (body.first == HttpRequest::FormData) {
-        const auto &formDataMap = body.second.value<QMap<QString, QVariant>>();
-        for (const auto &each : formDataMap.toStdMap()) {
-            const QString &key      = each.first;
-            const QString &value    = each.second.toString();
-            bodyDataString += key + ": " + value + "\n";
+        if (body.second.canConvert<QVariantMap>()) {
+            for (const auto& each : body.second.value<QVariantMap>().toStdMap()) {
+                const QString& key = each.first;
+                const QString& value = each.second.toString();
+                bodyDataString += key + ": " + value + "\n";
+            }
+        } else if (body.second.canConvert<QList<HttpMultiPart>>()) {
+            auto multipartData = body.second.value<QList<HttpMultiPart>>();
+            for (const auto& partData : multipartData) {
+                const QString& key = partData.key;
+                if (partData.contentType.isEmpty()) {
+                    const QString& filePath = partData.value.toString();
+                    bodyDataString += key + ": " + filePath + "\n";
+                } else {
+                    const QString& value = partData.value.toByteArray();
+                    bodyDataString += key + ": " + value + "\n";
+                }
+            }
         }
     }
     else if (body.first == HttpRequest::X_Www_Form_Urlencoded ||
@@ -1934,5 +1959,7 @@ HTTPRESPONSE_DECLARE_METATYPE(QList<QSslError>)
 HTTPRESPONSE_DECLARE_METATYPE(QAuthenticator*)
 HTTPRESPONSE_DECLARE_METATYPE(QList<QNetworkReply::RawHeaderPair>)
 HTTPRESPONSE_DECLARE_METATYPE(QMap<QString, QString>)
+
+Q_DECLARE_METATYPE(AeaQt::HttpMultiPart)
 
 #endif // QTHUB_COM_HTTPCLIENT_HPP
