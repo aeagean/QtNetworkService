@@ -670,16 +670,18 @@ HttpRequest &HttpRequest::bodyWithFormUrlencoded(const QVariantMap &keyValueMap)
         m_formUrlencodedMap[each.first] = each.second;
     }
 
-    QUrl url;
-    QUrlQuery urlQuery(url);
+    QString value;
     QMapIterator<QString, QVariant> i(m_formUrlencodedMap);
     while (i.hasNext()) {
         i.next();
-        urlQuery.addQueryItem(i.key(), i.value().toString());
-    }
 
-    url.setQuery(urlQuery);
-    const QString &value = url.toString(QUrl::FullyEncoded).toUtf8().remove(0, 1);
+        value += QString("%1=%2")
+                .arg(QUrl::toPercentEncoding(i.key()).data())
+                .arg(QUrl::toPercentEncoding(i.value().toString()).data());
+        if (i.hasNext()) {
+            value += "&";
+        }
+    }
 
     m_body = qMakePair(X_Www_Form_Urlencoded, value);
     m_request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
@@ -1494,7 +1496,7 @@ QString HttpResponse::toString() const
 
 void HttpResponse::onFinished()
 {
-    QNetworkReply *reply = m_httpRequest.m_reply; 
+    QNetworkReply *reply = m_httpRequest.m_reply;
     if (reply->error() != QNetworkReply::NoError) {
         return;
     }
