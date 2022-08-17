@@ -1341,8 +1341,8 @@ void HttpResponse::setHttpRequest(const HttpRequest &httpRequest)
         connect(reply, SIGNAL(uploadProgress(qint64, qint64)),     this, SLOT(onUploadProgress(qint64, qint64)));
 
         connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadOnceReplyHeader()));
-        connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadyRead()));
         connect(reply, SIGNAL(readyRead()),                        this, SLOT(onHandleHead()));
+        connect(reply, SIGNAL(readyRead()),                        this, SLOT(onReadyRead()));
 
         connect(reply, SIGNAL(encrypted()),                        this, SLOT(onEncrypted()));
         connect(reply, SIGNAL(metaDataChanged()),                  this, SLOT(onMetaDataChanged()));
