@@ -155,6 +155,7 @@ public:
     inline HttpRequest &onSuccess(const QObject *receiver, const char *method);
     inline HttpRequest &onSuccess(std::function<void (QNetworkReply*)> lambda);
     inline HttpRequest &onSuccess(std::function<void (QVariantMap)> lambda);
+    inline HttpRequest &onSuccess(std::function<void (QJsonObject)> lambda);
     inline HttpRequest &onSuccess(std::function<void (QByteArray)> lambda);
     inline HttpRequest &onSuccess(std::function<void ()> lambda);
 
@@ -162,6 +163,7 @@ public:
     inline HttpRequest &onFinished(const QObject *receiver, const char *method);
     inline HttpRequest &onFinished(std::function<void (QNetworkReply*)> lambda);
     inline HttpRequest &onFinished(std::function<void (QVariantMap)> lambda);
+    inline HttpRequest &onFinished(std::function<void (QJsonObject)> lambda);
     inline HttpRequest &onFinished(std::function<void (QByteArray)> lambda);
     inline HttpRequest &onFinished(std::function<void ()> lambda);
 
@@ -342,6 +344,7 @@ signals:
     void finished();
     void finished(QByteArray result);
     void finished(QVariantMap resultMap);
+    void finished(QJsonObject resultJsonObject);
 
     void downloadProgress(qint64, qint64);
     void uploadProgress(qint64, qint64);
@@ -877,12 +880,14 @@ HttpRequest &HttpRequest::logLevel(HttpRequest::LogLevel level) { m_logLevel = l
 HttpRequest &HttpRequest::onFinished(const QObject *receiver, const char  *method) { return onResponse(h_onFinished, receiver, method); }
 HttpRequest &HttpRequest::onFinished(std::function<void (QNetworkReply *)> lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
 HttpRequest &HttpRequest::onFinished(std::function<void (QVariantMap)>     lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
+HttpRequest &HttpRequest::onFinished(std::function<void (QJsonObject)>     lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
 HttpRequest &HttpRequest::onFinished(std::function<void (QByteArray)>      lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
 HttpRequest &HttpRequest::onFinished(std::function<void ()>                lambda) { return onResponse(h_onFinished, QVariant::fromValue(lambda)); }
 
 HttpRequest &HttpRequest::onSuccess(const QObject *receiver, const char  *method) { return onFinished(receiver, method); }
 HttpRequest &HttpRequest::onSuccess(std::function<void (QNetworkReply *)> lambda) { return onFinished(lambda); }
 HttpRequest &HttpRequest::onSuccess(std::function<void (QVariantMap)>     lambda) { return onFinished(lambda); }
+HttpRequest &HttpRequest::onSuccess(std::function<void (QJsonObject)>     lambda) { return onFinished(lambda); }
 HttpRequest &HttpRequest::onSuccess(std::function<void (QByteArray)>      lambda) { return onFinished(lambda); }
 HttpRequest &HttpRequest::onSuccess(std::function<void ()>                lambda) { return onFinished(lambda); }
 
@@ -1372,6 +1377,7 @@ void HttpResponse::setHttpRequest(const HttpRequest &httpRequest)
                     ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, void);
                     ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QByteArray);
                     ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QVariantMap);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QJsonObject);
                     ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QNetworkReply*);
                 }
                 else if (key == HttpRequest::h_onDownloadProgress) {
@@ -1527,14 +1533,19 @@ void HttpResponse::onFinished()
 
     if (this->receivers(SIGNAL(finished())) > 0 ||
         this->receivers(SIGNAL(finished(QByteArray))) > 0 ||
-        this->receivers(SIGNAL(finished(QVariantMap))) > 0)
+        this->receivers(SIGNAL(finished(QVariantMap))) > 0 ||
+        this->receivers(SIGNAL(finished(QJsonObject))) > 0
+        )
     {
         QByteArray result = reply->readAll();
         emit finished();
 
         emit finished(result);
 
-        QVariantMap resultMap = QJsonDocument::fromJson(result).object().toVariantMap();
+        QJsonObject json = QJsonDocument::fromJson(result).object();
+        emit finished(json);
+
+        QVariantMap resultMap = json.toVariantMap();
         emit finished(resultMap);
     }
 
@@ -1927,6 +1938,7 @@ HTTPRESPONSE_DECLARE_METATYPE(void)
 HTTPRESPONSE_DECLARE_METATYPE(QByteArray)
 HTTPRESPONSE_DECLARE_METATYPE(QString)
 HTTPRESPONSE_DECLARE_METATYPE(QVariantMap)
+HTTPRESPONSE_DECLARE_METATYPE(QJsonObject)
 HTTPRESPONSE_DECLARE_METATYPE(QNetworkReply*)
 HTTPRESPONSE_DECLARE_METATYPE(qint64, qint64)
 HTTPRESPONSE_DECLARE_METATYPE(QNetworkReply::NetworkError)
