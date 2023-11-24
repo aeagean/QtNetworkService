@@ -1263,7 +1263,7 @@ HttpClient::HttpClient(QObject *parent) : QNetworkAccessManager(parent)
 
 QString HttpClient::getVersion() const
 {
-    return "1.1.0";
+    return "1.1.1";
 }
 
 HttpRequest HttpClient::head(const QString &url)
