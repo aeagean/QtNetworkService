@@ -1463,15 +1463,15 @@ void HttpResponse::setHttpRequest(const HttpRequest &httpRequest)
         }
     }
 
-    if (reply && httpRequest.m_isBlock) {
-        new HttpBlocker(reply, httpRequest.m_isBlock);
-    }
-
     HttpRequest oldRequest = m_httpRequest;
     m_httpRequest = httpRequest;
 
     if (oldRequest.m_reply != httpRequest.m_reply) {
         emit replyChanged(httpRequest.m_reply);
+    }
+
+    if (reply && httpRequest.m_isBlock) {
+        new HttpBlocker(reply, httpRequest.m_isBlock);
     }
 }
 
