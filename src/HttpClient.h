@@ -343,6 +343,7 @@ signals:
     void finished(QNetworkReply *reply);
     void finished();
     void finished(QByteArray result);
+    void finished(QString result);
     void finished(QVariantMap resultMap);
     void finished(QJsonObject resultJsonObject);
 
@@ -350,6 +351,7 @@ signals:
     void uploadProgress(qint64, qint64);
 
     void error(QByteArray error);
+    void error(QString error);
     void error();
     void error(QNetworkReply::NetworkError error);
     void error(QNetworkReply *reply);
@@ -533,6 +535,7 @@ private slots:
                     emit response->downloadFileFinished(m_httpRequest.m_downloader.fileName);
 
                     emit response->finished();
+                    emit response->finished(QString(""));
                     emit response->finished(QByteArray(""));
                     emit response->finished(QVariantMap{});
                     emit response->finished(nullptr);
@@ -1386,6 +1389,7 @@ void HttpResponse::setHttpRequest(const HttpRequest &httpRequest)
                 if (key == HttpRequest::h_onFinished) {
                     ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, void);
                     ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QByteArray);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QString);
                     ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QVariantMap);
                     ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QJsonObject);
                     ret += HTTP_RESPONSE_CONNECT_X(this, finished, lambdaString, lambda, QNetworkReply*);
@@ -1399,6 +1403,7 @@ void HttpResponse::setHttpRequest(const HttpRequest &httpRequest)
                 else if (key == HttpRequest::h_onError) {
                     ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, void);
                     ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QByteArray);
+                    ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QString);
                     ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QNetworkReply*);
                     ret += HTTP_RESPONSE_CONNECT_X(this, error, lambdaString, lambda, QNetworkReply::NetworkError);
                 }
@@ -1543,6 +1548,7 @@ void HttpResponse::onFinished()
 
     if (this->receivers(SIGNAL(finished())) > 0 ||
         this->receivers(SIGNAL(finished(QByteArray))) > 0 ||
+        this->receivers(SIGNAL(finished(QString))) > 0 ||
         this->receivers(SIGNAL(finished(QVariantMap))) > 0 ||
         this->receivers(SIGNAL(finished(QJsonObject))) > 0
         )
@@ -1551,6 +1557,8 @@ void HttpResponse::onFinished()
         emit finished();
 
         emit finished(result);
+
+        emit finished(QString(result));
 
         QJsonObject json = QJsonDocument::fromJson(result).object();
         emit finished(json);
@@ -1616,6 +1624,7 @@ void HttpResponse::onError(QNetworkReply::NetworkError error)
 
     emit this->error();
     emit this->error(error);
+    emit this->error(errorString);
     emit this->error(errorString.toLocal8Bit());
 
     if (--m_httpRequest.m_repeatCount > 0) {
