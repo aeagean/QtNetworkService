@@ -449,7 +449,11 @@ public:
         client.get(m_httpRequest.m_request.url().toString())
               .timeout(30)
               .block(m_httpRequest.m_isBlock)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+              .attribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy) // Qt 6
+#else
               .attribute(QNetworkRequest::FollowRedirectsAttribute, true)
+#endif
               .onHead(this, SLOT(onHead(QList<QNetworkReply::RawHeaderPair>)))
               .onHead(this, SLOT(onHead(QMap<QString,QString>)))
               .onReadyRead(this, SLOT(onReadyRead(QNetworkReply*)))
@@ -482,9 +486,10 @@ private slots:
             if (key.contains("Content-Disposition", Qt::CaseInsensitive)) {
                 QString dispositionHeader = value;
                 // fixme rx
-                QRegExp rx("attachment;\\s*filename=([\\S]+)");
-                if (rx.exactMatch(dispositionHeader)) {
-                    m_fileName = rx.cap(1);
+                QRegularExpression rx("attachment;\\s*filename=([\\S]+)");
+                QRegularExpressionMatch match = rx.match(dispositionHeader);
+                if (match.hasMatch()) {
+                    m_fileName = match.captured(1);
                 }
             }
 
@@ -1340,7 +1345,11 @@ void HttpResponse::setHttpRequest(const HttpRequest &httpRequest)
     if (reply) {
         connect(reply, SIGNAL(finished()),                         this, SLOT(onFinished()));
         connect(reply, SIGNAL(finished()),                         this, SLOT(onHandleHead()));
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+        connect(reply, SIGNAL(errorOccurred(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
+#else
         connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onError(QNetworkReply::NetworkError)));
+#endif
 
         connect(reply, SIGNAL(downloadProgress(qint64, qint64)),   this, SLOT(onDownloadProgress(qint64, qint64)));
         connect(reply, SIGNAL(uploadProgress(qint64, qint64)),     this, SLOT(onUploadProgress(qint64, qint64)));
@@ -1818,7 +1827,7 @@ inline QString networkHeader2String(const QNetworkRequest &request)
         return "null";
     }
 
-    if (headerString.at(headerString.count()-1) == "\n") {
+    if (headerString.at(headerString.count()-1) == '\n') {
         headerString.chop(1);
     }
 
@@ -1837,7 +1846,7 @@ inline QString networkReplyHeader2String(const QNetworkReply *reply)
         return "null";
     }
 
-    if (headerString.at(headerString.count()-1) == "\n") {
+    if (headerString.at(headerString.count()-1) == '\n') {
         headerString.chop(1);
     }
 
@@ -1910,7 +1919,7 @@ inline QString networkBody2String(const QPair<HttpRequest::BodyType, QVariant> &
     bodyDataString = lineIndent(bodyDataString, "=>    ");
 
     QString bodyString = bodyTypeString + bodyDataString;
-    if (bodyString.at(bodyString.count()-1) == "\n") {
+    if (bodyString.at(bodyString.count()-1) == '\n') {
         bodyString.chop(1);
     }
 
