@@ -445,6 +445,7 @@ public:
 
     HttpResponse *exec()
     {
+        // todo: fixme
         HttpClient &client = *HttpClient::instance();
         client.get(m_httpRequest.m_request.url().toString())
               .timeout(30)
@@ -1644,7 +1645,7 @@ void HttpResponse::onUploadProgress(qint64 bytesSent, qint64 bytesTotal)
 void HttpResponse::onTimeout()
 {
     QNetworkReply *reply = m_httpRequest.m_reply;
-    if (reply->isRunning()) {
+    if (reply && reply->isRunning()) {
         reply->abort();
 
         bool isAutoDelete = true;

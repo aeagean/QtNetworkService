@@ -104,7 +104,7 @@ public:
         // [6]
 
         // [7] readyRead测试
-        client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
+        client.get("https://github.com/aeagean/QtNetworkService/archive/refs/heads/master.zip")
               .onReadyRead([](QNetworkReply *reply) { qDebug()<< "readyRead: "<<reply->readAll().size(); })
               .onSuccess([](QString result) { qDebug()<<"result: success"<<result; })
               .onFailed([](QString error) { qDebug()<<"error: "<<error; })
@@ -151,7 +151,7 @@ public:
         // [9]
 
         // [10] 下载文件
-        client.get("https://hub.fastgit.org/aeagean/QtNetworkService/archive/refs/heads/master.zip")
+        client.get("https://github.com/aeagean/QtNetworkService/archive/refs/heads/master.zip")
               .download()
               .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
                   qDebug() << "bytes received: " << bytesReceived
@@ -353,9 +353,9 @@ void testHttpMultiPart()
     };
     HttpClient &client = *HttpClient::instance();
     client.post("http://httpbin.org/post")
-//            .header("content-type", contentType)
-//            .body(multiPart)
-            .body(">>>>>>>>>>>>>>>>>")
+            .header("content-type", contentType)
+            .body(multiPart)
+//            .body(">>>>>>>>>>>>>>>>>")
 //            .bodyWithFile("1", "232")
 //            .bodyWithFile("2", "232")
 //            .logLevel(HttpRequest::Off)
@@ -365,7 +365,7 @@ void testHttpMultiPart()
     .exec();
 }
 
-#include "main.moc"
+//#include "main.moc"
 
 int main(int argc, char *argv[])
 {
@@ -375,11 +375,35 @@ int main(int argc, char *argv[])
     Object object;
     object.exec();
 #else
+    HttpClient client;
+        client.get("https://github.com/aeagean/QtNetworkService/archive/refs/heads/master.zip")
+              .download()
+              .onDownloadProgress([](qint64 bytesReceived, qint64 bytesTotal) {
+                  qDebug() << "bytes received: " << bytesReceived
+                           << "bytes total: " << bytesTotal;
+               })
+              .onDownloadFileSuccess([](QString fileName) { qDebug()<<"download success: "<<fileName; })
+              .onDownloadFileFailed([](QString error) { qDebug()<<"download failed: "<<error; })
+              .onFailed([](QString err){ qDebug() << "err:" << err;})
+              .timeoutMs(1000)
+              .exec();
 
-//    qDebug().noquote() << lineIndent("12341234\n22323\n233", ">>>>");
-    qDebug() << "start...";
-    testHttpMultiPart();
-    qDebug() << "end...";
+//        client.get("http://mirrors.tuna.tsinghua.edu.cn/qt/archive/qt/6.0/6.0.3/single/qt-everywhere-src-6.0.3.tar.xz")
+//              .download() // 启用自动设置文件名字 => qt-everywhere-src-6.0.3.tar.xz
+//              .enabledBreakpointDownload() // 启用断点续传下载
+//              .onDownloadFileProgress([](qint64 recv, qint64 total) {
+//                    qDebug() << (100 * qreal(recv)/total) << "%";
+//               })
+//              .onDownloadFileSuccess([](QString fileName) {
+//                    qDebug() << "download completed: " << fileName;
+//               })
+//              .onSuccess([](QString result) {
+//                    qDebug() << "success: " << result;
+//               })
+//              .onFailed([](QString err) {
+//                    qDebug() << "failed: " << err;
+//               })
+//              .exec();
 #endif
 
     return a.exec();
