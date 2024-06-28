@@ -50,7 +50,7 @@ class HttpClient : public QNetworkAccessManager
 public:
     inline static HttpClient *instance();
     inline HttpClient(QObject *parent = nullptr);
-    inline QString getVersion() const;
+    inline QString getVersion() {return "1.1.2";}
 
     inline HttpRequest head(const QString &url);
     inline HttpRequest get(const QString &url);
@@ -578,12 +578,13 @@ class HttpBlocker : public QEventLoop
 {
     Q_OBJECT
 public:
-    HttpBlocker(QNetworkReply *reply, bool isBlock) : QEventLoop(reply)
+    HttpBlocker(QNetworkReply *reply) : QEventLoop(nullptr)
     {
-        if (isBlock) {
+        if (reply) {
             connect(reply, SIGNAL(finished()), this, SLOT(quit()));
             this->exec();
         }
+        this->deleteLater();
     }
 };
 
@@ -1091,6 +1092,9 @@ HttpResponse *HttpRequest::exec(const HttpRequest &_httpRequest, HttpResponse *h
         return nullptr;
     }
 
+    static int count = 0;
+    httpRequest.m_reply->setProperty("count", count++);
+
     // fixme
     if (!httpRequest.m_ignoreSslErrors.isEmpty()) {
         httpRequest.m_reply->ignoreSslErrors(httpRequest.m_ignoreSslErrors);
@@ -1268,11 +1272,6 @@ HttpClient *HttpClient::instance()
 
 HttpClient::HttpClient(QObject *parent) : QNetworkAccessManager(parent)
 {
-}
-
-QString HttpClient::getVersion() const
-{
-    return "1.1.1";
 }
 
 HttpRequest HttpClient::head(const QString &url)
@@ -1478,15 +1477,15 @@ void HttpResponse::setHttpRequest(const HttpRequest &httpRequest)
         }
     }
 
-    if (reply && httpRequest.m_isBlock) {
-        new HttpBlocker(reply, httpRequest.m_isBlock);
-    }
-
-    HttpRequest oldRequest = m_httpRequest;
+    const HttpRequest &oldRequest = m_httpRequest;
     m_httpRequest = httpRequest;
 
     if (oldRequest.m_reply != httpRequest.m_reply) {
         emit replyChanged(httpRequest.m_reply);
+    }
+
+    if (reply && httpRequest.m_isBlock) {
+        new HttpBlocker(reply);
     }
 }
 
