@@ -1938,12 +1938,12 @@ inline QString networkBody2String(const QPair<HttpRequest::BodyType, QVariant> &
 inline QString networkOperation2String(QNetworkAccessManager::Operation o)
 {
     static QMap<QNetworkAccessManager::Operation, QByteArray> verbMap =
-    {
-        {QNetworkAccessManager::HeadOperation, "HEAD"},
-        {QNetworkAccessManager::GetOperation,  "GET"},
-        {QNetworkAccessManager::PostOperation, "POST"},
-        {QNetworkAccessManager::PutOperation,  "PUT"},
-    };
+    QMap<QNetworkAccessManager::Operation, QByteArray>({
+       {QNetworkAccessManager::HeadOperation, "HEAD"},
+       {QNetworkAccessManager::GetOperation,  "GET"},
+       {QNetworkAccessManager::PostOperation, "POST"},
+       {QNetworkAccessManager::PutOperation,  "PUT"},
+   });
 
     return verbMap.value(o, "");
 }
